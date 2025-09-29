@@ -1,6 +1,4 @@
 # python -m streamlit run ".\Lambda Pro desarrollo.py"
-
-
  
 import streamlit as st
 import pandas as pd
@@ -9,7 +7,6 @@ import plotly.graph_objects as go
 import uuid, json
 from datetime import datetime, date
 
- 
 # ------------------ CONSTANTS (one source of truth) ------------------
 Tab_Dimensionado  = "Dimensionado"
 Tab_Alternativas = "Alternativas"
@@ -623,7 +620,7 @@ if Tab_Prioridades in tab_map:
             st.markdown("---")
         
         st.subheader("Prioridades")
-        st.markdown("¿Qué prioridades se derivan del objetivo?")
+        # st.markdown("¿Qué prioridades se derivan del objetivo?")
 
         
         # Display existing priorities with sorting controls
@@ -953,132 +950,130 @@ if Tab_Eval in tab_map:
 
         # --- Guards: need alternativas & prioridades ---
         alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
+        prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
+        
         if not alt_names:
             st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para poder evaluar.")
-            st.stop()
-
-        prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
-        if not prioridad_names:
+        elif not prioridad_names:
             st.info("Añade al menos una **Prioridad** en la pestaña *Prioridades* para usar como criterios.")
-            st.stop()
+        else:
+            # --- Helper: default weights from PRIORIDADES ORDER (editable later) ---
+            def default_weights_from_order(names: list[str]) -> list[float]:
+                n = len(names)
+                raw = list(range(n, 0, -1))  # n, n-1, ..., 1
+                s = sum(raw)
+                return [v / s for v in raw]
 
-        # --- Helper: default weights from PRIORIDADES ORDER (editable later) ---
-        def default_weights_from_order(names: list[str]) -> list[float]:
-            n = len(names)
-            raw = list(range(n, 0, -1))  # n, n-1, ..., 1
-            s = sum(raw)
-            return [v / s for v in raw]
+            # --- Sync criteria from Prioridades; set default weights if changed/empty ---
+            current_criteria = st.session_state.get("mcda_criteria", [])
+            current_names = [c.get("name", "").strip() for c in current_criteria]
 
-        # --- Sync criteria from Prioridades; set default weights if changed/empty ---
-        current_criteria = st.session_state.get("mcda_criteria", [])
-        current_names = [c.get("name", "").strip() for c in current_criteria]
+            if (not current_criteria) or (current_names != prioridad_names):
+                auto_w = default_weights_from_order(prioridad_names)
+                st.session_state["mcda_criteria"] = [{"name": n, "weight": float(w)} for n, w in zip(prioridad_names, auto_w)]
 
-        if (not current_criteria) or (current_names != prioridad_names):
-            auto_w = default_weights_from_order(prioridad_names)
-            st.session_state["mcda_criteria"] = [{"name": n, "weight": float(w)} for n, w in zip(prioridad_names, auto_w)]
+            st.markdown("**Criterios y pesos** (cargados de *Prioridades* por orden; editables)")
+            crit_df = pd.DataFrame(st.session_state.mcda_criteria)
 
-        st.markdown("**Criterios y pesos** (cargados de *Prioridades* por orden; editables)")
-        crit_df = pd.DataFrame(st.session_state.mcda_criteria)
-
-        # Editor (names fixed; weights editable)
-        crit_df = st.data_editor(
-            crit_df,
-            num_rows="fixed",
-            column_config={
-                "name": st.column_config.TextColumn("Criterio", disabled=True),
-                "weight": st.column_config.NumberColumn("Peso (≥ 0)", min_value=0.0, step=0.05,
-                    help="Pesos normalizados automáticamente para el cálculo"),
-            },
-            key="mcda_criteria_editor",
-            use_container_width=True,
-        )
-        crit_df["name"] = crit_df["name"].astype(str).str.strip()
-        st.session_state.mcda_criteria = crit_df.to_dict("records")
-        crit_names = list(crit_df["name"])
-
-        # --- Scores with select sliders (0..5 step 0.5), persisted in session ---
-        st.markdown("**Puntuaciones (0–5)**")
-        score_steps = [x / 2 for x in range(0, 11)]
-        
-        # ✅ Use setdefault for direct access like Scenario Planning
-        current_scores = st.session_state.setdefault("mcda_scores", {})
-        
-        for alt in alt_names:
-            st.markdown(f"**{alt}**")
-            # ✅ Ensure alt exists in current_scores
-            current_scores.setdefault(alt, {})
-            
-            for i in range(0, len(crit_names), 3):
-                cols = st.columns(min(3, len(crit_names) - i))
-                for j, c in enumerate(crit_names[i:i+3]):
-                    with cols[j]:
-                        key = f"score_{alt}_{c}"
-                        # ✅ Direct access with fallback, similar to Scenario Planning
-                        default_val = current_scores.get(alt, {}).get(c, 0.0)
-                        new_val = st.select_slider(
-                            c, 
-                            options=score_steps, 
-                            value=st.session_state.get(key, default_val),  # ✅ Use widget key for value
-                            key=key
-                        )
-                        # ✅ Update in place
-                        current_scores[alt][c] = float(new_val)
-            st.markdown("")
-
-        # DataFrame (aligned to displayed order)
-        scores_df = pd.DataFrame(current_scores).T.reindex(index=alt_names, columns=crit_names, fill_value=0.0)
-        st.session_state["mcda_scores_df"] = scores_df
-
-        # --- Compute weighted totals & ranking via PURE helper ---
-        totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.get("mcda_criteria", []))
-        ranking = totals.sort_values(ascending=False).rename("Puntuación ponderada")
-        result_df = pd.concat([scores_df, ranking], axis=1).loc[ranking.index]
-
-        st.markdown("**Resultado y ranking**")
-        st.dataframe(result_df.style.format(precision=2), use_container_width=True)
-
-        # --- Bar chart (ranking) ---
-        fig_rank = go.Figure()
-        fig_rank.add_bar(
-            x=ranking.index.tolist(),
-            y=ranking.values.tolist(),
-            text=[f"{v:.2f}" for v in ranking.values],
-            textposition="auto",
-            name="Puntuación"
-        )
-        fig_rank.update_layout(
-            margin=dict(l=20, r=20, t=20, b=20),
-            xaxis_title="Alternativa",
-            yaxis_title="Puntuación ponderada (0–5)",
-            height=320,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_rank, use_container_width=True)
-
-        # --- Radar (only if > 2 criterios) ---
-        if len(crit_names) > 2:
-            st.markdown("**Radar de puntuaciones por criterio**")
-            theta = crit_names + [crit_names[0]]  # close loop
-            fig_radar = go.Figure()
-            for alt in alt_names:
-                r_vals = scores_df.loc[alt, crit_names].tolist()
-                r_vals.append(r_vals[0])
-                fig_radar.add_trace(go.Scatterpolar(
-                    r=r_vals,
-                    theta=theta,
-                    mode="lines+markers",
-                    fill="toself",
-                    name=alt
-                ))
-            fig_radar.update_layout(
-                polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
-                showlegend=True,
-                height=420,
-                margin=dict(l=20, r=20, t=20, b=20),
+            # Editor (names fixed; weights editable)
+            crit_df = st.data_editor(
+                crit_df,
+                num_rows="fixed",
+                column_config={
+                    "name": st.column_config.TextColumn("Criterio", disabled=True),
+                    "weight": st.column_config.NumberColumn("Peso (≥ 0)", min_value=0.0, step=0.05,
+                        help="Pesos normalizados automáticamente para el cálculo"),
+                },
+                key="mcda_criteria_editor",
+                use_container_width=True,
             )
-            st.plotly_chart(fig_radar, use_container_width=True)
+            crit_df["name"] = crit_df["name"].astype(str).str.strip()
+            st.session_state.mcda_criteria = crit_df.to_dict("records")
+            crit_names = list(crit_df["name"])
 
-        st.caption("Los pesos se normalizan automáticamente. La puntuación total = Σ(puntuación × peso).")
+            # --- Scores with select sliders (0..5 step 0.5), persisted in session ---
+            st.markdown("**Puntuaciones (0–5)**")
+            score_steps = [x / 2 for x in range(0, 11)]
+            
+            # ✅ Use setdefault for direct access like Scenario Planning
+            current_scores = st.session_state.setdefault("mcda_scores", {})
+            
+            for alt in alt_names:
+                st.markdown(f"**{alt}**")
+                # ✅ Ensure alt exists in current_scores
+                current_scores.setdefault(alt, {})
+                
+                for i in range(0, len(crit_names), 3):
+                    cols = st.columns(min(3, len(crit_names) - i))
+                    for j, c in enumerate(crit_names[i:i+3]):
+                        with cols[j]:
+                            key = f"score_{alt}_{c}"
+                            # ✅ Direct access with fallback, similar to Scenario Planning
+                            default_val = current_scores.get(alt, {}).get(c, 0.0)
+                            new_val = st.select_slider(
+                                c, 
+                                options=score_steps, 
+                                value=st.session_state.get(key, default_val),  # ✅ Use widget key for value
+                                key=key
+                            )
+                            # ✅ Update in place
+                            current_scores[alt][c] = float(new_val)
+                st.markdown("")
+
+            # DataFrame (aligned to displayed order)
+            scores_df = pd.DataFrame(current_scores).T.reindex(index=alt_names, columns=crit_names, fill_value=0.0)
+            st.session_state["mcda_scores_df"] = scores_df
+
+            # --- Compute weighted totals & ranking via PURE helper ---
+            totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.get("mcda_criteria", []))
+            ranking = totals.sort_values(ascending=False).rename("Puntuación ponderada")
+            result_df = pd.concat([scores_df, ranking], axis=1).loc[ranking.index]
+
+            st.markdown("**Resultado y ranking**")
+            st.dataframe(result_df.style.format(precision=2), use_container_width=True)
+
+            # --- Bar chart (ranking) ---
+            fig_rank = go.Figure()
+            fig_rank.add_bar(
+                x=ranking.index.tolist(),
+                y=ranking.values.tolist(),
+                text=[f"{v:.2f}" for v in ranking.values],
+                textposition="auto",
+                name="Puntuación"
+            )
+            fig_rank.update_layout(
+                margin=dict(l=20, r=20, t=20, b=20),
+                xaxis_title="Alternativa",
+                yaxis_title="Puntuación ponderada (0–5)",
+                height=320,
+                showlegend=False,
+            )
+            st.plotly_chart(fig_rank, use_container_width=True)
+
+            # --- Radar (only if > 2 criterios) ---
+            if len(crit_names) > 2:
+                st.markdown("**Radar de puntuaciones por criterio**")
+                theta = crit_names + [crit_names[0]]  # close loop
+                fig_radar = go.Figure()
+                for alt in alt_names:
+                    r_vals = scores_df.loc[alt, crit_names].tolist()
+                    r_vals.append(r_vals[0])
+                    fig_radar.add_trace(go.Scatterpolar(
+                        r=r_vals,
+                        theta=theta,
+                        mode="lines+markers",
+                        fill="toself",
+                        name=alt
+                    ))
+                fig_radar.update_layout(
+                    polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+                    showlegend=True,
+                    height=420,
+                    margin=dict(l=20, r=20, t=20, b=20),
+                )
+                st.plotly_chart(fig_radar, use_container_width=True)
+
+            st.caption("Los pesos se normalizan automáticamente. La puntuación total = Σ(puntuación × peso).")
 
 # ------------------ TAB: Scenario planning ------------------
 if Tab_Scenarios in tab_map:
@@ -1089,150 +1084,149 @@ if Tab_Scenarios in tab_map:
         alts = [a for a in st.session_state.alts if a["text"].strip()]
         if not alts:
             st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para proyectar escenarios.")
-            st.stop()
+        else:
+            prob_steps = list(range(0, 101, 5))  # 0,5,...,100
 
-        prob_steps = list(range(0, 101, 5))  # 0,5,...,100
+            # ✅ Use existing state IN PLACE (no wholesale reassignment)
+            current = st.session_state.setdefault("scenarios", {})
 
-        # ✅ Use existing state IN PLACE (no wholesale reassignment)
-        current = st.session_state.setdefault("scenarios", {})
+            for alt in alts:
+                alt_id, alt_name = alt["id"], alt["text"].strip()
+                prev = current.get(alt_id, {
+                    "name": alt_name, "best_desc": "", "best_score": 7.0,
+                    "worst_desc": "", "worst_score": 2.0, "p_best": 0.5, "p_best_pct": 50,
+                })
 
-        for alt in alts:
-            alt_id, alt_name = alt["id"], alt["text"].strip()
-            prev = current.get(alt_id, {
-                "name": alt_name, "best_desc": "", "best_score": 7.0,
-                "worst_desc": "", "worst_score": 2.0, "p_best": 0.5, "p_best_pct": 50,
-            })
+                with st.expander(f"⚙️ {alt_name}", expanded=False, ):
+                    # --- Probabilidad (stable key + default from session) ---
+                    p_key = f"pbest_{alt_id}"
+                    # Row 1: Worst → Probabilidad → Best
+                    c1, c2, c3 = st.columns([1.8, 1.2, 1.8])
+                    with c1:
+                        st.markdown("**Worst scenario**")
+                        worst_desc = st.text_input(
+                            "Descripción (worst)",
+                            value=prev.get("worst_desc", ""),
+                            key=f"worst_desc_{alt_id}",
+                            label_visibility="collapsed",
+                            placeholder="¿Qué pasa si sale mal?"
+                        )
+                    with c2:
+                        st.markdown("######")
+                        default_pct = int(round(float(prev.get("p_best", 0.5)) * 100))
+                        default_pct = max(0, min(100, 5 * round(default_pct / 5)))
+                        p_best_pct = st.select_slider(
+                            "Probabilidad de **best**",
+                            options=prob_steps,
+                            value=st.session_state.get(p_key, prev.get("p_best_pct", default_pct)),  # ✅
+                            key=p_key,
+                            label_visibility="collapsed"
+                        )
+                        p_best = p_best_pct / 100.0
+                        
+                    with c3:
+                        st.markdown("**Best scenario**")
+                        best_desc = st.text_input(
+                            "Descripción (best)",
+                            value=prev.get("best_desc", ""),
+                            key=f"best_desc_{alt_id}",
+                            label_visibility="collapsed",
+                            placeholder="¿Qué pasa si todo va muy bien?"
+                        )
 
-            with st.expander(f"⚙️ {alt_name}", expanded=False, ):
-                # --- Probabilidad (stable key + default from session) ---
-                p_key = f"pbest_{alt_id}"
-                # Row 1: Worst → Probabilidad → Best
-                c1, c2, c3 = st.columns([1.8, 1.2, 1.8])
-                with c1:
-                    st.markdown("**Worst scenario**")
-                    worst_desc = st.text_input(
-                        "Descripción (worst)",
-                        value=prev.get("worst_desc", ""),
-                        key=f"worst_desc_{alt_id}",
-                        label_visibility="collapsed",
-                        placeholder="¿Qué pasa si sale mal?"
+                    # Row 2: Single range slider for Impacto (0–10)
+                    rng_key = f"impact_range_{alt_id}"
+                    default_rng = (
+                        int(min(float(prev.get("worst_score", 2.0)), 10)),
+                        int(min(float(prev.get("best_score", 7.0)), 10))
                     )
-                with c2:
-                    st.markdown("######")
-                    default_pct = int(round(float(prev.get("p_best", 0.5)) * 100))
-                    default_pct = max(0, min(100, 5 * round(default_pct / 5)))
-                    p_best_pct = st.select_slider(
-                        "Probabilidad de **best**",
-                        options=prob_steps,
-                        value=st.session_state.get(p_key, prev.get("p_best_pct", default_pct)),  # ✅
-                        key=p_key,
-                        label_visibility="collapsed"
+                    st.markdown("")
+                    worst_best = st.slider(
+                        "Impacto (0–10): mínimo = worst, máximo = best",
+                        min_value=0, max_value=10, step=1,
+                        value=st.session_state.get(rng_key, default_rng),  # ✅
+                        key=rng_key
                     )
-                    p_best = p_best_pct / 100.0
-                    
-                with c3:
-                    st.markdown("**Best scenario**")
-                    best_desc = st.text_input(
-                        "Descripción (best)",
-                        value=prev.get("best_desc", ""),
-                        key=f"best_desc_{alt_id}",
-                        label_visibility="collapsed",
-                        placeholder="¿Qué pasa si todo va muy bien?"
-                    )
+                    worst_score, best_score = map(float, worst_best)
 
-                # Row 2: Single range slider for Impacto (0–10)
-                rng_key = f"impact_range_{alt_id}"
-                default_rng = (
-                    int(min(float(prev.get("worst_score", 2.0)), 10)),
-                    int(min(float(prev.get("best_score", 7.0)), 10))
-                )
-                st.markdown("")
-                worst_best = st.slider(
-                    "Impacto (0–10): mínimo = worst, máximo = best",
-                    min_value=0, max_value=10, step=1,
-                    value=st.session_state.get(rng_key, default_rng),  # ✅
-                    key=rng_key
-                )
-                worst_score, best_score = map(float, worst_best)
+                    ev = p_best * best_score + (1 - p_best) * worst_score
+                    # st.metric("Valor esperado (0–10)", f"{ev:.2f}")
 
-                ev = p_best * best_score + (1 - p_best) * worst_score
-                # st.metric("Valor esperado (0–10)", f"{ev:.2f}")
-
-            current[alt_id] = {
-                "name": alt_name,
-                "best_desc": best_desc, "best_score": best_score,
-                "worst_desc": worst_desc, "worst_score": worst_score,
-                "p_best": p_best, "p_best_pct": p_best_pct,
-            }
+                current[alt_id] = {
+                    "name": alt_name,
+                    "best_desc": best_desc, "best_score": best_score,
+                    "worst_desc": worst_desc, "worst_score": worst_score,
+                    "p_best": p_best, "p_best_pct": p_best_pct,
+                }
 
 
 
-        # ---- Summary DF (sorted by EV DESC) ----
-        import plotly.graph_objects as go
-        rows = []
-        for d in current.values():
-            ev = scenario_ev(d["p_best"], d["worst_score"], d["best_score"])  # <— PURE helper
-            rows.append({
-                "Alternativa": d["name"],
-                "Worst": int(d["worst_score"]),
-                "Best": int(d["best_score"]),
-                "EV": ev,
-                "Range": d["best_score"] - d["worst_score"],
-            })
-        scen_df = pd.DataFrame(rows).sort_values("EV", ascending=False)
+            # ---- Summary DF (sorted by EV DESC) ----
+            import plotly.graph_objects as go
+            rows = []
+            for d in current.values():
+                ev = scenario_ev(d["p_best"], d["worst_score"], d["best_score"])  # <— PURE helper
+                rows.append({
+                    "Alternativa": d["name"],
+                    "Worst": int(d["worst_score"]),
+                    "Best": int(d["best_score"]),
+                    "EV": ev,
+                    "Range": d["best_score"] - d["worst_score"],
+                })
+            scen_df = pd.DataFrame(rows).sort_values("EV", ascending=False)
 
-        # --- Range bars colored by EV; highest EV ON TOP ---
-        y_labels = scen_df["Alternativa"].tolist()
-        fig = go.Figure()
+            # --- Range bars colored by EV; highest EV ON TOP ---
+            y_labels = scen_df["Alternativa"].tolist()
+            fig = go.Figure()
 
-        fig.add_bar(
-            x=scen_df["Range"],
-            y=scen_df["Alternativa"],
-            base=scen_df["Worst"],
-            orientation="h",
-            marker=dict(
-                color=scen_df["EV"],
-                colorscale=[[0, "red"], [0.5, "yellow"], [1, "green"]],
-                cmin=0, cmax=10,
-                showscale=False,  # <-- removes color legend
-            ),
-            hovertemplate="Worst: %{base}<br>Best: %{base}+%{x}<extra></extra>",
-            name="Rango (Worst→Best)",
-        )
+            fig.add_bar(
+                x=scen_df["Range"],
+                y=scen_df["Alternativa"],
+                base=scen_df["Worst"],
+                orientation="h",
+                marker=dict(
+                    color=scen_df["EV"],
+                    colorscale=[[0, "red"], [0.5, "yellow"], [1, "green"]],
+                    cmin=0, cmax=10,
+                    showscale=False,  # <-- removes color legend
+                ),
+                hovertemplate="Worst: %{base}<br>Best: %{base}+%{x}<extra></extra>",
+                name="Rango (Worst→Best)",
+            )
 
-        fig.add_scatter(
-            x=scen_df["EV"],
-            y=scen_df["Alternativa"],
-            mode="markers",
-            marker=dict(size=10, symbol="diamond", color="black", line=dict(width=1)),
-            name="Valor esperado",
-            hovertemplate="EV: %{x:.2f}<extra></extra>",
-        )
+            fig.add_scatter(
+                x=scen_df["EV"],
+                y=scen_df["Alternativa"],
+                mode="markers",
+                marker=dict(size=10, symbol="diamond", color="black", line=dict(width=1)),
+                name="Valor esperado",
+                hovertemplate="EV: %{x:.2f}<extra></extra>",
+            )
 
-        per_item = 24
-        fig.update_layout(
-            xaxis=dict(title="Impacto (0–10)", range=[0, 10], zeroline=False),
-            yaxis=dict(
-                title="",
-                categoryorder="array",
-                categoryarray=y_labels,
-                autorange="reversed",   # <-- ensures highest EV at the TOP
+            per_item = 24
+            fig.update_layout(
+                xaxis=dict(title="Impacto (0–10)", range=[0, 10], zeroline=False),
+                yaxis=dict(
+                    title="",
+                    categoryorder="array",
+                    categoryarray=y_labels,
+                    autorange="reversed",   # <-- ensures highest EV at the TOP
 
-            ),
-            height=max(260, int(140 + per_item * len(y_labels))),
-            margin=dict(l=40, r=20, t=10, b=30),
-            showlegend=True,
-        )
-        st.plotly_chart(fig, use_container_width=True)
+                ),
+                height=max(260, int(140 + per_item * len(y_labels))),
+                margin=dict(l=40, r=20, t=10, b=30),
+                showlegend=True,
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Resumen at the bottom
-        st.markdown("**Resumen**")
-        st.dataframe(
-            scen_df[["Alternativa", "Worst", "Best", "EV"]].style.format({"EV": "{:.2f}"}),
-            use_container_width=True
-        )
+            # Resumen at the bottom
+            st.markdown("**Resumen**")
+            st.dataframe(
+                scen_df[["Alternativa", "Worst", "Best", "EV"]].style.format({"EV": "{:.2f}"}),
+                use_container_width=True
+            )
 
-        st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
+            st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
 
 
 # ------------------ TAB: Resultados ------------------
