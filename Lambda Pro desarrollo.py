@@ -1,4 +1,6 @@
 # python -m streamlit run ".\Lambda Pro desarrollo.py"
+
+
  
 import streamlit as st
 import pandas as pd
@@ -31,6 +33,15 @@ YMAX = max(IMPACT_MAP.values())  # 15
  
 # ------------------ HEADER ------------------
 # st.title("Flujo de Decisiones Corporativas")
+
+# Configure Streamlit page
+st.set_page_config(
+    page_title="Lambda Pro",
+    page_icon="⚡",
+    # layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 st.markdown('')
  
 st.text_area(
@@ -40,6 +51,235 @@ st.text_area(
     label_visibility="collapsed",
 )
 st.markdown('#')
+
+# ------------------ SIDEBAR IMPORT FUNCTIONALITY ------------------
+with st.sidebar:
+    st.markdown("### 📥 Importar Datos")
+    st.markdown("Restaura una sesión previa desde un archivo JSON exportado.")
+    
+    def validate_json_structure(data):
+        """Validate that JSON has the expected structure from this app"""
+        required_keys = ["meta", "decision", "impacto", "alternativas", "asignacion_tiempo", 
+                       "objetivo", "prioridades", "informacion", "mcda", "scenarios"]
+        
+        # Check top-level structure
+        for key in required_keys:
+            if key not in data:
+                return False, f"Falta la clave requerida: '{key}'"
+        
+        # Check meta information
+        if not isinstance(data.get("meta"), dict):
+            return False, "Estructura 'meta' inválida"
+        
+        if data["meta"].get("app") != "Lambda Pro":
+            return False, f"Este JSON no es de Lambda Pro (app: {data['meta'].get('app')})"
+        
+        # Check critical structures
+        if not isinstance(data.get("alternativas"), list):
+            return False, "Estructura 'alternativas' debe ser una lista"
+        
+        if not isinstance(data.get("prioridades"), list):
+            return False, "Estructura 'prioridades' debe ser una lista"
+        
+        if not isinstance(data.get("informacion"), dict):
+            return False, "Estructura 'informacion' debe ser un objeto"
+        
+        return True, "Estructura válida"
+    
+    def parse_date_string(date_str):
+        """Convert ISO date string back to date object"""
+        if not date_str:
+            return None
+        try:
+            return datetime.fromisoformat(date_str).date()
+        except (ValueError, TypeError):
+            return None
+    
+    def import_json_data(data):
+        """Import JSON data into session state, clearing existing data"""
+        
+        # Clear existing session state (keep only essential streamlit keys)
+        keys_to_preserve = [k for k in st.session_state.keys() if k.startswith('FormSubmitter:')]
+        current_state = {k: st.session_state[k] for k in keys_to_preserve}
+        st.session_state.clear()
+        st.session_state.update(current_state)
+        
+        # Import basic data
+        st.session_state["decision"] = data.get("decision", "")
+        
+        # Import impacto data
+        impacto = data.get("impacto", {})
+        st.session_state["impacto_corto"] = impacto.get("corto", "bajo")
+        st.session_state["impacto_medio"] = impacto.get("medio", "medio")
+        st.session_state["impacto_largo"] = impacto.get("largo", "bajo")
+        
+        # Import tiempo data
+        tiempo_data = data.get("asignacion_tiempo", {})
+        if isinstance(tiempo_data, str):  # Handle old format
+            st.session_state["tiempo"] = tiempo_data
+            st.session_state["tiempo_user_override"] = False
+        else:
+            st.session_state["tiempo"] = tiempo_data.get("tiempo", "Menos de media hora")
+            st.session_state["tiempo_user_override"] = tiempo_data.get("tiempo_user_override", False)
+        
+        # Import objetivo
+        st.session_state["objetivo"] = data.get("objetivo", "")
+        
+        # Import alternativas (ensure they have IDs)
+        alts = data.get("alternativas", [])
+        imported_alts = []
+        for alt in alts:
+            if isinstance(alt, str):  # Handle old format (text only)
+                imported_alts.append({"id": str(uuid.uuid4()), "text": alt})
+            else:  # New format with ID
+                imported_alts.append({"id": alt.get("id", str(uuid.uuid4())), "text": alt.get("text", "")})
+        st.session_state["alts"] = imported_alts
+        
+        # Import prioridades (ensure they have IDs)
+        priors = data.get("prioridades", [])
+        imported_priors = []
+        for prior in priors:
+            if isinstance(prior, str):  # Handle old format (text only)
+                imported_priors.append({"id": str(uuid.uuid4()), "text": prior})
+            else:  # New format with ID
+                imported_priors.append({"id": prior.get("id", str(uuid.uuid4())), "text": prior.get("text", "")})
+        st.session_state["priorities"] = imported_priors
+        
+        # Import informacion data
+        info = data.get("informacion", {})
+        
+        # KPIs
+        kpis = info.get("kpis", [])
+        imported_kpis = []
+        for kpi in kpis:
+            imported_kpis.append({
+                "id": kpi.get("id", str(uuid.uuid4())),
+                "name": kpi.get("name", kpi.get("nombre", "")),  # Handle both formats
+                "value": kpi.get("value", kpi.get("valor", "")),
+                "unit": kpi.get("unit", kpi.get("unidad", ""))
+            })
+        st.session_state["kpis"] = imported_kpis
+        
+        # Timeline items
+        timeline = info.get("timeline_items", info.get("timeline", []))  # Handle both formats
+        imported_timeline = []
+        for item in timeline:
+            imported_timeline.append({
+                "id": item.get("id", str(uuid.uuid4())),
+                "event": item.get("event", item.get("evento", "")),
+                "date": parse_date_string(item.get("date", item.get("fecha")))
+            })
+        st.session_state["timeline_items"] = imported_timeline
+        
+        # Stakeholders
+        stakeholders = info.get("stakeholders", [])
+        imported_stakeholders = []
+        for stakeholder in stakeholders:
+            imported_stakeholders.append({
+                "id": stakeholder.get("id", str(uuid.uuid4())),
+                "name": stakeholder.get("name", stakeholder.get("nombre", "")),
+                "opinion": stakeholder.get("opinion", "")
+            })
+        st.session_state["stakeholders"] = imported_stakeholders
+        
+        # Notes
+        st.session_state["quantitative_notes"] = info.get("quantitative_notes", info.get("notas_cuantitativas", ""))
+        st.session_state["qualitative_notes"] = info.get("qualitative_notes", info.get("notas_cualitativas", ""))
+        
+        # Import MCDA data
+        mcda = data.get("mcda", {})
+        st.session_state["mcda_criteria"] = mcda.get("criteria", [
+            {"name": "Impacto estratégico", "weight": 0.5},
+            {"name": "Urgencia", "weight": 0.5}
+        ])
+        st.session_state["mcda_scores"] = mcda.get("scores", {})
+        
+        # Import scenarios (convert to proper format)
+        scenarios_data = data.get("scenarios", [])
+        imported_scenarios = {}
+        for scenario in scenarios_data:
+            # Find corresponding alt_id from imported alternativas
+            alt_name = scenario.get("alternativa", "")
+            alt_id = None
+            for alt in imported_alts:
+                if alt["text"] == alt_name:
+                    alt_id = alt["id"]
+                    break
+            
+            if alt_id:
+                imported_scenarios[alt_id] = {
+                    "name": scenario.get("alternativa", ""),
+                    "best_desc": scenario.get("best_desc", ""),
+                    "best_score": scenario.get("best_score", 7.0),
+                    "worst_desc": scenario.get("worst_desc", ""),
+                    "worst_score": scenario.get("worst_score", 2.0),
+                    "p_best": scenario.get("p_best", 0.5),
+                    "p_best_pct": scenario.get("p_best_pct", 50)
+                }
+        st.session_state["scenarios"] = imported_scenarios
+    
+    # File uploader
+    uploaded_file = st.file_uploader(
+        # "Selecciona archivo JSON",
+        "",
+        type=['json'],
+        help="Solo archivos JSON exportados desde Lambda Pro",
+        accept_multiple_files=False
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Read and parse JSON
+            json_data = json.loads(uploaded_file.read().decode('utf-8'))
+            
+            # Validate structure
+            is_valid, message = validate_json_structure(json_data)
+            
+            if not is_valid:
+                st.error(f"❌ **Error**: {message}")
+                st.info("💡 Usa un archivo JSON exportado desde Lambda Pro")
+            else:
+                # Show preview information
+                st.success("✅ **Archivo válido**")
+                
+                meta = json_data.get("meta", {})
+                st.metric("Fecha", meta.get("exported_at", "N/A")[:10])
+                st.metric("Alternativas", len(json_data.get("alternativas", [])))
+                st.metric("Prioridades", len(json_data.get("prioridades", [])))
+                
+                # Warning and confirmation
+                st.warning("⚠️ Importar eliminará los datos actuales")
+                
+                # Confirmation button
+                if st.button("🔄 Confirmar Importación", type="primary", use_container_width=True):
+                    try:
+                        # Show loading animation
+                        with st.spinner("⏳ Importando datos..."):
+                            import time
+                            time.sleep(0.5)  # Brief pause for visual feedback
+                            import_json_data(json_data)
+                        
+                        # Success feedback with balloons animation
+                        st.success("✅ **¡Datos importados correctamente!**")
+                        st.balloons()  # Visual celebration
+                        
+                        # Add session state flag to redirect to first tab
+                        st.session_state["redirect_to_first_tab"] = True
+                        
+                        st.info("🔄 Redirigiendo al primer paso...")
+                        time.sleep(1)  # Brief pause before redirect
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ **Error durante la importación**: {str(e)}")
+                        st.info("💡 Verifica que el archivo JSON sea válido")
+                        
+        except json.JSONDecodeError as e:
+            st.error(f"❌ **Error de formato JSON**: {str(e)}")
+            st.info("💡 El archivo no contiene JSON válido")
+        except Exception as e:
+            st.error(f"❌ **Error inesperado**: {str(e)}")
+    
+    st.markdown("---")
  
 # ------------------ SESSION DEFAULTS ------------------
 st.session_state.setdefault("impacto_corto", "bajo")
@@ -207,6 +447,14 @@ else:
 line_color = f"rgb({r},{g},{b})"
 fill_color = f"rgba({r},{g},{b},0.35)"
  
+# ------------------ HANDLE REDIRECT AFTER IMPORT ------------------
+if st.session_state.get("redirect_to_first_tab", False):
+    # Clear the redirect flag
+    st.session_state["redirect_to_first_tab"] = False
+    # Force focus on first tab by clearing any tab state
+    # This will make the app show the first tab by default
+    st.info("✅ Datos importados. Comenzando desde el primer paso...")
+
 # ------------------ DYNAMIC TABS ------------------
 SECTIONS = get_sections(st.session_state["tiempo"])
 tabs = st.tabs(SECTIONS)
@@ -990,96 +1238,103 @@ if Tab_Scenarios in tab_map:
 # ------------------ TAB: Resultados ------------------
 if Tab_Resultados in tab_map:
     with tab_map[Tab_Resultados]:
-
-
-
-
-
-        # --- MCDA snapshot via PURE helpers ---
-        crit = st.session_state.get("mcda_criteria", [])
-        scores_df = st.session_state.get("mcda_scores_df", pd.DataFrame())
-        _, ranking_list = mcda_totals_and_ranking(scores_df.copy(), crit)
-
-
-        # --- Scenarios snapshot via PURE helper ---
-        scenarios_state = st.session_state.get("scenarios", {})
-        scen_rows = []
-        for d in scenarios_state.values():
-            ev = scenario_ev(d.get("p_best", 0.5), d.get("worst_score", 0), d.get("best_score", 0))
-            scen_rows.append({
-                "alternativa": d.get("name", ""),
-                "worst_desc": d.get("worst_desc", ""),
-                "best_desc": d.get("best_desc", ""),
-                "worst_score": _to_native(d.get("worst_score")),
-                "best_score": _to_native(d.get("best_score")),
-                "p_best": _to_native(d.get("p_best")),
-                "p_best_pct": _to_native(d.get("p_best_pct")),
-                "EV": _to_native(ev),
-            })
-
-        # --- Build payload ---
-        userData = {
-            "meta": {
-                "exported_at": datetime.now().isoformat(),
-                "app": "Lambda Pro",
-                "version": "0.1.0",
-            },
-            "decision": st.session_state.get("decision", "").strip(),
-            "impacto": {
-                "corto": st.session_state.get("impacto_corto"),
-                "medio": st.session_state.get("impacto_medio"),
-                "largo": st.session_state.get("impacto_largo"),
-                "relevancia_pct": int(relevancia_pct),
-            },
-            # ✅ Full alternativas with IDs for proper hydration
-            "alternativas": [{"id": a["id"], "text": a["text"]} for a in st.session_state.alts],
-            "asignacion_tiempo": {
-                "tiempo": st.session_state.get("tiempo"),
-                "tiempo_user_override": st.session_state.get("tiempo_user_override", False),  # ✅ Critical for behavior
-            },
-            "objetivo": st.session_state.get("objetivo", "").strip(),
-            # ✅ Full prioridades with IDs for proper hydration
-            "prioridades": [{"id": p["id"], "text": p["text"]} for p in st.session_state.priorities],
-            "informacion": {
-                # ✅ Full objects with IDs for proper hydration
-                "kpis": [{"id": k["id"], "name": k["name"], "value": k["value"], "unit": k["unit"]}
-                         for k in st.session_state.kpis],
-                "timeline_items": [{"id": t["id"], "event": t["event"], "date": (t["date"].isoformat() if t["date"] else None)}
-                                   for t in st.session_state.timeline_items],
-                "stakeholders": [{"id": s["id"], "name": s["name"], "opinion": s["opinion"]}
-                                 for s in st.session_state.stakeholders],
-                "quantitative_notes": st.session_state.get("quantitative_notes", "").strip(),
-                "qualitative_notes": st.session_state.get("qualitative_notes", "").strip(),
-            },
-            "mcda": {
-                "criteria": crit,
-                "scores": st.session_state.get("mcda_scores", {}),  # ✅ Raw scores for hydration
-                "scores_table": _to_native(scores_df) if isinstance(scores_df, pd.DataFrame) else scores_df,
-                "ranking": ranking_list,
-            },
-            "scenarios": scen_rows,
-        }
-
-        # --- Display & Download ---
         st.subheader("Resultados")
+        
+        # Check if we have data to show results
+        alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
+        prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
+        
+        if alt_names and prioridad_names:
+            # --- MCDA snapshot via PURE helpers ---
+            crit = st.session_state.get("mcda_criteria", [])
+            scores_df = st.session_state.get("mcda_scores_df", pd.DataFrame())
+            _, ranking_list = mcda_totals_and_ranking(scores_df.copy(), crit)
 
-        # filename from decision + timestamp
-        def _slug(s: str) -> str:
-            s = (s or "").strip().lower()
-            allowed = "abcdefghijklmnopqrstuvwxyz0123456789-_ "
-            s = "".join(ch if ch.lower() in allowed else "-" for ch in s)
-            s = "-".join(s.split())
-            return s[:60] or "decision"
-        fname = f"{_slug(st.session_state.get('decision',''))}_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+            # --- Scenarios snapshot via PURE helper ---
+            scenarios_state = st.session_state.get("scenarios", {})
+            scen_rows = []
+            for d in scenarios_state.values():
+                ev = scenario_ev(d.get("p_best", 0.5), d.get("worst_score", 0), d.get("best_score", 0))
+                scen_rows.append({
+                    "alternativa": d.get("name", ""),
+                    "worst_desc": d.get("worst_desc", ""),
+                    "best_desc": d.get("best_desc", ""),
+                    "worst_score": _to_native(d.get("worst_score")),
+                    "best_score": _to_native(d.get("best_score")),
+                    "p_best": _to_native(d.get("p_best")),
+                    "p_best_pct": _to_native(d.get("p_best_pct")),
+                    "EV": _to_native(ev),
+                })
 
-        st.download_button(
-            "⬇️ Descargar JSON",
-            data=json.dumps(json_ready(userData), ensure_ascii=False, indent=2),
-            file_name=fname,
-            mime="application/json",
-            use_container_width=True,
-        )
+            # --- Build payload ---
+            userData = {
+                "meta": {
+                    "exported_at": datetime.now().isoformat(),
+                    "app": "Lambda Pro",
+                    "version": "0.1.0",
+                },
+                "decision": st.session_state.get("decision", "").strip(),
+                "impacto": {
+                    "corto": st.session_state.get("impacto_corto"),
+                    "medio": st.session_state.get("impacto_medio"),
+                    "largo": st.session_state.get("impacto_largo"),
+                    "relevancia_pct": int(relevancia_pct),
+                },
+                # ✅ Full alternativas with IDs for proper hydration
+                "alternativas": [{"id": a["id"], "text": a["text"]} for a in st.session_state.alts],
+                "asignacion_tiempo": {
+                    "tiempo": st.session_state.get("tiempo"),
+                    "tiempo_user_override": st.session_state.get("tiempo_user_override", False),  # ✅ Critical for behavior
+                },
+                "objetivo": st.session_state.get("objetivo", "").strip(),
+                # ✅ Full prioridades with IDs for proper hydration
+                "prioridades": [{"id": p["id"], "text": p["text"]} for p in st.session_state.priorities],
+                "informacion": {
+                    # ✅ Full objects with IDs for proper hydration
+                    "kpis": [{"id": k["id"], "name": k["name"], "value": k["value"], "unit": k["unit"]}
+                             for k in st.session_state.kpis],
+                    "timeline_items": [{"id": t["id"], "event": t["event"], "date": (t["date"].isoformat() if t["date"] else None)}
+                                       for t in st.session_state.timeline_items],
+                    "stakeholders": [{"id": s["id"], "name": s["name"], "opinion": s["opinion"]}
+                                     for s in st.session_state.stakeholders],
+                    "quantitative_notes": st.session_state.get("quantitative_notes", "").strip(),
+                    "qualitative_notes": st.session_state.get("qualitative_notes", "").strip(),
+                },
+                "mcda": {
+                    "criteria": crit,
+                    "scores": st.session_state.get("mcda_scores", {}),  # ✅ Raw scores for hydration
+                    "scores_table": _to_native(scores_df) if isinstance(scores_df, pd.DataFrame) else scores_df,
+                    "ranking": ranking_list,
+                },
+                "scenarios": scen_rows,
+            }
 
-        with st.expander("Ver datos (JSON)"):
-            st.json(userData)
+            # --- Export Section ---
+            st.markdown("### 📤 Exportar Datos")
+            
+            # filename from decision + timestamp
+            def _slug(s: str) -> str:
+                s = (s or "").strip().lower()
+                allowed = "abcdefghijklmnopqrstuvwxyz0123456789-_ "
+                s = "".join(ch if ch.lower() in allowed else "-" for ch in s)
+                s = "-".join(s.split())
+                return s[:60] or "decision"
+            fname = f"{_slug(st.session_state.get('decision',''))}_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+
+            st.download_button(
+                "⬇️ Descargar JSON",
+                data=json.dumps(json_ready(userData), ensure_ascii=False, indent=2),
+                file_name=fname,
+                mime="application/json",
+                use_container_width=True,
+            )
+
+            with st.expander("Ver datos (JSON)"):
+                st.json(userData)
+                
+        else:
+            # Show message when no data available for export
+            st.info("💡 **Exportación disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
+            st.markdown("Completa las pestañas anteriores para generar un resumen exportable de tu análisis de decisión.")
+
 
