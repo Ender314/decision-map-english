@@ -4,6 +4,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import seaborn as sns
+import matplotlib.pyplot as plt
 import uuid, json
 from datetime import datetime, date
 
@@ -33,7 +35,7 @@ st.set_page_config(
     page_title="Lambda Pro",
     page_icon="⚡",
     # layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 # ------------------ HELPER FUNCTIONS (used across multiple tabs/sidebar) ------------------
@@ -82,6 +84,19 @@ def json_ready(obj):
     if isinstance(obj, dict):  return {k: json_ready(v) for k, v in obj.items()}
     if isinstance(obj, list):  return [json_ready(v) for v in obj]
     return _to_native(obj)
+
+def generate_violin_data(worst, best, ev, n_samples=1000):
+    """Generate violin plot data using normal distribution centered on EV"""
+    # Calculate standard deviation based on range (worst to best covers ~4 std devs)
+    std_dev = (best - worst) / 4
+    
+    # Generate samples from normal distribution centered on EV
+    samples = np.random.normal(ev, std_dev, n_samples)
+    
+    # Clip samples to stay within worst-best range
+    samples = np.clip(samples, worst, best)
+    
+    return samples
  
 # ------------------ HEADER ------------------
 # st.title("Flujo de Decisiones Corporativas")
@@ -949,49 +964,100 @@ if Tab_Scenarios in tab_map:
                 })
             scen_df = pd.DataFrame(rows).sort_values("EV", ascending=False)
 
-            # --- Range bars colored by EV; highest EV ON TOP ---
-            y_labels = scen_df["Alternativa"].tolist()
-            fig = go.Figure()
-
-            fig.add_bar(
-                x=scen_df["Range"],
-                y=scen_df["Alternativa"],
-                base=scen_df["Worst"],
-                orientation="h",
-                marker=dict(
-                    color=scen_df["EV"],
-                    colorscale=[[0, "red"], [0.5, "yellow"], [1, "green"]],
-                    cmin=0, cmax=10,
-                    showscale=False,  # <-- removes color legend
-                ),
-                hovertemplate="Worst: %{base}<br>Best: %{base}+%{x}<extra></extra>",
-                name="Rango (Worst→Best)",
+            # --- Violin chart with normal distribution centered on EV ---
+            # Prepare data for seaborn violin plot
+            violin_data = []
+            
+            for _, row in scen_df.iterrows():
+                samples = generate_violin_data(row["Worst"], row["Best"], row["EV"])
+                for sample in samples:
+                    violin_data.append({
+                        "Alternativa": row["Alternativa"],
+                        "Value": sample,
+                        "EV": row["EV"]
+                    })
+            
+            violin_df = pd.DataFrame(violin_data)
+            
+            # Create custom color palette based on EV values
+            ev_colors = []
+            for _, row in scen_df.iterrows():
+                ev_normalized = row["EV"] / 10  # Normalize to 0-1
+                if ev_normalized <= 0.5:
+                    # Red to Yellow
+                    r = 1.0
+                    g = ev_normalized * 2
+                    b = 0.0
+                else:
+                    # Yellow to Green
+                    r = 2 * (1 - ev_normalized)
+                    g = 1.0
+                    b = 0.0
+                ev_colors.append((r, g, b))
+            
+            # Set modern seaborn theme and create the plot
+            sns.set_theme(style="whitegrid", palette=None)
+            fig, ax = plt.subplots(figsize=(12, max(5, len(scen_df) * 0.9)))
+            
+            # Create modern violin plot with seaborn
+            sns.violinplot(
+                data=violin_df, 
+                y="Alternativa", 
+                x="Value", 
+                order=scen_df["Alternativa"].tolist(),  # Maintain EV-based order
+                palette=ev_colors,
+                orient="h",
+                inner="quart",  # Show quartiles inside violins
+                fill=True,      # Modern filled violins
+                linewidth=1.5,  # Slightly thicker lines
+                saturation=0.8, # Slightly desaturated for elegance
+                ax=ax
             )
-
-            fig.add_scatter(
-                x=scen_df["EV"],
-                y=scen_df["Alternativa"],
-                mode="markers",
-                marker=dict(size=10, symbol="diamond", color="black", line=dict(width=1)),
-                name="Valor esperado",
-                hovertemplate="EV: %{x:.2f}<extra></extra>",
-            )
-
-            per_item = 24
-            fig.update_layout(
-                xaxis=dict(title="Impacto (0–10)", range=[0, 10], zeroline=False),
-                yaxis=dict(
-                    title="",
-                    categoryorder="array",
-                    categoryarray=y_labels,
-                    autorange="reversed",   # <-- ensures highest EV at the TOP
-
-                ),
-                height=max(260, int(140 + per_item * len(y_labels))),
-                margin=dict(l=40, r=20, t=10, b=30),
-                showlegend=True,
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            
+            # Add modern EV markers (diamonds) with enhanced styling
+            for i, (_, row) in enumerate(scen_df.iterrows()):
+                # Main EV marker
+                ax.scatter(row["EV"], i, marker='D', s=120, color='white', 
+                          edgecolor='black', linewidth=2, zorder=15, alpha=0.9)
+                ax.scatter(row["EV"], i, marker='D', s=80, color='black', 
+                          zorder=16, alpha=0.8)
+                
+                # Modern EV value annotations with better styling
+                ax.annotate(f'{row["EV"]:.1f}', 
+                           xy=(row["EV"], i), 
+                           xytext=(8, 0), 
+                           textcoords='offset points',
+                           fontsize=10, 
+                           fontweight='bold',
+                           color='black',
+                           ha='left', va='center',
+                           bbox=dict(boxstyle='round,pad=0.4', 
+                                   facecolor='white', 
+                                   edgecolor='gray',
+                                   alpha=0.9,
+                                   linewidth=0.5))
+            
+            # Modern plot customization
+            ax.set_xlabel("Impacto (0–10)", fontsize=12, fontweight='bold')
+            ax.set_ylabel("")
+            ax.set_xlim(-0.5, 10.5)
+            
+            # Enhanced title with subtitle
+            ax.set_title("Distribución de Escenarios por Alternativa", 
+                        fontsize=14, fontweight='bold', pad=15)
+            ax.text(0.5, 1.02, "Densidad de probabilidad basada en distribución normal centrada en EV", 
+                   transform=ax.transAxes, ha='center', fontsize=10, 
+                   style='italic', alpha=0.7)
+            
+            # Remove top and right spines for cleaner look
+            sns.despine(ax=ax, top=True, right=True)
+            
+            # Adjust layout
+            plt.tight_layout()
+            
+            # Display in Streamlit
+            st.pyplot(fig)
+            plt.close()  # Clean up to prevent memory issues
 
             # Resumen at the bottom
             st.markdown("**Resumen**")
@@ -1001,26 +1067,432 @@ if Tab_Scenarios in tab_map:
             )
 
             st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
+            st.caption("💡 **Violin Chart Moderno**: La anchura representa la densidad de probabilidad. Las líneas internas muestran cuartiles. Los diamantes negros indican el valor esperado (EV).")
 
 
 # ------------------ TAB: Resultados ------------------
 if Tab_Resultados in tab_map:
     with tab_map[Tab_Resultados]:
-        st.subheader("Resultados")
-        
         # Check if we have data to show results
         alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
         prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
         
-        if alt_names and prioridad_names:
-            # Results display (export functionality moved to sidebar)
-            st.success("✅ **Análisis completado**")
-            st.markdown("Los datos están disponibles para exportar desde la barra lateral.")
-                
+        if not alt_names or not prioridad_names:
+            # Show message when no data available
+            st.info("💡 **Resumen ejecutivo disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
+            st.markdown("Completa las pestañas anteriores para generar un resumen completo de tu análisis de decisión.")
         else:
-            # Show message when no data available for export
-            st.info("💡 **Exportación disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
-            st.markdown("Completa las pestañas anteriores para generar un resumen exportable de tu análisis de decisión.")
+            # EXECUTIVE SUMMARY DASHBOARD
+            st.markdown("# 📊 Resumen Ejecutivo")
+            st.markdown("---")
+            
+            # === DECISION OVERVIEW SECTION ===
+            st.markdown("## 🎯 Visión General de la Decisión")
+            
+            # Key metrics row
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(
+                    label="Relevancia Estimada",
+                    value=f"{int(relevancia_pct)}%",
+                    help="Basado en el análisis de impacto temporal"
+                )
+            
+            with col2:
+                st.metric(
+                    label="Alternativas",
+                    value=len(alt_names),
+                    help="Opciones identificadas para la decisión"
+                )
+            
+            with col3:
+                st.metric(
+                    label="Criterios",
+                    value=len(prioridad_names),
+                    help="Prioridades definidas para la evaluación"
+                )
+            
+            with col4:
+                tiempo_asignado = st.session_state.get("tiempo", "No definido")
+                st.metric(
+                    label="Tiempo Asignado",
+                    value=tiempo_asignado,
+                    help="Tiempo dedicado al análisis de esta decisión"
+                )
+            
+            # Decision description
+            decision_text = st.session_state.get("decision", "").strip()
+            if decision_text:
+                st.markdown("### Descripción de la Decisión")
+                st.markdown(f"*{decision_text}*")
+            
+            objetivo_text = st.session_state.get("objetivo", "").strip()
+            if objetivo_text:
+                st.markdown("### Objetivo")
+                st.markdown(f"*{objetivo_text}*")
+            
+            st.markdown("---")
+            
+            # === IMPACT ANALYSIS SECTION ===
+            st.markdown("## 📈 Análisis de Impacto")
+            
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                # Recreate the impact visualization
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=df["Plazo"], y=df["Impacto_num"], customdata=df["Impacto"],
+                    mode="lines+markers", line=dict(shape="spline", color=line_color, width=3),
+                    fill="tozeroy", fillcolor=fill_color,
+                    hovertemplate="Plazo: %{x}<br>Impacto: %{customdata}<extra></extra>",
+                    name="Relevancia",
+                    marker=dict(size=10)
+                ))
+                fig.update_layout(
+                    title="Curva de Impacto Temporal",
+                    margin=dict(l=20, r=20, t=40, b=20), height=300,
+                    xaxis=dict(title="Plazo", categoryorder="array", categoryarray=PLAZO_ORDER),
+                    yaxis=dict(
+                        title="Nivel de Impacto", range=[0, YMAX], 
+                        tickmode="array", tickvals=[0, 5, 10, 15],
+                        ticktext=["Bajo", "Medio", "Alto", "Crítico"]
+                    ),
+                    hovermode="x unified",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("### Impacto por Plazo")
+                impact_data = [
+                    {"Plazo": "Corto", "Nivel": st.session_state.get("impacto_corto", "bajo").title()},
+                    {"Plazo": "Medio", "Nivel": st.session_state.get("impacto_medio", "medio").title()},
+                    {"Plazo": "Largo", "Nivel": st.session_state.get("impacto_largo", "bajo").title()}
+                ]
+                
+                for item in impact_data:
+                    color = {"Bajo": "🟢", "Medio": "🟡", "Alto": "🟠", "Crítico": "🔴"}.get(item["Nivel"], "⚪")
+                    st.markdown(f"**{item['Plazo']}:** {color} {item['Nivel']}")
+                
+                # Recommendation based on relevancia
+                st.markdown("### Recomendación")
+                if relevancia_pct <= 20:
+                    st.success("✅ Decisión de baja prioridad")
+                elif relevancia_pct <= 45:
+                    st.info("ℹ️ Decisión de prioridad media")
+                elif relevancia_pct <= 80:
+                    st.warning("⚠️ Decisión de alta prioridad")
+                else:
+                    st.error("🚨 Decisión crítica")
+            
+            st.markdown("---")
+            
+            # === MCDA RANKING SECTION ===
+            st.markdown("## 🏆 Ranking de Alternativas (MCDA)")
+            
+            # Get MCDA data
+            crit = st.session_state.get("mcda_criteria", [])
+            scores_df = st.session_state.get("mcda_scores_df", pd.DataFrame())
+            
+            if not scores_df.empty and len(crit) > 0:
+                totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), crit)
+                
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    # Ranking table
+                    if ranking_list:
+                        st.markdown("### Ranking Final")
+                        ranking_df = pd.DataFrame(ranking_list)
+                        ranking_df['Posición'] = range(1, len(ranking_df) + 1)
+                        ranking_df['Puntuación'] = ranking_df['score'].round(2)
+                        ranking_df = ranking_df[['Posición', 'alternativa', 'Puntuación']]
+                        ranking_df.columns = ['#', 'Alternativa', 'Puntuación']
+                        
+                        # Style the dataframe
+                        st.dataframe(
+                            ranking_df,
+                            hide_index=True,
+                            use_container_width=True,
+                            column_config={
+                                "#": st.column_config.NumberColumn("Posición", width="small"),
+                                "Alternativa": st.column_config.TextColumn("Alternativa", width="large"),
+                                "Puntuación": st.column_config.NumberColumn("Puntuación", format="%.2f", width="medium")
+                            }
+                        )
+                
+                with col2:
+                    # Horizontal bar chart of rankings
+                    if ranking_list:
+                        st.markdown("### Comparación Visual")
+                        
+                        # Create horizontal bar chart
+                        fig = go.Figure()
+                        
+                        # Reverse order for better visualization (highest at top)
+                        reversed_ranking = list(reversed(ranking_list))
+                        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f']
+                        
+                        fig.add_trace(go.Bar(
+                            y=[item['alternativa'] for item in reversed_ranking],
+                            x=[item['score'] for item in reversed_ranking],
+                            orientation='h',
+                            marker_color=colors[:len(reversed_ranking)],
+                            text=[f"{item['score']:.2f}" for item in reversed_ranking],
+                            textposition='auto',
+                            hovertemplate="<b>%{y}</b><br>Puntuación: %{x:.2f}<extra></extra>"
+                        ))
+                        
+                        fig.update_layout(
+                            title="Puntuaciones MCDA",
+                            height=max(250, len(ranking_list) * 40),
+                            margin=dict(l=20, r=20, t=40, b=20),
+                            xaxis=dict(title="Puntuación"),
+                            yaxis=dict(title=""),
+                            showlegend=False
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Criteria weights
+                st.markdown("### Pesos de los Criterios")
+                weights_data = []
+                for criterion in crit:
+                    weights_data.append({
+                        "Criterio": criterion.get("name", ""),
+                        "Peso": f"{criterion.get('weight', 0):.1%}"
+                    })
+                
+                if weights_data:
+                    weights_df = pd.DataFrame(weights_data)
+                    st.dataframe(weights_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("💡 Complete la evaluación MCDA para ver el ranking de alternativas")
+            
+            st.markdown("---")
+            
+            # === SCENARIO PLANNING SECTION ===
+            scenarios_state = st.session_state.get("scenarios", {})
+            if scenarios_state:
+                st.markdown("## 🎲 Planificación de Escenarios")
+                
+                # Create scenario summary
+                scenario_data = []
+                for alt_id, scenario in scenarios_state.items():
+                    ev = scenario_ev(
+                        scenario.get("p_best", 0.5),
+                        scenario.get("worst_score", 0),
+                        scenario.get("best_score", 0)
+                    )
+                    scenario_data.append({
+                        "Alternativa": scenario.get("name", ""),
+                        "Mejor Caso": scenario.get("best_score", 0),
+                        "Peor Caso": scenario.get("worst_score", 0),
+                        "Prob. Mejor": f"{scenario.get('p_best_pct', 50)}%",
+                        "Valor Esperado": round(ev, 2)
+                    })
+                
+                if scenario_data:
+                    col1, col2 = st.columns([1, 1])
+                    
+                    with col1:
+                        st.markdown("### Resumen de Escenarios")
+                        scenario_df = pd.DataFrame(scenario_data)
+                        st.dataframe(scenario_df, hide_index=True, use_container_width=True)
+                    
+                    with col2:
+                        st.markdown("### Valores Esperados")
+                        # Bar chart of expected values
+                        fig = go.Figure()
+                        fig.add_trace(go.Bar(
+                            x=[item["Alternativa"] for item in scenario_data],
+                            y=[item["Valor Esperado"] for item in scenario_data],
+                            marker_color='lightcoral',
+                            text=[f"{item['Valor Esperado']}" for item in scenario_data],
+                            textposition='auto',
+                            hovertemplate="<b>%{x}</b><br>Valor Esperado: %{y}<extra></extra>"
+                        ))
+                        
+                        fig.update_layout(
+                            height=300,
+                            margin=dict(l=20, r=20, t=20, b=20),
+                            xaxis=dict(title="Alternativas"),
+                            yaxis=dict(title="Valor Esperado"),
+                            showlegend=False
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            # === INFORMATION SUMMARY SECTION ===
+            kpis = st.session_state.get("kpis", [])
+            timeline_items = st.session_state.get("timeline_items", [])
+            stakeholders = st.session_state.get("stakeholders", [])
+            
+            # Define valid data for use in recommendations
+            valid_kpis = [k for k in kpis if k.get("name", "").strip()]
+            valid_stakeholders = [s for s in stakeholders if s.get("name", "").strip()]
+            
+            if kpis or timeline_items or stakeholders:
+                st.markdown("---")
+                st.markdown("## 📋 Información Recopilada")
+                
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    # KPIs Summary
+                    if kpis:
+                        st.markdown("### 📊 KPIs Relevantes")
+                        if valid_kpis:
+                            for kpi in valid_kpis[:5]:  # Show max 5 KPIs
+                                value_str = str(kpi.get("value", "N/A"))
+                                unit_str = f" {kpi.get('unit', '')}" if kpi.get("unit", "").strip() else ""
+                                st.markdown(f"**{kpi.get('name', '')}:** {value_str}{unit_str}")
+                    
+                    # Timeline Summary
+                    if timeline_items:
+                        st.markdown("### 📅 Eventos Clave")
+                        valid_timeline = [t for t in timeline_items if t.get("event", "").strip() and t.get("date")]
+                        if valid_timeline:
+                            # Sort by date
+                            valid_timeline.sort(key=lambda x: x.get("date", date.today()))
+                            for item in valid_timeline[:3]:  # Show max 3 events
+                                event_date = item.get("date")
+                                date_str = event_date.strftime("%d/%m/%Y") if event_date else "N/A"
+                                st.markdown(f"**{date_str}:** {item.get('event', '')}")
+                
+                with col2:
+                    # Stakeholders Summary
+                    if stakeholders:
+                        st.markdown("### 👥 Stakeholders")
+                        if valid_stakeholders:
+                            for stakeholder in valid_stakeholders[:5]:  # Show max 5 stakeholders
+                                name = stakeholder.get("name", "")
+                                opinion = stakeholder.get("opinion", "")
+                                if opinion:
+                                    st.markdown(f"**{name}:** {opinion}")
+                                else:
+                                    st.markdown(f"**{name}**")
+                    
+                    # Notes Summary
+                    quant_notes = st.session_state.get("quantitative_notes", "").strip()
+                    qual_notes = st.session_state.get("qualitative_notes", "").strip()
+                    
+                    if quant_notes or qual_notes:
+                        st.markdown("### 📝 Notas Adicionales")
+                        if quant_notes:
+                            st.markdown("**Cuantitativas:**")
+                            st.markdown(f"*{quant_notes[:200]}{'...' if len(quant_notes) > 200 else ''}*")
+                        if qual_notes:
+                            st.markdown("**Cualitativas:**")
+                            st.markdown(f"*{qual_notes[:200]}{'...' if len(qual_notes) > 200 else ''}*")
+            
+            st.markdown("---")
+            
+            # === RECOMMENDATIONS SECTION ===
+            st.markdown("## 💡 Recomendaciones")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("### Próximos Pasos")
+                
+                # Generate recommendations based on data
+                recommendations = []
+                
+                if relevancia_pct > 80:
+                    recommendations.append("🚨 **Prioridad máxima**: Esta decisión requiere atención inmediata")
+                elif relevancia_pct > 45:
+                    recommendations.append("⚠️ **Alta prioridad**: Asignar recursos significativos a esta decisión")
+                else:
+                    recommendations.append("✅ **Prioridad moderada**: Proceder con el análisis estándar")
+                
+                if ranking_list and len(ranking_list) > 1:
+                    best_alt = ranking_list[0]['alternativa']
+                    best_score = ranking_list[0]['score']
+                    second_score = ranking_list[1]['score'] if len(ranking_list) > 1 else 0
+                    
+                    if best_score - second_score > 0.5:
+                        recommendations.append(f"🏆 **Alternativa recomendada**: '{best_alt}' tiene una ventaja clara")
+                    else:
+                        recommendations.append("🤔 **Análisis adicional**: Las alternativas están muy reñidas")
+                
+                if not scenarios_state:
+                    recommendations.append("🎲 **Considerar escenarios**: Añadir análisis de riesgos e incertidumbre")
+                
+                if len(valid_kpis) < 3:
+                    recommendations.append("📊 **Más datos**: Recopilar KPIs adicionales para mejor análisis")
+                
+                for rec in recommendations:
+                    st.markdown(f"- {rec}")
+            
+            with col2:
+                st.markdown("### Resumen de Calidad")
+                
+                # Quality assessment
+                quality_score = 0
+                max_score = 7
+                
+                quality_items = []
+                
+                if decision_text:
+                    quality_score += 1
+                    quality_items.append("✅ Decisión definida")
+                else:
+                    quality_items.append("❌ Falta descripción de la decisión")
+                
+                if objetivo_text:
+                    quality_score += 1
+                    quality_items.append("✅ Objetivo establecido")
+                else:
+                    quality_items.append("❌ Falta definición del objetivo")
+                
+                if len(alt_names) >= 2:
+                    quality_score += 1
+                    quality_items.append("✅ Múltiples alternativas")
+                else:
+                    quality_items.append("❌ Pocas alternativas identificadas")
+                
+                if len(prioridad_names) >= 2:
+                    quality_score += 1
+                    quality_items.append("✅ Criterios múltiples")
+                else:
+                    quality_items.append("❌ Pocos criterios de evaluación")
+                
+                if not scores_df.empty:
+                    quality_score += 1
+                    quality_items.append("✅ Evaluación MCDA completa")
+                else:
+                    quality_items.append("❌ Falta evaluación MCDA")
+                
+                if scenarios_state:
+                    quality_score += 1
+                    quality_items.append("✅ Análisis de escenarios")
+                else:
+                    quality_items.append("❌ Falta análisis de escenarios")
+                
+                if len(valid_kpis) > 0 or len(valid_stakeholders) > 0:
+                    quality_score += 1
+                    quality_items.append("✅ Información contextual")
+                else:
+                    quality_items.append("❌ Falta información contextual")
+                
+                # Quality percentage
+                quality_pct = (quality_score / max_score) * 100
+                
+                st.metric(
+                    label="Completitud del Análisis",
+                    value=f"{quality_pct:.0f}%",
+                    help="Porcentaje de elementos completados en el análisis"
+                )
+                
+                for item in quality_items:
+                    st.markdown(f"- {item}")
+            
+            st.markdown("---")
+            
+            # Final export reminder
+            st.success("✅ **Análisis completado** - Los datos están disponibles para exportar desde la barra lateral.")
 
 
 # ------------------ SIDEBAR EXPORT/IMPORT FUNCTIONALITY ------------------
