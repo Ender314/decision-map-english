@@ -1,122 +1,148 @@
 # -*- coding: utf-8 -*-
 """
-Evaluación (MCDA Evaluation) tab component for Lambda Pro.
-Handles Multi-Criteria Decision Analysis evaluation and scoring.
+Evaluación (MCDA Evaluation) tab - Simplified version.
+Clean MCDA implementation without over-engineering.
 """
 
 import streamlit as st
 import pandas as pd
-
-from config.constants import SCORE_STEPS, DEFAULT_MCDA_CRITERIA
-from utils.calculations import mcda_totals_and_ranking
-from utils.visualizations import create_mcda_ranking_chart, create_mcda_radar_chart
-
-
-def sync_criteria_from_priorities():
-    """Sync MCDA criteria from priorities with default weights."""
-    prioridad_names = [p["text"].strip() for p in st.session_state.get("priorities", []) if p["text"].strip()]
-    current_criteria = st.session_state.get("mcda_criteria", [])
-    current_names = [c.get("name", "").strip() for c in current_criteria]
-
-    if (not current_criteria) or (current_names != prioridad_names):
-        # Default weights from priority order (higher priority = higher weight)
-        n = len(prioridad_names)
-        if n > 0:
-            raw_weights = list(range(n, 0, -1))  # n, n-1, ..., 1
-            total = sum(raw_weights)
-            auto_weights = [w / total for w in raw_weights]
-            st.session_state["mcda_criteria"] = [
-                {"name": name, "weight": float(weight)} 
-                for name, weight in zip(prioridad_names, auto_weights)
-            ]
+from utils.calculations import normalize_weights, mcda_totals_and_ranking
+from utils.visualizations import create_mcda_radar_chart
 
 
 def render_evaluacion_tab():
-    """Render the Evaluación (MCDA) tab."""
+    """Render the Evaluación (MCDA Evaluation) tab."""
+    st.subheader("Evaluación")
     
-    st.subheader("Evaluación (MCDA)")
-
-    # Guards: need alternativas & prioridades
-    alt_names = [a["text"].strip() for a in st.session_state.get("alts", []) if a["text"].strip()]
-    prioridad_names = [p["text"].strip() for p in st.session_state.get("priorities", []) if p["text"].strip()]
+    # Get alternatives and priorities
+    alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
+    prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
     
     if not alt_names:
-        st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para poder evaluar.")
+        st.info("💡 Añade al menos una **Alternativa** en la pestaña *Alternativas* para poder evaluarlas.")
         return
-    elif not prioridad_names:
-        st.info("Añade al menos una **Prioridad** en la pestaña *Prioridades* para usar como criterios.")
+    
+    if not prioridad_names:
+        st.info("💡 Define al menos una **Prioridad** en la pestaña *Prioridades* para poder hacer la evaluación.")
         return
-
-    # Sync criteria from priorities
-    sync_criteria_from_priorities()
-
-    st.markdown("**Criterios y pesos** (cargados de *Prioridades* por orden; editables)")
-    crit_df = pd.DataFrame(st.session_state.get("mcda_criteria", []))
-
-    # Editor for criteria weights
-    crit_df = st.data_editor(
-        crit_df,
-        num_rows="fixed",
-        column_config={
-            "name": st.column_config.TextColumn("Criterio", disabled=True),
-            "weight": st.column_config.NumberColumn("Peso (≥ 0)", min_value=0.0, step=0.05,
-                help="Pesos normalizados automáticamente para el cálculo"),
-        },
-        key="mcda_criteria_editor",
-        use_container_width=True,
-    )
-    crit_df["name"] = crit_df["name"].astype(str).str.strip()
-    st.session_state.mcda_criteria = crit_df.to_dict("records")
-    crit_names = list(crit_df["name"])
-
-    # Scores with select sliders (0..5 step 0.5), persisted in session
-    st.markdown("**Puntuaciones (0–5)**")
     
-    # Use setdefault for direct access
-    current_scores = st.session_state.setdefault("mcda_scores", {})
+    # MCDA Criteria weights
+    st.markdown("### ⚖️ Pesos de los Criterios")
+    st.markdown("Ajusta la importancia relativa de cada criterio:")
     
-    for alt in alt_names:
-        st.markdown(f"**{alt}**")
-        # Ensure alt exists in current_scores
-        current_scores.setdefault(alt, {})
+    # Initialize criteria if needed
+    if not st.session_state.mcda_criteria or len(st.session_state.mcda_criteria) != len(prioridad_names):
+        st.session_state.mcda_criteria = [
+            {"name": name, "weight": 1.0 / len(prioridad_names)} 
+            for name in prioridad_names
+        ]
+    
+    # Weight sliders
+    for i, criterion in enumerate(st.session_state.mcda_criteria):
+        if criterion["name"] in prioridad_names:
+            weight = st.slider(
+                criterion["name"],
+                min_value=0.0,
+                max_value=1.0,
+                value=float(criterion["weight"]),
+                step=0.05,
+                key=f"weight_{criterion['name']}"
+            )
+            st.session_state.mcda_criteria[i]["weight"] = weight
+    
+    # Normalize weights
+    weight_map = normalize_weights(st.session_state.mcda_criteria)
+    
+    # Show normalized weights
+    with st.expander("Pesos Normalizados"):
+        for name, weight in weight_map.items():
+            st.markdown(f"**{name}**: {weight:.1%}")
+    
+    st.markdown("---")
+    
+    # MCDA Scoring Matrix
+    st.markdown("### 📊 Matriz de Evaluación")
+    st.markdown("Evalúa cada alternativa en cada criterio (escala 0-5):")
+    
+    # Initialize scores if needed
+    if "mcda_scores" not in st.session_state:
+        st.session_state.mcda_scores = {}
+    
+    # Create scoring matrix
+    scores_data = []
+    
+    for alt_name in alt_names:
+        if alt_name not in st.session_state.mcda_scores:
+            st.session_state.mcda_scores[alt_name] = {}
         
-        for i in range(0, len(crit_names), 3):
-            cols = st.columns(min(3, len(crit_names) - i))
-            for j, criterion in enumerate(crit_names[i:i+3]):
-                with cols[j]:
-                    key = f"score_{alt}_{criterion}"
-                    # Direct access with fallback
-                    default_val = current_scores.get(alt, {}).get(criterion, 0.0)
-                    new_val = st.select_slider(
-                        criterion, 
-                        options=SCORE_STEPS, 
-                        value=st.session_state.get(key, default_val),
-                        key=key
-                    )
-                    # Update in place
-                    current_scores[alt][criterion] = float(new_val)
-        st.markdown("")
-
-    # DataFrame (aligned to displayed order)
-    scores_df = pd.DataFrame(current_scores).T.reindex(index=alt_names, columns=crit_names, fill_value=0.0)
-    st.session_state["mcda_scores_df"] = scores_df
-
-    # Compute weighted totals & ranking
-    totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.get("mcda_criteria", []))
-    ranking = totals.sort_values(ascending=False).rename("Puntuación ponderada")
-    result_df = pd.concat([scores_df, ranking], axis=1).loc[ranking.index]
-
-    st.markdown("**Resultado y ranking**")
-    st.dataframe(result_df.style.format(precision=2), use_container_width=True)
-
-    # Bar chart (ranking)
-    fig_rank = create_mcda_ranking_chart(ranking)
-    st.plotly_chart(fig_rank, use_container_width=True)
-
-    # Radar chart (only if > 2 criteria)
-    if len(crit_names) > 2:
-        st.markdown("**Radar de puntuaciones por criterio**")
-        fig_radar = create_mcda_radar_chart(scores_df, crit_names, alt_names)
-        st.plotly_chart(fig_radar, use_container_width=True)
-
-    st.caption("Los pesos se normalizan automáticamente. La puntuación total = Σ(puntuación × peso).")
+        st.markdown(f"**{alt_name}**")
+        cols = st.columns(len(prioridad_names))
+        
+        row_data = {"Alternativa": alt_name}
+        
+        for i, criterion in enumerate(prioridad_names):
+            with cols[i]:
+                current_score = st.session_state.mcda_scores[alt_name].get(criterion, 2.5)
+                score = st.slider(
+                    criterion,
+                    min_value=0.0,
+                    max_value=5.0,
+                    value=float(current_score),
+                    step=0.5,
+                    key=f"score_{alt_name}_{criterion}",
+                    label_visibility="collapsed"
+                )
+                st.session_state.mcda_scores[alt_name][criterion] = score
+                row_data[criterion] = score
+        
+        scores_data.append(row_data)
+    
+    # Create DataFrame for calculations
+    scores_df = pd.DataFrame(scores_data).set_index("Alternativa")
+    st.session_state.mcda_scores_df = scores_df
+    
+    st.markdown("---")
+    
+    # Results
+    st.markdown("### 🏆 Resultados")
+    
+    # Calculate totals and ranking
+    totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+    
+    if ranking_list:
+        # Display ranking
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### Ranking Final")
+            ranking_df = pd.DataFrame(ranking_list)
+            ranking_df['Posición'] = range(1, len(ranking_df) + 1)
+            ranking_df['Puntuación'] = ranking_df['score'].round(2)
+            ranking_df = ranking_df[['Posición', 'alternativa', 'Puntuación']]
+            ranking_df.columns = ['#', 'Alternativa', 'Puntuación']
+            
+            st.dataframe(ranking_df, hide_index=True, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### Análisis Visual")
+            try:
+                # Create radar chart for top 3 alternatives
+                top_alts = ranking_list[:3]
+                fig = create_mcda_radar_chart(scores_df, prioridad_names, [alt["alternativa"] for alt in top_alts])
+                st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                st.info("💡 Error al generar gráfico radar")
+        
+        # Winner announcement
+        winner = ranking_list[0]
+        st.success(f"🏆 **Alternativa recomendada**: {winner['alternativa']} (Puntuación: {winner['score']:.2f})")
+        
+        # Show score breakdown for winner
+        with st.expander(f"Desglose de puntuación - {winner['alternativa']}"):
+            winner_scores = st.session_state.mcda_scores[winner['alternativa']]
+            for criterion, score in winner_scores.items():
+                weight = weight_map.get(criterion, 0)
+                weighted_score = score * weight
+                st.markdown(f"**{criterion}**: {score:.1f} × {weight:.1%} = {weighted_score:.2f}")
+    else:
+        st.info("💡 Completa la evaluación para ver los resultados")

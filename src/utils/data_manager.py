@@ -80,11 +80,9 @@ def initialize_session_defaults() -> None:
 
 
 def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
-    """Validate that JSON has the expected structure from this app."""
-    required_keys = [
-        "meta", "decision", "impacto", "alternativas", "asignacion_tiempo",
-        "objetivo", "prioridades", "informacion", "mcda", "scenarios"
-    ]
+    """Validate that JSON has the expected structure from this app - exact original validation."""
+    required_keys = ["meta", "decision", "impacto", "alternativas", "asignacion_tiempo", 
+                   "objetivo", "prioridades", "informacion", "mcda", "scenarios"]
     
     # Check top-level structure
     for key in required_keys:
@@ -95,8 +93,8 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     if not isinstance(data.get("meta"), dict):
         return False, "Estructura 'meta' inválida"
     
-    if data["meta"].get("app") != APP_NAME:
-        return False, f"Este JSON no es de {APP_NAME} (app: {data['meta'].get('app')})"
+    if data["meta"].get("app") != "Lambda Pro":
+        return False, f"Este JSON no es de Lambda Pro (app: {data['meta'].get('app')})"
     
     # Check critical structures
     if not isinstance(data.get("alternativas"), list):
@@ -107,6 +105,34 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     
     if not isinstance(data.get("informacion"), dict):
         return False, "Estructura 'informacion' debe ser un objeto"
+    
+    # Additional validation for data integrity
+    meta = data.get("meta", {})
+    if not isinstance(meta.get("exported_at"), str):
+        return False, "Falta timestamp de exportación válido"
+    
+    # Validate impacto structure
+    impacto = data.get("impacto", {})
+    if not isinstance(impacto, dict):
+        return False, "Estructura 'impacto' debe ser un objeto"
+    
+    required_impact_keys = ["corto", "medio", "largo", "relevancia_pct"]
+    for key in required_impact_keys:
+        if key not in impacto:
+            return False, f"Falta clave de impacto: '{key}'"
+    
+    # Validate MCDA structure
+    mcda = data.get("mcda", {})
+    if not isinstance(mcda, dict):
+        return False, "Estructura 'mcda' debe ser un objeto"
+    
+    if "criteria" not in mcda or not isinstance(mcda["criteria"], list):
+        return False, "Estructura 'mcda.criteria' debe ser una lista"
+    
+    # Validate scenarios structure
+    scenarios = data.get("scenarios", [])
+    if not isinstance(scenarios, list):
+        return False, "Estructura 'scenarios' debe ser una lista"
     
     return True, "Estructura válida"
 

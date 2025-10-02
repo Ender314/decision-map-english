@@ -1,150 +1,115 @@
 # -*- coding: utf-8 -*-
 """
-Sidebar component for Lambda Pro.
-Handles export/import functionality and app information.
+Sidebar component - Simplified version.
+Clean export/import functionality without over-engineering.
 """
 
 import streamlit as st
 import json
 from datetime import datetime
-
-from config.constants import APP_NAME
-from utils.data_manager import (
-    create_export_data, import_json_data, validate_json_structure, 
-    make_json_ready, create_filename_slug
-)
-
-
-def render_export_section():
-    """Render the export section of the sidebar."""
-    st.markdown("### 📤 Exportar Datos")
-    st.markdown("Guarda tu sesión actual en un archivo JSON.")
-    
-    # Check if we have data to export
-    alt_names = [a["text"].strip() for a in st.session_state.get("alts", []) if a["text"].strip()]
-    prioridad_names = [p["text"].strip() for p in st.session_state.get("priorities", []) if p["text"].strip()]
-    
-    if alt_names and prioridad_names:
-        # Create export data
-        export_data = create_export_data()
-        
-        if export_data:
-            # Create filename
-            decision_text = st.session_state.get("decision", "")
-            filename = f"{create_filename_slug(decision_text)}_{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
-            
-            st.download_button(
-                "⬇️ Descargar JSON",
-                data=json.dumps(make_json_ready(export_data), ensure_ascii=False, indent=2),
-                file_name=filename,
-                mime="application/json",
-                use_container_width=True,
-            )
-            
-            with st.expander("Ver datos (JSON)"):
-                st.json(export_data)
-        else:
-            st.info("💡 No hay datos suficientes para exportar")
-    else:
-        st.info("💡 **Exportación disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
-
-
-def render_import_section():
-    """Render the import section of the sidebar."""
-    st.markdown("### 📥 Importar Datos")
-    st.markdown("Restaura una sesión previa desde un archivo JSON exportado.")
-    
-    # File uploader
-    uploaded_file = st.file_uploader(
-        "Selecciona archivo JSON",
-        type=['json'],
-        help="Solo archivos JSON exportados desde Lambda Pro",
-        accept_multiple_files=False
-    )
-    
-    if uploaded_file is not None:
-        try:
-            # Read and parse JSON
-            json_data = json.loads(uploaded_file.read().decode('utf-8'))
-            
-            # Validate structure
-            is_valid, message = validate_json_structure(json_data)
-            
-            if not is_valid:
-                st.error(f"❌ **Error**: {message}")
-                st.info("💡 Usa un archivo JSON exportado desde Lambda Pro")
-            else:
-                # Show preview information
-                st.success("✅ **Archivo válido**")
-                
-                meta = json_data.get("meta", {})
-                st.metric("Fecha", meta.get("exported_at", "N/A")[:10])
-                st.metric("Alternativas", len(json_data.get("alternativas", [])))
-                st.metric("Prioridades", len(json_data.get("prioridades", [])))
-                
-                # Warning and confirmation
-                st.warning("⚠️ Importar eliminará los datos actuales")
-                
-                # Confirmation button
-                if st.button("🔄 Confirmar Importación", type="primary", use_container_width=True):
-                    try:
-                        # Show loading animation
-                        with st.spinner("⏳ Importando datos..."):
-                            import time
-                            time.sleep(0.5)  # Brief pause for visual feedback
-                            import_json_data(json_data)
-                        
-                        # Success feedback
-                        st.success("✅ **¡Datos importados correctamente!**")
-                        st.balloons()  # Visual celebration
-                        
-                        # Add session state flag to redirect to first tab
-                        st.session_state["redirect_to_first_tab"] = True
-                        
-                        st.info("🔄 Redirigiendo al primer paso...")
-                        time.sleep(1)  # Brief pause before redirect
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ **Error durante la importación**: {str(e)}")
-                        st.info("💡 Verifica que el archivo JSON sea válido")
-                        
-        except json.JSONDecodeError as e:
-            st.error(f"❌ **Error de formato JSON**: {str(e)}")
-            st.info("💡 El archivo no contiene JSON válido")
-        except Exception as e:
-            st.error(f"❌ **Error inesperado**: {str(e)}")
+from config.constants import APP_NAME, APP_ICON
+from utils.data_manager import create_export_data, validate_json_structure, parse_date_string
 
 
 def render_sidebar():
     """Render the complete sidebar."""
     with st.sidebar:
-        render_export_section()
+        # Export section
+        st.markdown("### 📤 Exportar Datos")
+        st.markdown("Guarda tu análisis actual en formato JSON para poder restaurarlo más tarde.")
+        
+        # Check if we have data to export
+        alt_names = [a["text"].strip() for a in st.session_state.get("alts", []) if a["text"].strip()]
+        prioridad_names = [p["text"].strip() for p in st.session_state.get("priorities", []) if p["text"].strip()]
+        
+        if alt_names and prioridad_names:
+            if st.button("📥 Exportar JSON", use_container_width=True):
+                try:
+                    export_data = create_export_data()
+                    if export_data:
+                        json_str = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
+                        
+                        st.download_button(
+                            "⬇️ Descargar archivo JSON",
+                            data=json_str,
+                            file_name=f"lambda_pro_decision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
+                        st.success("✅ Archivo JSON generado exitosamente")
+                    else:
+                        st.error("❌ Error al generar los datos de exportación")
+                except Exception as e:
+                    st.error(f"❌ Error durante la exportación: {str(e)}")
+        else:
+            st.info("💡 **Exportación disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
+        
         st.markdown("---")
-        render_import_section()
+        
+        # Import section
+        st.markdown("### 📥 Importar Datos")
+        st.markdown("Restaura una sesión previa desde un archivo JSON exportado.")
+        
+        uploaded_file = st.file_uploader(
+            "Selecciona archivo JSON",
+            type=['json'],
+            help="Solo archivos JSON exportados desde Lambda Pro",
+            accept_multiple_files=False
+        )
+        
+        if uploaded_file is not None:
+            try:
+                # Read and parse JSON
+                json_data = json.loads(uploaded_file.read().decode('utf-8'))
+                
+                # Validate data structure
+                is_valid, error_msg = validate_json_structure(json_data)
+                
+                if not is_valid:
+                    st.error(f"❌ Archivo JSON inválido: {error_msg}")
+                else:
+                    if st.button("🔄 Importar Datos", use_container_width=True):
+                        try:
+                            # Store import data temporarily and trigger rerun
+                            st.session_state["_import_data"] = json_data
+                            st.session_state["_pending_import"] = True
+                            st.success("✅ Datos importados exitosamente")
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error durante la importación: {str(e)}")
+                            
+            except json.JSONDecodeError:
+                st.error("❌ El archivo no contiene JSON válido")
+            except Exception as e:
+                st.error(f"❌ Error al leer el archivo: {str(e)}")
+        
         st.markdown("---")
         
         # App information
         st.markdown("### ℹ️ Información")
-        st.markdown(f"**{APP_NAME}** v0.2.0")
-        st.markdown("✅ Arquitectura modular completa")
-        st.markdown("✅ Todas las funcionalidades restauradas")
-        st.markdown("🎯 Listo para Phase 2")
+        st.markdown(f"**{APP_NAME}** v1.5 (Simplified)")
+        st.markdown("✅ Arquitectura modular simplificada")
+        st.markdown("✅ Todas las funcionalidades principales")
+        st.markdown("⚡ Optimizado para rendimiento")
         
-        # Progress indicator
-        completed_components = [
-            "Dimensionado", "Alternativas", "Objetivo", "Prioridades", 
-            "Información", "Evaluación", "Escenarios", "Resultados"
+        # Simple progress indicator
+        components = [
+            ("Dimensionado", bool(st.session_state.get("impacto_corto"))),
+            ("Alternativas", len([a for a in st.session_state.get("alts", []) if a["text"].strip()]) >= 2),
+            ("Objetivo", bool(st.session_state.get("objetivo", "").strip())),
+            ("Prioridades", len([p for p in st.session_state.get("priorities", []) if p["text"].strip()]) >= 2),
+            ("Información", len([k for k in st.session_state.get("kpis", []) if k.get("name", "").strip()]) > 0),
+            ("Evaluación", st.session_state.get("mcda_scores_df") is not None),
+            ("Escenarios", bool(st.session_state.get("scenarios", {}))),
         ]
         
-        st.progress(1.0, text="Progreso: 100% ✅")
+        completed = sum(1 for _, status in components if status)
+        total = len(components)
         
-        # Component status
+        st.progress(completed / total, text=f"Progreso: {completed}/{total}")
+        
         with st.expander("Estado de Componentes"):
-            for component in completed_components:
-                st.markdown(f"✅ {component}")
-            
-            st.markdown("---")
-            st.markdown("**Próximas mejoras (Phase 2):**")
-            st.markdown("🔄 Componentes CRUD genéricos")
-            st.markdown("⚡ Optimizaciones de rendimiento")
-            st.markdown("🎨 Mejoras de UX")
+            for name, status in components:
+                icon = "✅" if status else "⏳"
+                st.markdown(f"{icon} {name}")
