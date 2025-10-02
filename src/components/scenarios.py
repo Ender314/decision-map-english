@@ -27,6 +27,49 @@ def render_scenarios_tab():
     if "scenarios" not in st.session_state:
         st.session_state.scenarios = {}
     
+    # Clean up orphaned scenario widget states when alternatives change
+    current_alt_ids = {alt["id"] for alt in alts}
+    scenario_widget_prefixes = ["worst_desc_", "pbest_", "best_desc_", "impact_range_"]
+    
+    orphaned_keys = []
+    for key in st.session_state.keys():
+        for prefix in scenario_widget_prefixes:
+            if key.startswith(prefix):
+                alt_id = key[len(prefix):]
+                if alt_id not in current_alt_ids:
+                    orphaned_keys.append(key)
+                break
+    
+    for key in orphaned_keys:
+        del st.session_state[key]
+    
+    # Sync imported scenario data to widget states (important for data import)
+    for alt in alts:
+        alt_id = alt["id"]
+        if alt_id in st.session_state.scenarios:
+            scenario_data = st.session_state.scenarios[alt_id]
+            
+            # Sync text inputs
+            worst_key = f"worst_desc_{alt_id}"
+            if worst_key not in st.session_state and scenario_data.get("worst_desc"):
+                st.session_state[worst_key] = scenario_data["worst_desc"]
+            
+            best_key = f"best_desc_{alt_id}"
+            if best_key not in st.session_state and scenario_data.get("best_desc"):
+                st.session_state[best_key] = scenario_data["best_desc"]
+            
+            # Sync probability slider
+            pbest_key = f"pbest_{alt_id}"
+            if pbest_key not in st.session_state and scenario_data.get("p_best_pct") is not None:
+                st.session_state[pbest_key] = scenario_data["p_best_pct"]
+            
+            # Sync range slider
+            range_key = f"impact_range_{alt_id}"
+            if range_key not in st.session_state:
+                worst_score = scenario_data.get("worst_score", 2.0)
+                best_score = scenario_data.get("best_score", 7.0)
+                st.session_state[range_key] = (int(worst_score), int(best_score))
+    
     # Process each alternative
     for alt in alts:
         alt_id, alt_name = alt["id"], alt["text"].strip()
@@ -51,46 +94,67 @@ def render_scenarios_tab():
             
             with c1:
                 st.markdown("**Worst scenario**")
+                # Initialize widget state if not exists
+                worst_key = f"worst_desc_{alt_id}"
+                if worst_key not in st.session_state:
+                    st.session_state[worst_key] = scenario_data.get("worst_desc", "")
+                
                 worst_desc = st.text_input(
                     "Descripción (worst)",
-                    value=scenario_data.get("worst_desc", ""),
-                    key=f"worst_desc_{alt_id}",
+                    key=worst_key,
                     label_visibility="collapsed",
                     placeholder="¿Qué pasa si sale mal?"
                 )
+                # Sync widget state back to data structure
                 scenario_data["worst_desc"] = worst_desc
             
             with c2:
                 st.markdown("######")
+                # Initialize widget state if not exists
+                pbest_key = f"pbest_{alt_id}"
+                if pbest_key not in st.session_state:
+                    st.session_state[pbest_key] = scenario_data.get("p_best_pct", 50)
+                
                 p_best_pct = st.select_slider(
                     "Probabilidad de **best**",
                     options=PROBABILITY_STEPS,
-                    value=scenario_data.get("p_best_pct", 50),
-                    key=f"pbest_{alt_id}",
+                    key=pbest_key,
                     label_visibility="collapsed"
                 )
+                # Sync widget state back to data structure
                 scenario_data["p_best_pct"] = p_best_pct
                 scenario_data["p_best"] = p_best_pct / 100.0
             
             with c3:
                 st.markdown("**Best scenario**")
+                # Initialize widget state if not exists
+                best_key = f"best_desc_{alt_id}"
+                if best_key not in st.session_state:
+                    st.session_state[best_key] = scenario_data.get("best_desc", "")
+                
                 best_desc = st.text_input(
                     "Descripción (best)",
-                    value=scenario_data.get("best_desc", ""),
-                    key=f"best_desc_{alt_id}",
+                    key=best_key,
                     label_visibility="collapsed",
                     placeholder="¿Qué pasa si todo va muy bien?"
                 )
+                # Sync widget state back to data structure
                 scenario_data["best_desc"] = best_desc
 
             # Row 2: Single range slider for Impacto (0–10)
             st.markdown("")
+            # Initialize widget state if not exists
+            range_key = f"impact_range_{alt_id}"
+            if range_key not in st.session_state:
+                default_range = (int(scenario_data.get("worst_score", 2)), int(scenario_data.get("best_score", 7)))
+                st.session_state[range_key] = default_range
+            
             worst_best = st.slider(
                 "Impacto (0–10): mínimo = worst, máximo = best",
                 min_value=0, max_value=10, step=1,
-                value=(int(scenario_data.get("worst_score", 2)), int(scenario_data.get("best_score", 7))),
-                key=f"impact_range_{alt_id}"
+                key=range_key
             )
+            # Sync widget state back to data structure
             scenario_data["worst_score"] = float(worst_best[0])
             scenario_data["best_score"] = float(worst_best[1])
 
@@ -133,6 +197,8 @@ def render_scenarios_tab():
         st.error(f"Error creating violin plot: {str(e)}")
         st.info("💡 Intenta ajustar los valores de los escenarios")
     
+    st.caption("💎 **Violin Chart**: La anchura representa la densidad de probabilidad. Los diamantes brillantes indican el valor esperado (EV).")
+
     st.markdown("---")
 
     # Summary table
@@ -143,4 +209,3 @@ def render_scenarios_tab():
     )
 
     st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
-    st.caption("💡 **Violin Chart**: La anchura representa la densidad de probabilidad. Los diamantes negros indican el valor esperado (EV).")

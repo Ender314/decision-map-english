@@ -14,6 +14,24 @@ def render_evaluacion_tab():
     """Render the Evaluación (MCDA Evaluation) tab."""
     st.subheader("⚖️ Evaluación")
     
+    # Handle deferred weight changes from previous run
+    if st.session_state.get("_weights_changed", False):
+        st.session_state["_weights_changed"] = False
+        st.rerun()
+    
+    # Clean up orphaned slider states when alternatives/priorities change
+    current_slider_keys = set()
+    for alt in st.session_state.alts:
+        for priority in st.session_state.priorities:
+            if alt["text"].strip() and priority["text"].strip():
+                key = f"mcda_score_{alt['id']}_{priority['id']}"
+                current_slider_keys.add(key)
+    
+    # Remove orphaned slider states
+    orphaned_keys = [k for k in st.session_state.keys() if k.startswith("mcda_score_") and k not in current_slider_keys]
+    for key in orphaned_keys:
+        del st.session_state[key]
+    
     # Get alternatives and priorities
     alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
     prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
@@ -28,10 +46,18 @@ def render_evaluacion_tab():
     
 
     
-    # Initialize criteria if needed
-    if not st.session_state.mcda_criteria or len(st.session_state.mcda_criteria) != len(prioridad_names):
+    # Initialize or update criteria more carefully
+    existing_criteria_names = {c["name"] for c in st.session_state.mcda_criteria}
+    current_prioridad_names = set(prioridad_names)
+    
+    # Only reinitialize if priorities have fundamentally changed
+    if not existing_criteria_names or existing_criteria_names != current_prioridad_names:
+        # Preserve existing weights where possible
+        old_weights = {c["name"]: c["weight"] for c in st.session_state.mcda_criteria}
+        default_weight = 1.0 / len(prioridad_names) if prioridad_names else 0.5
+        
         st.session_state.mcda_criteria = [
-            {"name": name, "weight": 1.0 / len(prioridad_names)} 
+            {"name": name, "weight": old_weights.get(name, default_weight)} 
             for name in prioridad_names
         ]
     
@@ -51,9 +77,26 @@ def render_evaluacion_tab():
     
 
     
-    # Initialize scores if needed
+    # Initialize scores if needed and ensure all alternatives have score dictionaries
     if "mcda_scores" not in st.session_state:
         st.session_state.mcda_scores = {}
+    
+    # Ensure all current alternatives have score dictionaries
+    for alt_name in alt_names:
+        if alt_name not in st.session_state.mcda_scores:
+            st.session_state.mcda_scores[alt_name] = {}
+    
+    # Sync imported scores to widget states (important for data import)
+    for alt_name in alt_names:
+        for criterion in prioridad_names:
+            alt_id = next((a["id"] for a in st.session_state.alts if a["text"].strip() == alt_name), alt_name)
+            criterion_id = next((p["id"] for p in st.session_state.priorities if p["text"].strip() == criterion), criterion)
+            slider_key = f"mcda_score_{alt_id}_{criterion_id}"
+            
+            # If we have a stored score but no widget state, sync it
+            stored_score = st.session_state.mcda_scores[alt_name].get(criterion)
+            if stored_score is not None and slider_key not in st.session_state:
+                st.session_state[slider_key] = float(stored_score)
     
     # Create scoring matrix
     scores_data = []
@@ -85,16 +128,27 @@ def render_evaluacion_tab():
         # Sliders in subsequent columns
         for i, criterion in enumerate(prioridad_names):
             with row_cols[i + 1]:
-                current_score = st.session_state.mcda_scores[alt_name].get(criterion, 2.5)
+                # Create stable key using alternative and criterion indices
+                alt_id = next((a["id"] for a in st.session_state.alts if a["text"].strip() == alt_name), alt_name)
+                criterion_id = next((p["id"] for p in st.session_state.priorities if p["text"].strip() == criterion), criterion)
+                slider_key = f"mcda_score_{alt_id}_{criterion_id}"
+                
+                # Initialize slider state if not exists, using our stored value as default
+                if slider_key not in st.session_state:
+                    default_score = st.session_state.mcda_scores[alt_name].get(criterion, 2.5)
+                    st.session_state[slider_key] = float(default_score)
+                
+                # Use slider with widget state as single source of truth
                 score = st.slider(
                     criterion,
                     min_value=0.0,
                     max_value=5.0,
-                    value=float(current_score),
                     step=0.5,
-                    key=f"score_{alt_name}_{criterion}",
+                    key=slider_key,
                     label_visibility="collapsed"
                 )
+                
+                # Sync widget state back to our data structure
                 st.session_state.mcda_scores[alt_name][criterion] = score
                 row_data[criterion] = score
         
@@ -132,7 +186,7 @@ def render_evaluacion_tab():
         ranking_df['Posición'] = range(1, len(ranking_df) + 1)
         ranking_df['Puntuación'] = ranking_df['score'].round(2)
         ranking_df = ranking_df[['Posición', 'alternativa', 'Puntuación']]
-        ranking_df.columns = ['#', 'Alternativa', 'Puntuación']
+        ranking_df.columns = ['', 'Alternativa', 'Puntuación']
         
         st.dataframe(ranking_df, hide_index=True, use_container_width=True)
         
@@ -177,7 +231,7 @@ def render_evaluacion_tab():
         key="weights_editor"
     )
     
-    # Update session state with edited weights and check for changes
+    # Update session state with edited weights - avoid immediate rerun
     weights_changed = False
     for i, row in edited_weights.iterrows():
         for j, criterion in enumerate(st.session_state.mcda_criteria):
@@ -189,9 +243,9 @@ def render_evaluacion_tab():
                     weights_changed = True
                 break
     
-    # Trigger rerun if weights changed to update all calculations
+    # Store weight change flag for next run instead of immediate rerun
     if weights_changed:
-        st.rerun()
+        st.session_state["_weights_changed"] = True
     
     # Recalculate normalized weights after edits
     updated_weight_map = normalize_weights(st.session_state.mcda_criteria)

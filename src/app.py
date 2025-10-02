@@ -73,6 +73,9 @@ def init_session_state():
         
         # Scenarios
         "scenarios": {},
+        
+        # Internal flags
+        "_weights_changed": False,
     }
     
     for key, value in defaults.items():

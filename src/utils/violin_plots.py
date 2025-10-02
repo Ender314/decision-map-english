@@ -87,7 +87,7 @@ def create_seaborn_violin_classic(summary_rows: List[Dict[str, Any]]) -> tuple:
 
 
 def create_seaborn_violin_modern(summary_rows: List[Dict[str, Any]]) -> tuple:
-    """Modern Seaborn violin plot with original Red→Yellow→Green color scheme."""
+    """Enhanced Seaborn violin plot with darker outlines and diamond EV markers."""
     # Prepare data
     violin_data = []
     for row in summary_rows:
@@ -102,12 +102,14 @@ def create_seaborn_violin_modern(summary_rows: List[Dict[str, Any]]) -> tuple:
     
     violin_df = pd.DataFrame(violin_data)
     
-    # Set modern theme
+    # Set modern theme with enhanced aesthetics
     sns.set_theme(style="whitegrid", palette="husl")
-    fig, ax = plt.subplots(figsize=(14, max(6, len(summary_rows) * 1.1)))
+    fig, ax = plt.subplots(figsize=(15, max(7, len(summary_rows) * 1.2)))
     
-    # Create custom color palette based on EV values (original Red→Yellow→Green logic)
+    # Create custom color palette based on EV values (Red→Yellow→Green)
     ev_colors = []
+    ev_edge_colors = []  # Darker versions for outlines
+    
     for row in summary_rows:
         ev_normalized = row["EV"] / 10  # Normalize to 0-1
         if ev_normalized <= 0.5:
@@ -120,92 +122,112 @@ def create_seaborn_violin_modern(summary_rows: List[Dict[str, Any]]) -> tuple:
             r = 2 * (1 - ev_normalized)
             g = 1.0
             b = 0.0
+        
+        # Main color
         ev_colors.append((r, g, b))
+        
+        # Darker edge color (reduce brightness by 30%)
+        edge_r = max(0, r * 0.7)
+        edge_g = max(0, g * 0.7)
+        edge_b = max(0, b * 0.7)
+        ev_edge_colors.append((edge_r, edge_g, edge_b))
     
-    # Create violin plot with custom styling (modern approach)
+    # Create violin plot with enhanced styling
     parts = ax.violinplot(
         [violin_df[violin_df["Alternativa"] == row["Alternativa"]]["Value"].values 
          for row in summary_rows],
         positions=range(len(summary_rows)),
         vert=False,
-        widths=0.7,
+        widths=0.75,
         showmeans=False,
         showmedians=False,
         showextrema=False
     )
     
-    # Style the violins with original colors
+    # Style the violins with enhanced colors and darker outlines
     for i, (pc, row) in enumerate(zip(parts['bodies'], summary_rows)):
         pc.set_facecolor(ev_colors[i])
-        pc.set_alpha(0.7)
-        pc.set_edgecolor('white')
-        pc.set_linewidth(2)
+        pc.set_alpha(0.8)  # Slightly more opaque
+        pc.set_edgecolor(ev_edge_colors[i])  # Darker outline
+        pc.set_linewidth(2.5)  # Slightly thicker outline
     
-    # Add EV markers with enhanced visibility
+    # Add enhanced diamond EV markers
     for i, row in enumerate(summary_rows):
-        # Shadow/outline for better visibility
-        ax.scatter(row["EV"], i, marker='o', s=280, color='black', 
-                  alpha=0.3, zorder=13)
+        # Subtle shadow for depth
+        ax.scatter(row["EV"], i, marker='D', s=320, color='black', 
+                  alpha=0.15, zorder=13)
         
-        # Main EV marker - larger and more prominent
-        ax.scatter(row["EV"], i, marker='o', s=250, color='white', 
-                  edgecolor='black', linewidth=4, zorder=15, alpha=1.0)
-        ax.scatter(row["EV"], i, marker='o', s=180, color=ev_colors[i], 
-                  edgecolor='white', linewidth=2, zorder=16, alpha=1.0)
+        # Main diamond marker with white outline
+        ax.scatter(row["EV"], i, marker='D', s=280, color='white', 
+                  edgecolor='black', linewidth=3, zorder=15, alpha=1.0)
         
-        # Inner highlight for extra visibility
-        ax.scatter(row["EV"], i, marker='o', s=80, color='white', 
-                  alpha=0.8, zorder=17)
+        # Inner diamond with EV color
+        ax.scatter(row["EV"], i, marker='D', s=200, color=ev_colors[i], 
+                  edgecolor=ev_edge_colors[i], linewidth=2, zorder=16, alpha=1.0)
         
-        # EV value annotation with enhanced visibility
+        # Inner highlight diamond for extra brilliance
+        ax.scatter(row["EV"], i, marker='D', s=100, color='white', 
+                  alpha=0.7, zorder=17)
+        
+        # Enhanced EV value annotation
         ax.annotate(f'{row["EV"]:.1f}', 
                    xy=(row["EV"], i), 
-                   xytext=(20, 0), 
+                   xytext=(25, 0), 
                    textcoords='offset points',
-                   fontsize=13, 
+                   fontsize=12, 
                    fontweight='bold',
-                   color='black',
+                   color='#1a1a1a',
                    ha='left', va='center',
-                   bbox=dict(boxstyle='round,pad=0.6', 
+                   bbox=dict(boxstyle='round,pad=0.5', 
                            facecolor='white', 
-                           edgecolor='black',
+                           edgecolor=ev_edge_colors[i],
                            alpha=0.95,
                            linewidth=2),
                    zorder=18)
         
-        # Add a subtle arrow pointing to the marker
-        ax.annotate('', 
-                   xy=(row["EV"], i), 
-                   xytext=(row["EV"] + 0.8, i),
-                   arrowprops=dict(arrowstyle='->', 
-                                 color='black', 
-                                 lw=2, 
-                                 alpha=0.7),
-                   zorder=14)
+        # Elegant connecting line to marker
+        ax.plot([row["EV"], row["EV"] + 0.6], [i, i], 
+               color=ev_edge_colors[i], linewidth=2, alpha=0.6, zorder=14)
         
-        # Range indicators
+        # Enhanced range indicators with gradient effect
+        range_x = np.linspace(row["Worst"], row["Best"], 50)
+        range_y = [i] * 50
+        
+        # Create gradient effect for range line
         ax.plot([row["Worst"], row["Best"]], [i, i], 
-               color=ev_colors[i], linewidth=3, alpha=0.3, zorder=1)
+               color=ev_colors[i], linewidth=4, alpha=0.4, zorder=1)
         ax.scatter([row["Worst"], row["Best"]], [i, i], 
-                  color=ev_colors[i], s=50, alpha=0.6, zorder=2)
+                  color=ev_edge_colors[i], s=60, alpha=0.8, zorder=2,
+                  edgecolor='white', linewidth=1)
     
-    # Modern styling
-    ax.set_xlabel("Impacto (0–10)", fontsize=14, fontweight='bold', color='#2E3440')
+    # Enhanced styling with better typography
+    # ax.set_xlabel("Impacto (0–10)", fontsize=15, fontweight='bold', 
+    #              color='#2c3e50', labelpad=15)
     ax.set_ylabel("")
     ax.set_xlim(-0.5, 10.5)
     ax.set_yticks(range(len(summary_rows)))
     ax.set_yticklabels([row["Alternativa"] for row in summary_rows], 
-                      fontsize=12, fontweight='bold')
-    ax.set_title("Análisis de Escenarios - Distribución de Probabilidades", 
-                fontsize=16, fontweight='bold', pad=20, color='#2E3440')
+                      fontsize=13, fontweight='600', color='#34495e')
     
-    # Grid styling
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    # Enhanced title with subtitle
+    ax.set_title("Análisis de Escenarios - Distribución de Probabilidades", 
+                fontsize=18, fontweight='bold', pad=25, color='#2c3e50')
+    
+    # Subtitle with methodology explanation
+    # ax.text(0.5, 1.02, "La anchura representa densidad de probabilidad • Los diamantes indican valores esperados (EV)", 
+    #        transform=ax.transAxes, ha='center', va='bottom',
+    #        fontsize=11, style='italic', color='#7f8c8d')
+    
+    # Enhanced grid styling
+    ax.grid(True, alpha=0.25, linestyle='-', linewidth=0.8, color='#bdc3c7')
     ax.set_axisbelow(True)
     
-    # Remove spines
+    # Remove spines for clean look
     for spine in ax.spines.values():
         spine.set_visible(False)
+    
+    # Add subtle background gradient effect
+    ax.set_facecolor('#fafbfc')
     
     plt.tight_layout()
     return fig, ax
