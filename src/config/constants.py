@@ -12,7 +12,7 @@ TAB_PRIORIDADES = "Prioridades"
 TAB_INFO = "Información"
 TAB_EVAL = "Evaluación"
 TAB_RESULTADOS = "Resultados"
-TAB_SCENARIOS = "Scenario planning"
+TAB_SCENARIOS = "Escenarios"
 
 # Tab flow configuration
 ALL_SECTIONS = [

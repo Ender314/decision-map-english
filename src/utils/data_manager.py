@@ -73,7 +73,7 @@ def initialize_session_defaults() -> None:
         "mcda_scores": {},  # {alt_name: {criterion: score}}
         "mcda_scores_df": None,
         
-        # Scenario planning
+        # Escenarios
         "scenarios": {},  # {alt_id: scenario_data}
     }
     

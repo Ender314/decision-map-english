@@ -25,8 +25,8 @@ def render_resultados_tab():
         return
     
     # EXECUTIVE SUMMARY DASHBOARD
-    st.markdown("# 📊 Resumen Ejecutivo")
-    st.markdown("---")
+    # st.markdown("# 📊 Resumen Ejecutivo")
+    # st.markdown("---")
     
     # Calculate relevance percentage
     relevance_pct = calculate_relevance_percentage(
@@ -37,7 +37,7 @@ def render_resultados_tab():
     )
     
     # Decision Overview
-    st.markdown("## 🎯 Visión General de la Decisión")
+    st.markdown("## 🧭 Visión General de la Decisión")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -160,7 +160,7 @@ def render_resultados_tab():
     # Scenario Planning Summary
     scenarios_state = st.session_state.get("scenarios", {})
     if scenarios_state:
-        st.markdown("## 🎲 Planificación de Escenarios")
+        st.markdown("## 🎲 Escenarios")
         
         scenario_data = []
         for alt_id, scenario in scenarios_state.items():

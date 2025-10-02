@@ -15,7 +15,7 @@ from utils.calculations import scenario_expected_value
 
 def render_scenarios_tab():
     """Render the Scenarios (Scenario Planning) tab."""
-    st.subheader("Scenario planning")
+    st.subheader("🔮 Planificación de Escenarios")
 
     # Need alternativas
     alts = [a for a in st.session_state.alts if a["text"].strip()]
@@ -93,7 +93,7 @@ def render_scenarios_tab():
             c1, c2, c3 = st.columns([1.8, 1.2, 1.8])
             
             with c1:
-                st.markdown("**Worst scenario**")
+                st.markdown("**Peor escenario**")
                 # Initialize widget state if not exists
                 worst_key = f"worst_desc_{alt_id}"
                 if worst_key not in st.session_state:
@@ -126,7 +126,7 @@ def render_scenarios_tab():
                 scenario_data["p_best"] = p_best_pct / 100.0
             
             with c3:
-                st.markdown("**Best scenario**")
+                st.markdown("**Mejor scenario**")
                 # Initialize widget state if not exists
                 best_key = f"best_desc_{alt_id}"
                 if best_key not in st.session_state:
@@ -150,7 +150,7 @@ def render_scenarios_tab():
                 st.session_state[range_key] = default_range
             
             worst_best = st.slider(
-                "Impacto (0–10): mínimo = worst, máximo = best",
+                "Impacto (0–10): mínimo <- peor, mejor -> máximo",
                 min_value=0, max_value=10, step=1,
                 key=range_key
             )

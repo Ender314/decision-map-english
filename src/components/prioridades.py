@@ -40,8 +40,9 @@ def render_prioridades_tab():
     # Display objetivo as read-only reference
     objetivo_text = st.session_state.get("objetivo", "").strip()
     if objetivo_text:
-        st.markdown("**Objetivo**")
-        st.markdown(f"*{objetivo_text}*")
+        # st.markdown("**Objetivo**")
+        # st.markdown("🎯")
+        st.markdown(f"🎯 *{objetivo_text}*")
         st.markdown("---")
     
     st.subheader("📌 Prioridades")

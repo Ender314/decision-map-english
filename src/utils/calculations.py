@@ -164,6 +164,6 @@ def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[st
     if tiempo_value == "Menos de media hora":
         return ["Dimensionado", "Alternativas", "Prioridades", "Evaluación"]
     elif tiempo_value == "Un par de horas":
-        return ["Dimensionado", "Información", "Alternativas", "Prioridades", "Evaluación", "Scenario planning", "Resultados"]
+        return ["Dimensionado", "Información", "Alternativas", "Prioridades", "Evaluación", "Resultados"]
     else:
         return all_sections[:]
