@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# streamlit run "src\app.py"
+# streamlit run "src\app.py" --port 8501
+# python -m streamlit run "src\app.py"
 """
 Lambda Pro - Simplified Modular Version (Phase 1.5)
 Balanced approach: organized components without over-engineering.
@@ -19,6 +22,7 @@ from config.constants import (
 from utils.calculations import get_sections_for_time
 from components.dimensionado import render_dimensionado_tab
 from components.alternativas import render_alternativas_tab
+from components.objetivo import render_objetivo_tab
 from components.prioridades import render_prioridades_tab
 from components.informacion import render_informacion_tab
 from components.evaluacion import render_evaluacion_tab
@@ -44,6 +48,7 @@ def init_session_state():
         
         # Core data
         "decision": "",
+        "estrategia_corporativa": "",
         "objetivo": "",
         "tiempo": "Menos de media hora",
         "tiempo_user_override": False,  # Track if user manually changed tiempo
@@ -51,6 +56,7 @@ def init_session_state():
         "priorities": [],
         
         # Information
+        "past_decisions": [],
         "kpis": [],
         "timeline_items": [],
         "stakeholders": [],
@@ -84,6 +90,7 @@ if st.session_state.get("_pending_import", False):
         
         # Import core data
         st.session_state["decision"] = json_data.get("decision", "")
+        st.session_state["estrategia_corporativa"] = json_data.get("estrategia_corporativa", "")
         st.session_state["objetivo"] = json_data.get("objetivo", "")
         
         # Import impact data
@@ -105,6 +112,7 @@ if st.session_state.get("_pending_import", False):
         
         # Import information
         info = json_data.get("informacion", {})
+        st.session_state["past_decisions"] = info.get("past_decisions", [])
         st.session_state["kpis"] = info.get("kpis", [])
         
         # Parse timeline dates
@@ -193,14 +201,7 @@ if TAB_ALTERNATIVAS in tab_map:
 # Objetivo tab
 if TAB_OBJETIVO in tab_map:
     with tab_map[TAB_OBJETIVO]:
-        st.text_area(
-            "Objetivo",
-            key="objetivo",
-            placeholder="¿Cuál es el objetivo que persigues con esta decisión?",
-            label_visibility="collapsed",
-        )
-        st.markdown('')
-        st.markdown('Sin un objetivo claro, no hay criterio para evaluar alternativas')
+        render_objetivo_tab()
 
 # Prioridades tab
 if TAB_PRIORIDADES in tab_map:

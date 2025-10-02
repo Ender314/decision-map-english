@@ -54,8 +54,80 @@ def remove_stakeholder(stakeholder_id: str):
     st.session_state.stakeholders = [s for s in st.session_state.stakeholders if s["id"] != stakeholder_id]
 
 
+def add_past_decision(decision: str = "", results: str = "", lessons: str = ""):
+    """Add a new past decision to the session state."""
+    st.session_state.past_decisions.append({
+        "id": str(uuid.uuid4()),
+        "decision": decision,
+        "results": results,
+        "lessons": lessons
+    })
+
+
+def remove_past_decision(decision_id: str):
+    """Remove a past decision from the session state."""
+    st.session_state.past_decisions = [d for d in st.session_state.past_decisions if d["id"] != decision_id]
+
+
 def render_informacion_tab():
     """Render the Información (Information) tab."""
+    
+    # PAST DECISIONS Section (First - at the top)
+    st.subheader("📚 Decisiones Similares Pasadas")
+    
+    if st.session_state.past_decisions:
+        for decision in st.session_state.past_decisions:
+            with st.container():
+                c1, c2 = st.columns([10, 1])
+                with c1:
+                    # Decision description
+                    new_decision = st.text_area(
+                        "Decisión",
+                        value=decision["decision"],
+                        key=f"past_decision_{decision['id']}",
+                        placeholder="Describe la decisión similar que se tomó en el pasado...",
+                        height=60,
+                        label_visibility="collapsed"
+                    )
+                    decision["decision"] = new_decision
+                    
+                    # Results and lessons in two columns
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_results = st.text_area(
+                            "Resultados",
+                            value=decision["results"],
+                            key=f"past_results_{decision['id']}",
+                            placeholder="¿Qué resultados se obtuvieron?",
+                            height=80,
+                            label_visibility="collapsed"
+                        )
+                        decision["results"] = new_results
+                    
+                    with col2:
+                        new_lessons = st.text_area(
+                            "Lecciones Aprendidas",
+                            value=decision["lessons"],
+                            key=f"past_lessons_{decision['id']}",
+                            placeholder="¿Qué lecciones se aprendieron?",
+                            height=80,
+                            label_visibility="collapsed"
+                        )
+                        decision["lessons"] = new_lessons
+                
+                with c2:
+                    st.markdown("##")  # Add some spacing
+                    if st.button("🗑️", key=f"del_past_decision_{decision['id']}", help="Eliminar decisión"):
+                        remove_past_decision(decision["id"])
+                        st.rerun()
+                
+                st.markdown("---")
+    
+    if st.button("➕ Añadir Decisión Pasada", key="add_past_decision_btn", use_container_width=True):
+        add_past_decision()
+        st.rerun()
+    
+    st.markdown("##")
     
     # QUANTITATIVE DATA Section
     st.subheader("📊 Datos Cuantitativos")

@@ -55,11 +55,13 @@ def initialize_session_defaults() -> None:
         
         # Core data
         "decision": "",
+        "estrategia_corporativa": "",
         "objetivo": "",
         "alts": [],  # list of {"id", "text"}
         "priorities": [],  # list of {"id", "text"}
         
         # Information tab
+        "past_decisions": [],  # list of {"id", "decision", "results", "lessons"}
         "kpis": [],  # list of {"id", "name", "value", "unit"}
         "timeline_items": [],  # list of {"id", "event", "date"}
         "stakeholders": [],  # list of {"id", "name", "opinion"}
@@ -83,6 +85,7 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     """Validate that JSON has the expected structure from this app - exact original validation."""
     required_keys = ["meta", "decision", "impacto", "alternativas", "asignacion_tiempo", 
                    "objetivo", "prioridades", "informacion", "mcda", "scenarios"]
+    # Note: "estrategia_corporativa" is optional for backward compatibility
     
     # Check top-level structure
     for key in required_keys:
@@ -202,6 +205,7 @@ def create_export_data() -> Dict[str, Any]:
             "version": "0.2.0",
         },
         "decision": st.session_state.get("decision", "").strip(),
+        "estrategia_corporativa": st.session_state.get("estrategia_corporativa", "").strip(),
         "impacto": {
             "corto": st.session_state.get("impacto_corto"),
             "medio": st.session_state.get("impacto_medio"),
@@ -216,6 +220,8 @@ def create_export_data() -> Dict[str, Any]:
         "objetivo": st.session_state.get("objetivo", "").strip(),
         "prioridades": [{"id": p["id"], "text": p["text"]} for p in st.session_state.get("priorities", [])],
         "informacion": {
+            "past_decisions": [{"id": p["id"], "decision": p["decision"], "results": p["results"], "lessons": p["lessons"]}
+                              for p in st.session_state.get("past_decisions", [])],
             "kpis": [{"id": k["id"], "name": k["name"], "value": k["value"], "unit": k["unit"]}
                      for k in st.session_state.get("kpis", [])],
             "timeline_items": [{"id": t["id"], "event": t["event"], "date": (t["date"].isoformat() if t["date"] else None)}
@@ -248,6 +254,7 @@ def import_json_data(data: Dict[str, Any]) -> None:
     
     # Import basic data
     st.session_state["decision"] = data.get("decision", "")
+    st.session_state["estrategia_corporativa"] = data.get("estrategia_corporativa", "")
     
     # Import impact data
     impacto = data.get("impacto", {})
@@ -289,6 +296,18 @@ def import_json_data(data: Dict[str, Any]) -> None:
     
     # Import information data
     info = data.get("informacion", {})
+    
+    # Past Decisions
+    past_decisions = info.get("past_decisions", [])
+    imported_past_decisions = []
+    for decision in past_decisions:
+        imported_past_decisions.append({
+            "id": decision.get("id", str(uuid.uuid4())),
+            "decision": decision.get("decision", ""),
+            "results": decision.get("results", ""),
+            "lessons": decision.get("lessons", "")
+        })
+    st.session_state["past_decisions"] = imported_past_decisions
     
     # KPIs
     kpis = info.get("kpis", [])
