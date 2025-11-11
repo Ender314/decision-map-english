@@ -14,6 +14,14 @@ from utils.data_manager import create_export_data, validate_json_structure, pars
 def render_sidebar():
     """Render the complete sidebar."""
     with st.sidebar:
+        # Navigation section (only show if we're in the app)
+        if st.session_state.get("current_page") == "app":
+            st.markdown("### 🏠 Navigation")
+            if st.button("← Home", use_container_width=True, key="sidebar_nav_landing"):
+                st.session_state["current_page"] = "landing"
+                st.rerun()
+            st.markdown("---")
+        
         # Export section
         st.markdown("### 📤 Exportar Datos")
         st.markdown("Guarda tu análisis actual en formato JSON para poder restaurarlo más tarde.")

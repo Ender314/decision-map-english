@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# streamlit run "src\app.py"
-# streamlit run "src\app.py" --port 8501
-# python -m streamlit run "src\app.py"
+# streamlit run "src\app_with_routing.py"
+# streamlit run "src\app_with_routing.py" --port 8501
+# python -m streamlit run "src\app_with_routing.py"
 """
-Lambda Pro - Simplified Modular Version (Phase 1.5)
-Balanced approach: organized components without over-engineering.
+Lambda Pro - Integrated Version with Landing Page Routing
+Includes both landing page and main application with seamless navigation.
 """
 
 import streamlit as st
@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Simple imports - no complex managers or generic systems
 from config.constants import (
     APP_NAME, APP_ICON, TAB_DIMENSIONADO, TAB_ALTERNATIVAS, TAB_OBJETIVO, 
-    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS, ALL_SECTIONS
+    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS, ALL_SECTIONS,
+    TAB_DISPLAY_NAMES
 )
 from utils.calculations import get_sections_for_time
 from utils.session_manager import init_session_state
@@ -31,16 +32,22 @@ from components.evaluacion import render_evaluacion_tab
 from components.scenarios import render_scenarios_tab
 from components.resultados import render_resultados_tab
 from components.sidebar import render_sidebar
+from components.landing_page import render_landing_page
 
 # Configure Streamlit page
 st.set_page_config(
     page_title=APP_NAME,
     page_icon=APP_ICON,
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 # Initialize session state using optimized manager
 init_session_state()
+
+# Initialize routing state
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "landing"  # Default to landing page
 
 # Handle pending import (before any widgets are created)
 if st.session_state.get("_pending_import", False):
@@ -118,91 +125,123 @@ if st.session_state.get("_pending_import", False):
         
         st.session_state["scenarios"] = scenarios_dict
         
-        # Set redirect flag
+        # Set redirect flag and switch to app
         st.session_state["redirect_to_first_tab"] = True
+        st.session_state["current_page"] = "app"
         
         # Clear import flags
         st.session_state["_pending_import"] = False
         st.session_state["_import_data"] = {}
 
-# Header section
-st.markdown('')
-st.text_area(
-    "Descripción de la decisión",
-    key="decision",
-    placeholder="Describe y sintetiza la decisión a analizar",
-    label_visibility="collapsed",
-)
-st.markdown('#')
 
-# Handle redirect after import
-if st.session_state.get("redirect_to_first_tab", False):
-    st.session_state["redirect_to_first_tab"] = False
-    st.info("✅ Datos importados. Comenzando desde el primer paso...")
+def render_main_app():
+    """Render the main Lambda Pro application."""
+    # Navigation bar for app pages
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col1:
+        if st.button("← Home", key="nav_to_landing", help="Return to landing page"):
+            st.session_state["current_page"] = "landing"
+            st.rerun()
+    
+    with col2:
+        st.markdown(f"<h2 style='text-align: center; margin: 0;'>{APP_ICON} {APP_NAME} - Decision Analysis</h2>", unsafe_allow_html=True)
+    
+    with col3:
+        # Export/Import in header for easy access
+        pass
+    
+    st.markdown("---")
 
-# Dynamic tabs based on time allocation
-sections = get_sections_for_time(st.session_state.get("tiempo", "Menos de media hora"), ALL_SECTIONS)
-tabs = st.tabs(sections)
-tab_map = {name: tab for name, tab in zip(sections, tabs)}
+    # Header section
+    st.markdown('')
+    st.text_area(
+        "Descripción de la decisión",
+        key="decision",
+        placeholder="Describe y sintetiza la decisión a analizar",
+        label_visibility="collapsed",
+    )
+    st.markdown('#')
 
-# Render tabs - simple and direct
-relevance_pct = 0
+    # Handle redirect after import
+    if st.session_state.get("redirect_to_first_tab", False):
+        st.session_state["redirect_to_first_tab"] = False
+        st.info("✅ Datos importados. Comenzando desde el primer paso...")
 
-# Dimensionado tab
-if TAB_DIMENSIONADO in tab_map:
-    with tab_map[TAB_DIMENSIONADO]:
-        relevance_pct = render_dimensionado_tab()
+    # Dynamic tabs based on time allocation
+    sections = get_sections_for_time(st.session_state.get("tiempo", "Menos de media hora"), ALL_SECTIONS)
+    
+    # Create display names with emojis for visual tabs
+    display_sections = [TAB_DISPLAY_NAMES.get(section, section) for section in sections]
+    tabs = st.tabs(display_sections)
+    
+    # Map internal names to tabs (keeps logic intact)
+    tab_map = {name: tab for name, tab in zip(sections, tabs)}
 
-# Alternativas tab  
-if TAB_ALTERNATIVAS in tab_map:
-    with tab_map[TAB_ALTERNATIVAS]:
-        render_alternativas_tab()
+    # Render tabs - simple and direct
+    relevance_pct = 0
 
-# Objetivo tab
-if TAB_OBJETIVO in tab_map:
-    with tab_map[TAB_OBJETIVO]:
-        render_objetivo_tab()
+    # Dimensionado tab
+    if TAB_DIMENSIONADO in tab_map:
+        with tab_map[TAB_DIMENSIONADO]:
+            relevance_pct = render_dimensionado_tab()
 
-# Prioridades tab
-if TAB_PRIORIDADES in tab_map:
-    with tab_map[TAB_PRIORIDADES]:
-        render_prioridades_tab()
+    # Alternativas tab  
+    if TAB_ALTERNATIVAS in tab_map:
+        with tab_map[TAB_ALTERNATIVAS]:
+            render_alternativas_tab()
 
-# Información tab
-if TAB_INFO in tab_map:
-    with tab_map[TAB_INFO]:
-        render_informacion_tab()
+    # Objetivo tab
+    if TAB_OBJETIVO in tab_map:
+        with tab_map[TAB_OBJETIVO]:
+            render_objetivo_tab()
 
-# Evaluación tab
-if TAB_EVAL in tab_map:
-    with tab_map[TAB_EVAL]:
-        render_evaluacion_tab()
+    # Prioridades tab
+    if TAB_PRIORIDADES in tab_map:
+        with tab_map[TAB_PRIORIDADES]:
+            render_prioridades_tab()
 
-# Scenarios tab
-if TAB_SCENARIOS in tab_map:
-    with tab_map[TAB_SCENARIOS]:
-        render_scenarios_tab()
+    # Información tab
+    if TAB_INFO in tab_map:
+        with tab_map[TAB_INFO]:
+            render_informacion_tab()
 
-# Resultados tab
-if TAB_RESULTADOS in tab_map:
-    with tab_map[TAB_RESULTADOS]:
-        render_resultados_tab()
+    # Evaluación tab
+    if TAB_EVAL in tab_map:
+        with tab_map[TAB_EVAL]:
+            render_evaluacion_tab()
 
-# Render sidebar
-render_sidebar()
+    # Scenarios tab
+    if TAB_SCENARIOS in tab_map:
+        with tab_map[TAB_SCENARIOS]:
+            render_scenarios_tab()
 
-# Performance monitoring and optimization (only in debug mode)
-try:
-    debug_mode = st.secrets.get("debug_mode", False)
-except:
-    debug_mode = False
+    # Resultados tab
+    if TAB_RESULTADOS in tab_map:
+        with tab_map[TAB_RESULTADOS]:
+            render_resultados_tab()
 
-if debug_mode or st.query_params.get("debug") == "true":
-    show_performance_debug()
+    # Render sidebar
+    render_sidebar()
 
-# Periodic session state optimization
-if st.session_state.get("_app_run_count", 0) % 10 == 0:
-    optimize_session_state()
+    # Performance monitoring and optimization (only in debug mode)
+    try:
+        debug_mode = st.secrets.get("debug_mode", False)
+    except:
+        debug_mode = False
 
-# Increment run counter for periodic optimization
-st.session_state["_app_run_count"] = st.session_state.get("_app_run_count", 0) + 1
+    if debug_mode or st.query_params.get("debug") == "true":
+        show_performance_debug()
+
+    # Periodic session state optimization
+    if st.session_state.get("_app_run_count", 0) % 10 == 0:
+        optimize_session_state()
+
+    # Increment run counter for periodic optimization
+    st.session_state["_app_run_count"] = st.session_state.get("_app_run_count", 0) + 1
+
+
+# Main routing logic
+if st.session_state.get("current_page", "landing") == "landing":
+    render_landing_page()
+else:
+    render_main_app()
