@@ -7,6 +7,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from config.constants import IMPACT_OPTS, IMPACT_MAP, PLAZO_ORDER, YMAX
+from utils.calculations import calculate_relevance_percentage
+from utils.visualizations import create_impact_chart
+from utils.performance import monitor_performance
 
 
 def calculate_recommended_tiempo(relevancia_pct: float) -> str:
@@ -21,6 +24,7 @@ def calculate_recommended_tiempo(relevancia_pct: float) -> str:
         return "Un par de días"
 
 
+@monitor_performance("render_dimensionado_tab")
 def render_dimensionado_tab():
     """Render the Dimensionado (Impact Assessment) tab - exact original functionality."""
     st.markdown('#####')
@@ -46,59 +50,25 @@ def render_dimensionado_tab():
         st.select_slider("Largo", options=IMPACT_OPTS, key="impacto_largo",
                          label_visibility="collapsed")
 
-    # Recompute df + AUC with possibly updated selections
+    # Use cached calculation for relevance percentage
     impacto_corto = st.session_state["impacto_corto"]
     impacto_medio = st.session_state["impacto_medio"]
     impacto_largo = st.session_state["impacto_largo"]
+    
+    # Calculate relevance using cached function
+    relevancia_pct = calculate_relevance_percentage(
+        impacto_corto, impacto_medio, impacto_largo, IMPACT_MAP
+    )
+    
+    # Create DataFrame for visualization
     df = pd.DataFrame([
         {"Plazo": "corto", "Impacto": impacto_corto, "Impacto_num": IMPACT_MAP[impacto_corto]},
         {"Plazo": "medio", "Impacto": impacto_medio, "Impacto_num": IMPACT_MAP[impacto_medio]},
         {"Plazo": "largo", "Impacto": impacto_largo, "Impacto_num": IMPACT_MAP[impacto_largo]},
     ])
-    y = df["Impacto_num"].tolist()
-    auc = (y[0] + 2*y[1] + y[2]) / 2
-    max_auc = YMAX * 2
-    t = 0 if max_auc == 0 else auc / max_auc
-    relevancia_pct = round(100 * t, 0)
 
-    # Color calculation (exact original logic)
-    def lerp(a, b, tt): 
-        return int(a + (b - a) * tt)
-    
-    if t <= 0.5:
-        t2 = t / 0.5
-        r = lerp(0, 255, t2)
-        g = lerp(176, 192, t2)
-        b = lerp(80, 0, t2)
-    else:
-        t2 = (t - 0.5) / 0.5
-        r = lerp(255, 192, t2)
-        g = lerp(192, 0, t2)
-        b = 0
-    
-    line_color = f"rgb({r},{g},{b})"
-    fill_color = f"rgba({r},{g},{b},0.35)"
-
-    # Plotly (exact original)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df["Plazo"], y=df["Impacto_num"], customdata=df["Impacto"],
-        mode="lines+markers", line=dict(shape="spline", color=line_color),
-        fill="tozeroy", fillcolor=fill_color,
-        hovertemplate="Plazo: %{x}<br>Impacto: %{customdata}<extra></extra>",
-        name="Relevancia"
-    ))
-    fig.update_layout(
-        margin=dict(l=70, r=20, t=20, b=20), height=360,
-        xaxis=dict(title="Plazo", categoryorder="array", categoryarray=PLAZO_ORDER, zeroline=False),
-        yaxis=dict(
-            title="Impacto", range=[0, YMAX], autorange=False, fixedrange=True,
-            tickmode="array", tickvals=[0, 5, 10, 15],
-            showticklabels=False, showgrid=True, zeroline=False
-        ),
-        hovermode="x unified",
-    )
-    fig.update_yaxes(ticks="")
+    # Use cached visualization function
+    fig = create_impact_chart(df, relevancia_pct)
     st.plotly_chart(fig, use_container_width=True)
 
     # Relevance display (exact original)

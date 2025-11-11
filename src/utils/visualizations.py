@@ -9,11 +9,13 @@ import numpy as np
 import plotly.graph_objects as go
 import seaborn as sns
 import matplotlib.pyplot as plt
+import streamlit as st
 from typing import List, Dict, Any, Tuple
 
 from config.constants import PLAZO_ORDER, YMAX, get_relevance_color
 
 
+@st.cache_data
 def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
     """
     Create the temporal impact assessment chart.
@@ -68,6 +70,7 @@ def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def create_mcda_ranking_chart(ranking: pd.Series) -> go.Figure:
     """
     Create MCDA ranking bar chart.
@@ -96,6 +99,7 @@ def create_mcda_ranking_chart(ranking: pd.Series) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], alt_names: List[str]) -> go.Figure:
     """
     Create MCDA radar chart for comparing alternatives across criteria.
@@ -131,6 +135,7 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
     return fig
 
 
+@st.cache_data
 def create_timeline_chart(timeline_items: List[Dict[str, Any]]) -> go.Figure:
     """
     Create timeline visualization chart.
@@ -186,6 +191,7 @@ def create_timeline_chart(timeline_items: List[Dict[str, Any]]) -> go.Figure:
     return fig
 
 
+@st.cache_data
 def create_kpi_bar_chart(numeric_kpis: List[Dict[str, Any]]) -> go.Figure:
     """
     Create bar chart for numeric KPIs.
@@ -323,6 +329,7 @@ def create_scenario_violin_plot(scenario_data: List[Dict[str, Any]]) -> Tuple[pl
     return fig, ax
 
 
+@st.cache_data
 def create_results_ranking_chart(ranking_list: List[Dict[str, Any]]) -> go.Figure:
     """
     Create horizontal bar chart for results summary.
@@ -360,6 +367,7 @@ def create_results_ranking_chart(ranking_list: List[Dict[str, Any]]) -> go.Figur
     return fig
 
 
+@st.cache_data
 def create_scenario_summary_chart(scenario_data: List[Dict[str, Any]]) -> go.Figure:
     """
     Create bar chart for scenario expected values.

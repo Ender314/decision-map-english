@@ -6,9 +6,11 @@ Contains all mathematical operations and data processing functions.
 
 import pandas as pd
 import numpy as np
+import streamlit as st
 from typing import Dict, List, Tuple, Any
 
 
+@st.cache_data
 def normalize_weights(criteria: List[Dict[str, Any]]) -> Dict[str, float]:
     """
     Normalize criteria weights to sum to 1.0.
@@ -77,6 +79,7 @@ def scenario_expected_value(p_best: float, worst_score: float, best_score: float
     return p * float(best_score) + (1 - p) * float(worst_score)
 
 
+@st.cache_data
 def calculate_relevance_percentage(impacto_corto: str, impacto_medio: str, impacto_largo: str, impact_map: Dict[str, int]) -> float:
     """
     Calculate relevance percentage based on temporal impact assessment.
@@ -127,6 +130,7 @@ def calculate_recommended_time(relevance_pct: float) -> str:
         return "Un par de días"
 
 
+@st.cache_data
 def generate_violin_data(worst: float, best: float, expected_value: float, n_samples: int = 1000) -> np.ndarray:
     """
     Generate violin plot data using normal distribution centered on expected value.

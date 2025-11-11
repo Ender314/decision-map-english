@@ -20,6 +20,8 @@ from config.constants import (
     TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS, ALL_SECTIONS
 )
 from utils.calculations import get_sections_for_time
+from utils.session_manager import init_session_state
+from utils.performance import show_performance_debug, optimize_session_state
 from components.dimensionado import render_dimensionado_tab
 from components.alternativas import render_alternativas_tab
 from components.objetivo import render_objetivo_tab
@@ -37,52 +39,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Simple session state initialization - no complex manager
-def init_session_state():
-    """Initialize session state with simple defaults."""
-    defaults = {
-        # Impact assessment
-        "impacto_corto": "bajo",
-        "impacto_medio": "medio", 
-        "impacto_largo": "bajo",
-        
-        # Core data
-        "decision": "",
-        "estrategia_corporativa": "",
-        "objetivo": "",
-        "tiempo": "Menos de media hora",
-        "tiempo_user_override": False,  # Track if user manually changed tiempo
-        "alts": [],
-        "priorities": [],
-        
-        # Information
-        "past_decisions": [],
-        "kpis": [],
-        "timeline_items": [],
-        "stakeholders": [],
-        "quantitative_notes": "",
-        "qualitative_notes": "",
-        
-        # MCDA
-        "mcda_criteria": [
-            {"name": "Impacto estratégico", "weight": 0.5},
-            {"name": "Urgencia", "weight": 0.5},
-        ],
-        "mcda_scores": {},
-        "mcda_scores_df": None,
-        
-        # Scenarios
-        "scenarios": {},
-        
-        # Internal flags
-        "_weights_changed": False,
-    }
-    
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-# Initialize
+# Initialize session state using optimized manager
 init_session_state()
 
 # Handle pending import (before any widgets are created)
@@ -233,3 +190,19 @@ if TAB_RESULTADOS in tab_map:
 
 # Render sidebar
 render_sidebar()
+
+# Performance monitoring and optimization (only in debug mode)
+try:
+    debug_mode = st.secrets.get("debug_mode", False)
+except:
+    debug_mode = False
+
+if debug_mode or st.query_params.get("debug") == "true":
+    show_performance_debug()
+
+# Periodic session state optimization
+if st.session_state.get("_app_run_count", 0) % 10 == 0:
+    optimize_session_state()
+
+# Increment run counter for periodic optimization
+st.session_state["_app_run_count"] = st.session_state.get("_app_run_count", 0) + 1
