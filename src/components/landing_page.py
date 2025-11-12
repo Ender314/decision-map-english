@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Landing Page Component for Lambda Pro
+Landing Page Component for Focal Path Pro
 Integrated landing page with navigation to main app functionality.
 """
 
@@ -125,90 +125,82 @@ def render_landing_page():
     # Navigation bar
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col3:
-        if st.button("💎 View Offer", key="nav_to_offer", help="See Decision Mastery System offer"):
+        if st.button("💎 Ver Oferta", key="nav_to_offer", help="Ver oferta del Sistema de Maestría en Decisiones"):
             st.session_state["current_page"] = "offer"
             st.query_params["page"] = "offer"  # Update URL
             st.rerun()
     with col4:
-        if st.button("🚀 Free Demo", key="nav_to_app", help="Try Lambda Pro application"):
+        if st.button("🚀 Demo", key="nav_to_app", help="Probar la aplicación Focal Path Pro"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"  # Update URL
             st.rerun()
 
     # Hero Section
-    st.markdown('<h1 class="main-header">⚡ Lambda Pro</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Transform Complex Corporate Decisions into Data-Driven Success</p>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">⚡ Focal Path Pro</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Transforma Decisiones Corporativas Complejas en Éxito Basado en Datos</p>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("""
         <div style="text-align: center; font-size: 1.1rem; line-height: 1.6; margin: 2rem 0;">
-            <strong>Stop making critical business decisions based on gut feeling.</strong><br>
-            Lambda Pro provides a structured, analytical framework that transforms high-stakes 
-            corporate decisions into confident, data-backed choices.
+            <strong>Deja de tomar decisiones críticas de negocio basándote en la intuición.</strong><br>
+            Focal Path Pro proporciona un marco analítico estructurado que transforma decisiones 
+            corporativas de alto riesgo en elecciones confiables respaldadas por datos.
         </div>
         """, unsafe_allow_html=True)
 
     # Key Statistics
     st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">8</h2>
-            <p style="margin: 0;">Analysis Modules</p>
+            <h2 style="margin: 0; color: white;">40%</h2>
+            <p style="margin: 0;">Mejores Decisiones</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">43%</h2>
-            <p style="margin: 0;">Code Reduction</p>
+            <h2 style="margin: 0; color: white;">60%</h2>
+            <p style="margin: 0;">Más Rápidas</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">1000+</h2>
-            <p style="margin: 0;">Scenario Simulations</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        st.markdown("""
-        <div class="stats-container">
             <h2 style="margin: 0; color: white;">5</h2>
-            <p style="margin: 0;">Visualization Styles</p>
+            <p style="margin: 0;">Visualizaciones de Riesgos</p>
         </div>
         """, unsafe_allow_html=True)
 
     # Problem Statement
     st.markdown("---")
-    st.markdown("## 🎯 The Challenge")
+    st.markdown("## 🎯 El Desafío")
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
         st.markdown("""
-        ### Corporate Decision-Making is Complex
+        ### La Toma de Decisiones Corporativas es Compleja
         
-        **Traditional approaches fall short:**
-        - ❌ Decisions based on incomplete information
-        - ❌ Lack of structured analysis framework  
-        - ❌ No quantitative risk assessment
-        - ❌ Poor stakeholder alignment
-        - ❌ Difficulty comparing alternatives objectively
+        **Los enfoques tradicionales se quedan cortos:**
+        - ❌ Decisiones basadas en información incompleta
+        - ❌ Falta de marco de análisis estructurado  
+        - ❌ Sin evaluación cuantitativa de riesgos
+        - ❌ Pobre alineación de stakeholders
+        - ❌ Dificultad para comparar alternativas objetivamente
         """)
 
     with col2:
         # Create a sample problem visualization
         fig = go.Figure()
         
-        categories = ['Information<br>Gathering', 'Risk<br>Assessment', 'Alternative<br>Analysis', 
-                      'Stakeholder<br>Alignment', 'Quantitative<br>Modeling']
+        categories = ['Recopilación de<br>Información', 'Evaluación de<br>Riesgos', 'Análisis de<br>Alternativas', 
+                      'Alineación de<br>Stakeholders', 'Modelado<br>Cuantitativo']
         traditional = [3, 2, 4, 3, 2]
         lambda_pro = [9, 9, 8, 8, 9]
         
@@ -216,16 +208,18 @@ def render_landing_page():
             r=traditional,
             theta=categories,
             fill='toself',
-            name='Traditional Approach',
-            line_color='#ff7f7f'
+            name='Enfoque Tradicional',
+            line_color='#e74c3c',
+            fillcolor='rgba(231, 76, 60, 0.3)'
         ))
         
         fig.add_trace(go.Scatterpolar(
             r=lambda_pro,
             theta=categories,
             fill='toself',
-            name='Lambda Pro',
-            line_color='#FF6B35'
+            name='Focal Path Pro',
+            line_color='#2ecc71',
+            fillcolor='rgba(46, 204, 113, 0.3)'
         ))
         
         fig.update_layout(
@@ -235,7 +229,7 @@ def render_landing_page():
                     range=[0, 10]
                 )),
             showlegend=True,
-            title="Decision-Making Capability Comparison",
+            title="Comparación de Capacidades de Toma de Decisiones",
             height=400
         )
         
@@ -243,7 +237,7 @@ def render_landing_page():
 
     # Solution Overview
     st.markdown("---")
-    st.markdown("## 🚀 The Lambda Pro Solution")
+    st.markdown("## 🚀 La Solución Focal Path Pro")
 
     # Feature showcase with demo visualizations
     col1, col2 = st.columns([1, 1])
@@ -251,15 +245,15 @@ def render_landing_page():
     with col1:
         st.markdown("""
         <div class="feature-card">
-            <h3>📊 Impact Assessment</h3>
-            <p>Analyze decision impact across short, medium, and long-term horizons with dynamic relevance calculations and automated time allocation recommendations.</p>
+            <h3>📊 Evaluación de Impacto</h3>
+            <p>Analiza el impacto de decisiones a través de horizontes de corto, mediano y largo plazo con cálculos dinámicos de relevancia y recomendaciones automatizadas de asignación de tiempo.</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Demo impact chart
         fig = go.Figure()
         
-        x_vals = ['Short Term', 'Medium Term', 'Long Term']
+        x_vals = ['Corto Plazo', 'Mediano Plazo', 'Largo Plazo']
         y_vals = [5, 10, 8]
         colors = ['#FFD23F', '#FF6B35', '#F7931E']
         
@@ -273,9 +267,9 @@ def render_landing_page():
         ))
         
         fig.update_layout(
-            title="Sample Impact Analysis",
-            xaxis_title="Time Horizon",
-            yaxis_title="Impact Level",
+            title="Ejemplo de Análisis de Impacto",
+            xaxis_title="Horizonte Temporal",
+            yaxis_title="Nivel de Impacto",
             height=300,
             showlegend=False
         )
@@ -285,21 +279,21 @@ def render_landing_page():
     with col2:
         st.markdown("""
         <div class="feature-card">
-            <h3>🎯 MCDA Evaluation</h3>
-            <p>Multi-Criteria Decision Analysis with weighted scoring, radar chart visualizations, and automated ranking for objective alternative comparison.</p>
+            <h3>🎯 Evaluación MCDA</h3>
+            <p>Análisis de Decisión Multi-Criterio con puntuación ponderada, visualizaciones de gráficos radar y ranking automatizado para comparación objetiva de alternativas.</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Demo MCDA radar chart
         fig = go.Figure()
         
-        categories = ['Strategic<br>Impact', 'Cost<br>Efficiency', 'Risk<br>Level', 'Timeline', 'Resources']
+        categories = ['Impacto<br>Estratégico', 'Eficiencia de<br>Costos', 'Nivel de<br>Riesgo', 'Cronograma', 'Recursos']
         
         fig.add_trace(go.Scatterpolar(
             r=[8, 6, 7, 9, 5],
             theta=categories,
             fill='toself',
-            name='Option A',
+            name='Opción A',
             line_color='#FF6B35'
         ))
         
@@ -307,7 +301,7 @@ def render_landing_page():
             r=[6, 9, 8, 6, 8],
             theta=categories,
             fill='toself',
-            name='Option B',
+            name='Opción B',
             line_color='#667eea'
         ))
         
@@ -318,7 +312,7 @@ def render_landing_page():
                     range=[0, 10]
                 )),
             showlegend=True,
-            title="MCDA Comparison Example",
+            title="Ejemplo de Comparación MCDA",
             height=300
         )
         
@@ -330,8 +324,8 @@ def render_landing_page():
     with col1:
         st.markdown("""
         <div class="feature-card">
-            <h3>📈 Scenario Planning</h3>
-            <p>Probability-based modeling with Monte Carlo simulations, violin plots, and expected value calculations for comprehensive risk assessment.</p>
+            <h3>📈 Planificación de Escenarios</h3>
+            <p>Modelado basado en probabilidades con simulaciones Monte Carlo, gráficos de violín y cálculos de valor esperado para evaluación integral de riesgos.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -344,7 +338,7 @@ def render_landing_page():
         
         fig.add_trace(go.Violin(
             y=data1,
-            name='Option A',
+            name='Opción A',
             box_visible=True,
             meanline_visible=True,
             fillcolor='rgba(255, 107, 53, 0.6)',
@@ -353,7 +347,7 @@ def render_landing_page():
         
         fig.add_trace(go.Violin(
             y=data2,
-            name='Option B',
+            name='Opción B',
             box_visible=True,
             meanline_visible=True,
             fillcolor='rgba(102, 126, 234, 0.6)',
@@ -361,8 +355,8 @@ def render_landing_page():
         ))
         
         fig.update_layout(
-            title="Scenario Distribution Analysis",
-            yaxis_title="Expected Outcome",
+            title="Análisis de Distribución de Escenarios",
+            yaxis_title="Resultado Esperado",
             height=300
         )
         
@@ -371,8 +365,8 @@ def render_landing_page():
     with col2:
         st.markdown("""
         <div class="feature-card">
-            <h3>📋 Executive Dashboard</h3>
-            <p>Comprehensive results summary with integrated visualizations, export capabilities, and executive-ready decision documentation.</p>
+            <h3>📋 Panel Ejecutivo</h3>
+            <p>Resumen integral de resultados con visualizaciones integradas, capacidades de exportación y documentación de decisiones lista para ejecutivos.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -381,7 +375,7 @@ def render_landing_page():
             mode = "gauge+number+delta",
             value = 78,
             domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Decision Confidence Score"},
+            title = {'text': "Puntuación de Confianza en la Decisión"},
             delta = {'reference': 50},
             gauge = {'axis': {'range': [None, 100]},
                     'bar': {'color': "#FF6B35"},
@@ -396,120 +390,87 @@ def render_landing_page():
 
     # Workflow Section
     st.markdown("---")
-    st.markdown("## 🔄 How It Works")
+    with st.expander("📋 Cómo Funciona", expanded=False):
+        col1, col2, col3, col4 = st.columns(4)
 
-    col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown("""
+            <div class="workflow-step">
+                <h3>1️⃣</h3>
+                <h4>Evaluar Impacto</h4>
+                <p>Evaluar el impacto de la decisión a través de horizontes temporales</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col1:
-        st.markdown("""
-        <div class="workflow-step">
-            <h3>1️⃣</h3>
-            <h4>Assess Impact</h4>
-            <p>Evaluate decision impact across time horizons</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("""
+            <div class="workflow-step">
+                <h3>2️⃣</h3>
+                <h4>Recopilar Información</h4>
+                <p>Recopilar KPIs, stakeholders y datos de cronograma</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("""
-        <div class="workflow-step">
-            <h3>2️⃣</h3>
-            <h4>Gather Information</h4>
-            <p>Collect KPIs, stakeholders, and timeline data</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col3:
+            st.markdown("""
+            <div class="workflow-step">
+                <h3>3️⃣</h3>
+                <h4>Analizar Alternativas</h4>
+                <p>Usar MCDA y planificación de escenarios</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col3:
-        st.markdown("""
-        <div class="workflow-step">
-            <h3>3️⃣</h3>
-            <h4>Analyze Alternatives</h4>
-            <p>Use MCDA and scenario planning</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        st.markdown("""
-        <div class="workflow-step">
-            <h3>4️⃣</h3>
-            <h4>Make Decision</h4>
-            <p>Review executive dashboard and export results</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col4:
+            st.markdown("""
+            <div class="workflow-step">
+                <h3>4️⃣</h3>
+                <h4>Tomar Decisión</h4>
+                <p>Revisar panel ejecutivo y exportar resultados</p>
+            </div>
+            """, unsafe_allow_html=True)
 
     # Benefits Section
     st.markdown("---")
-    st.markdown("## 💼 Business Benefits")
+    st.markdown("## 💼 Beneficios de Negocio")
 
     col1, col2 = st.columns([1, 1])
 
     with col1:
         st.markdown("""
         <div class="benefit-item">
-            <h4>🎯 Structured Decision Process</h4>
-            <p>Transform chaotic decision-making into a systematic, repeatable process that ensures nothing is overlooked.</p>
+            <h4>🎯 Proceso de Decisión Estructurado</h4>
+            <p>Transforma la toma de decisiones caótica en un proceso sistemático y repetible que asegura que nada se pase por alto.</p>
         </div>
         
         <div class="benefit-item">
-            <h4>📊 Data-Driven Confidence</h4>
-            <p>Replace gut feelings with quantitative analysis, probability modeling, and statistical validation.</p>
+            <h4>📊 Confianza Basada en Datos</h4>
+            <p>Reemplaza las corazonadas con análisis cuantitativo, modelado de probabilidades y validación estadística.</p>
         </div>
         
         <div class="benefit-item">
-            <h4>⚡ Time Efficiency</h4>
-            <p>Adaptive interface shows only relevant sections based on decision complexity and available time.</p>
+            <h4>⚡ Eficiencia de Tiempo</h4>
+            <p>La interfaz adaptativa muestra solo las secciones relevantes basadas en la complejidad de la decisión y el tiempo disponible.</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
         <div class="benefit-item">
-            <h4>🤝 Stakeholder Alignment</h4>
-            <p>Visual dashboards and comprehensive documentation facilitate clear communication and buy-in.</p>
+            <h4>🤝 Alineación de Stakeholders</h4>
+            <p>Los paneles visuales y la documentación integral facilitan la comunicación clara y la aceptación.</p>
         </div>
         
         <div class="benefit-item">
-            <h4>🔍 Risk Mitigation</h4>
-            <p>Scenario planning with Monte Carlo simulations identifies potential risks and their probability distributions.</p>
+            <h4>🔍 Mitigación de Riesgos</h4>
+            <p>La planificación de escenarios con simulaciones Monte Carlo identifica riesgos potenciales y sus distribuciones de probabilidad.</p>
         </div>
         
         <div class="benefit-item">
-            <h4>📈 Improved Outcomes</h4>
-            <p>Systematic analysis leads to better decisions, reduced regret, and measurable business improvements.</p>
+            <h4>📈 Mejores Resultados</h4>
+            <p>El análisis sistemático conduce a mejores decisiones, menor arrepentimiento y mejoras medibles del negocio.</p>
         </div>
         """, unsafe_allow_html=True)
 
-    # Use Cases
-    st.markdown("---")
-    st.markdown("## 🏢 Perfect For")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("""
-        ### Strategic Planning
-        - Market entry decisions
-        - Product portfolio choices
-        - Investment prioritization
-        - Resource allocation
-        """)
-
-    with col2:
-        st.markdown("""
-        ### Operational Changes
-        - Technology implementations
-        - Process improvements
-        - Organizational restructuring
-        - Vendor selections
-        """)
-
-    with col3:
-        st.markdown("""
-        ### Risk Assessment
-        - Compliance decisions
-        - Crisis response planning
-        - Budget allocations
-        - Partnership evaluations
-        """)
 
     # Call to Action
     st.markdown("---")
@@ -518,8 +479,8 @@ def render_landing_page():
     with col2:
         st.markdown("""
         <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;">
-            <h2 style="color: white; margin-bottom: 1rem;">Ready to Transform Your Decision-Making?</h2>
-            <p style="font-size: 1.1rem; margin-bottom: 2rem;">Join executives who've moved beyond guesswork to data-driven confidence.</p>
+            <h2 style="color: white; margin-bottom: 1rem;">¿Listo para Transformar tu Toma de Decisiones?</h2>
+            <p style="font-size: 1.1rem; margin-bottom: 2rem;">Unéte a ejecutivos que han superado las conjeturas hacia la confianza basada en datos.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -529,29 +490,62 @@ def render_landing_page():
         col_left, col_center, col_right = st.columns([1, 2, 1])
         with col_center:
             # Primary CTA - Offer Page
-            if st.button("🧭 Get Decision Mastery System - €99", key="view_offer", help="See our complete decision-making solution", type="primary", use_container_width=True):
+            if st.button("🧭 Obtener Sistema de Maestría en Decisiones - €99", key="view_offer", help="Ver nuestra solución completa de toma de decisiones", type="primary", use_container_width=True):
                 st.session_state["current_page"] = "offer"
                 st.query_params["page"] = "offer"  # Update URL
                 st.rerun()
             
-            st.markdown("<div style='text-align: center; margin: 0.5rem 0; color: #666;'>or</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center; margin: 0.5rem 0; color: #666;'>o</div>", unsafe_allow_html=True)
             
             # Secondary CTA - Free Trial
-            if st.button("🚀 Try Free Demo", key="launch_app_main", help="Start your decision analysis", use_container_width=True):
+            if st.button("🚀 Probar Demo", key="launch_app_main", help="Iniciar tu análisis de decisiones", use_container_width=True):
                 st.session_state["current_page"] = "app"
                 st.query_params["page"] = "app"  # Update URL
                 st.rerun()
         
         st.markdown("""
         <div style="text-align: center; margin-top: 1rem;">
-            <p><em>No installation required • Web-based • Instant results</em></p>
+            <p><em>No requiere instalación • Basado en web • Resultados instantáneos</em></p>
         </div>
         """, unsafe_allow_html=True)
+
+    # Use Cases
+    st.markdown("---")
+    st.markdown("## 🏢 Perfecto Para")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("""
+        ### Planificación Estratégica
+        - Decisiones de entrada al mercado
+        - Elección de portafolio de productos
+        - Priorización de inversiones
+        - Asignación de recursos
+        """)
+
+    with col2:
+        st.markdown("""
+        ### Cambios Operacionales
+        - Implementaciones tecnológicas
+        - Mejoras de procesos
+        - Reestructuración organizacional
+        - Selección de proveedores
+        """)
+
+    with col3:
+        st.markdown("""
+        ### Evaluación de Riesgos
+        - Decisiones de cumplimiento
+        - Planificación de respuesta a crisis
+        - Asignaciones presupuestarias
+        - Evaluaciones de asociaciones
+        """)
 
     # Footer
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 2rem;">
-        <p><strong>Lambda Pro v1.5</strong> • Built with Streamlit • Optimized for Executive Decision-Making</p>
+        <p><strong>Focal Path Pro v1.5</strong> • Construido con Streamlit • Optimizado para Toma de Decisiones Ejecutivas</p>
     </div>
     """, unsafe_allow_html=True)
