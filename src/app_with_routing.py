@@ -39,7 +39,7 @@ st.set_page_config(
     page_title=APP_NAME,
     page_icon=APP_ICON,
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="collapsed", # No funciona por usar en mi caso por usar 'render page' como función o algo así
 )
 
 # Conditional sidebar visibility based on user preference
@@ -163,7 +163,7 @@ def render_main_app():
             st.rerun()
     
     with col2:
-        st.markdown(f"<h2 style='text-align: center; margin: 0;'>{APP_ICON} {APP_NAME} - Decision Analysis</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align: center; margin: 0;'>{APP_ICON} {APP_NAME}</h2>", unsafe_allow_html=True)
     
     with col3:
         # Sidebar toggle button

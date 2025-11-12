@@ -16,13 +16,13 @@ TAB_SCENARIOS = "Escenarios"
 
 # Tab display names with emojis (for visual display only)
 TAB_DISPLAY_NAMES = {
-    TAB_DIMENSIONADO: "📊 Dimensionado",
-    TAB_ALTERNATIVAS: "🔄 Alternativas", 
+    TAB_DIMENSIONADO: "📏Dimensionado",
+    TAB_ALTERNATIVAS: "🧭 Alternativas", 
     TAB_OBJETIVO: "🎯 Objetivo",
-    TAB_PRIORIDADES: "📋 Prioridades",
+    TAB_PRIORIDADES: "⭐ Prioridades",
     TAB_INFO: "📝 Información",
     TAB_EVAL: "⚖️ Evaluación",
-    TAB_RESULTADOS: "📄 Resultados",
+    TAB_RESULTADOS: "📊 Resultados",
     TAB_SCENARIOS: "🎲 Escenarios"
 }
 
@@ -48,7 +48,7 @@ DEFAULT_MCDA_CRITERIA = [
 ]
 
 # App metadata
-APP_NAME = "Lambda Pro"
+APP_NAME = "Focal Path Pro"
 APP_VERSION = "0.2.0"
 APP_ICON = "⚡"
 

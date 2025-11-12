@@ -398,13 +398,15 @@ def create_excel_export() -> BytesIO:
     
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         # Overview sheet
+        tiempo_data = export_data.get('asignacion_tiempo', {})
         overview_data = {
-            'Campo': ['Decisión', 'Estrategia Corporativa', 'Objetivo', 'Tiempo Asignado', 'Exportado'],
+            'Campo': ['Decisión', 'Estrategia Corporativa', 'Objetivo', 'Tiempo Asignado', 'Tiempo Manual', 'Exportado'],
             'Valor': [
                 export_data.get('decision', ''),
                 export_data.get('estrategia_corporativa', ''),
                 export_data.get('objetivo', ''),
-                export_data.get('asignacion_tiempo', {}).get('tiempo', ''),
+                tiempo_data.get('tiempo', ''),
+                'Sí' if tiempo_data.get('tiempo_user_override', False) else 'No',
                 export_data.get('meta', {}).get('exported_at', '')
             ]
         }
@@ -461,8 +463,12 @@ def create_excel_export() -> BytesIO:
         # MCDA Scores
         scores_table = mcda.get('scores_table', {})
         if isinstance(scores_table, dict) and 'data' in scores_table:
+            # Reconstruct DataFrame with proper index (alternatives)
             scores_df = pd.DataFrame(scores_table['data'])
-            if not scores_df.empty:
+            if 'index' in scores_table and not scores_df.empty:
+                scores_df.index = scores_table['index']
+                scores_df.to_excel(writer, sheet_name='MCDA_Puntuaciones', index=True)
+            elif not scores_df.empty:
                 scores_df.to_excel(writer, sheet_name='MCDA_Puntuaciones', index=False)
         
         # Scenarios sheet
@@ -505,6 +511,8 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         st.session_state['objetivo'] = str(valor) if pd.notna(valor) else ''
                     elif campo == 'Tiempo Asignado':
                         st.session_state['tiempo'] = str(valor) if pd.notna(valor) else 'Menos de media hora'
+                    elif campo == 'Tiempo Manual':
+                        st.session_state['tiempo_user_override'] = str(valor).lower() in ['sí', 'si', 'yes', 'true', '1'] if pd.notna(valor) else False
         
         # Import impact data
         if 'Impacto' in excel_data:
@@ -578,6 +586,72 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         })
                 if crit_list:
                     st.session_state['mcda_criteria'] = crit_list
+        
+        # Import MCDA scores (the missing piece!)
+        if 'MCDA_Puntuaciones' in excel_data:
+            scores_df = excel_data['MCDA_Puntuaciones']
+            if not scores_df.empty:
+                # Handle both indexed and non-indexed formats
+                if scores_df.index.name is None and len(scores_df.columns) > 0:
+                    # If first column looks like alternatives, set it as index
+                    first_col = scores_df.columns[0]
+                    if first_col == 'Unnamed: 0' or not any(col in ['Prioridad', 'Criterio'] for col in [first_col]):
+                        scores_df = scores_df.set_index(scores_df.columns[0])
+                
+                # Store the DataFrame directly
+                st.session_state['mcda_scores_df'] = scores_df
+                
+                # Convert to the dictionary format used by the evaluation component
+                mcda_scores = {}
+                for alt_name in scores_df.index:
+                    mcda_scores[str(alt_name)] = {}
+                    for criterion in scores_df.columns:
+                        score = scores_df.loc[alt_name, criterion]
+                        if pd.notna(score):
+                            mcda_scores[str(alt_name)][str(criterion)] = float(score)
+                
+                st.session_state['mcda_scores'] = mcda_scores
+        
+        # Import scenarios (the missing piece!)
+        if 'Escenarios' in excel_data:
+            scenarios_df = excel_data['Escenarios']
+            if not scenarios_df.empty:
+                imported_scenarios = {}
+                
+                # Get current alternatives to match scenario names to IDs
+                current_alts = st.session_state.get('alts', [])
+                alt_name_to_id = {alt['text'].strip(): alt['id'] for alt in current_alts if alt['text'].strip()}
+                
+                for _, row in scenarios_df.iterrows():
+                    alt_name = row.get('alternativa', '')
+                    if pd.notna(alt_name) and str(alt_name).strip():
+                        alt_name = str(alt_name).strip()
+                        alt_id = alt_name_to_id.get(alt_name)
+                        
+                        if alt_id:
+                            # Extract scenario data from Excel row
+                            worst_desc = row.get('worst_desc', '')
+                            best_desc = row.get('best_desc', '')
+                            worst_score = row.get('worst_score', 2.0)
+                            best_score = row.get('best_score', 7.0)
+                            p_best = row.get('p_best', 0.5)
+                            p_best_pct = row.get('p_best_pct', 50)
+                            
+                            imported_scenarios[alt_id] = {
+                                'name': alt_name,
+                                'worst_desc': str(worst_desc) if pd.notna(worst_desc) else '',
+                                'best_desc': str(best_desc) if pd.notna(best_desc) else '',
+                                'worst_score': float(worst_score) if pd.notna(worst_score) else 2.0,
+                                'best_score': float(best_score) if pd.notna(best_score) else 7.0,
+                                'p_best': float(p_best) if pd.notna(p_best) else 0.5,
+                                'p_best_pct': int(float(p_best_pct)) if pd.notna(p_best_pct) else 50
+                            }
+                
+                if imported_scenarios:
+                    st.session_state['scenarios'] = imported_scenarios
+        
+        # Set redirect flag to show import success
+        st.session_state["redirect_to_first_tab"] = True
         
         return True, "Datos importados exitosamente desde Excel"
         
