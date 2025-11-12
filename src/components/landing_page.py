@@ -123,9 +123,14 @@ def render_landing_page():
     """, unsafe_allow_html=True)
 
     # Navigation bar
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col3:
-        if st.button("🚀 Start Analysis", key="nav_to_app", help="Go to Lambda Pro application"):
+        if st.button("💎 View Offer", key="nav_to_offer", help="See Decision Mastery System offer"):
+            st.session_state["current_page"] = "offer"
+            st.query_params["page"] = "offer"  # Update URL
+            st.rerun()
+    with col4:
+        if st.button("🚀 Free Demo", key="nav_to_app", help="Try Lambda Pro application"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"  # Update URL
             st.rerun()
@@ -520,10 +525,19 @@ def render_landing_page():
         
         st.markdown("<br>", unsafe_allow_html=True)  # Add extra spacing
 
-        # Launch button - centered
-        col_left, col_center, col_right = st.columns([1, 1, 1])
+        # Action buttons - centered
+        col_left, col_center, col_right = st.columns([1, 2, 1])
         with col_center:
-            if st.button("🚀 Launch Lambda Pro", key="launch_app_main", help="Start your decision analysis", type="primary", use_container_width=True):
+            # Primary CTA - Offer Page
+            if st.button("🧭 Get Decision Mastery System - €99", key="view_offer", help="See our complete decision-making solution", type="primary", use_container_width=True):
+                st.session_state["current_page"] = "offer"
+                st.query_params["page"] = "offer"  # Update URL
+                st.rerun()
+            
+            st.markdown("<div style='text-align: center; margin: 0.5rem 0; color: #666;'>or</div>", unsafe_allow_html=True)
+            
+            # Secondary CTA - Free Trial
+            if st.button("🚀 Try Free Demo", key="launch_app_main", help="Start your decision analysis", use_container_width=True):
                 st.session_state["current_page"] = "app"
                 st.query_params["page"] = "app"  # Update URL
                 st.rerun()

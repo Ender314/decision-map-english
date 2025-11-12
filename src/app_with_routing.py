@@ -33,6 +33,7 @@ from components.scenarios import render_scenarios_tab
 from components.resultados import render_resultados_tab
 from components.sidebar import render_sidebar
 from components.landing_page import render_landing_page
+from components.offer_page import render_offer_page
 
 # Configure Streamlit page
 st.set_page_config(
@@ -64,6 +65,8 @@ if "current_page" not in st.session_state:
     url_page = st.query_params.get("page")
     if url_page == "app":
         st.session_state["current_page"] = "app"
+    elif url_page == "offer":
+        st.session_state["current_page"] = "offer"
     else:
         st.session_state["current_page"] = "landing"  # Default to landing page
 
@@ -263,7 +266,13 @@ def render_main_app():
 
 
 # Main routing logic
-if st.session_state.get("current_page", "landing") == "landing":
+current_page = st.session_state.get("current_page", "landing")
+
+if current_page == "landing":
     render_landing_page()
-else:
+elif current_page == "offer":
+    render_offer_page()
+elif current_page == "app":
     render_main_app()
+else:
+    render_landing_page()  # Default fallback
