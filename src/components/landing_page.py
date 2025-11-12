@@ -127,6 +127,7 @@ def render_landing_page():
     with col3:
         if st.button("🚀 Start Analysis", key="nav_to_app", help="Go to Lambda Pro application"):
             st.session_state["current_page"] = "app"
+            st.query_params["page"] = "app"  # Update URL
             st.rerun()
 
     # Hero Section
@@ -524,6 +525,7 @@ def render_landing_page():
         with col_center:
             if st.button("🚀 Launch Lambda Pro", key="launch_app_main", help="Start your decision analysis", type="primary", use_container_width=True):
                 st.session_state["current_page"] = "app"
+                st.query_params["page"] = "app"  # Update URL
                 st.rerun()
         
         st.markdown("""

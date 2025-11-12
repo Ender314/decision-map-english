@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import datetime, date
 from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
+from io import BytesIO
 
 from config.constants import DEFAULT_MCDA_CRITERIA, APP_NAME
 
@@ -384,3 +385,201 @@ def create_filename_slug(text: str) -> str:
     text = "".join(ch if ch.lower() in allowed else "-" for ch in text)
     text = "-".join(text.split())
     return text[:60] or "decision"
+
+
+def create_excel_export() -> BytesIO:
+    """Create Excel export from current session state."""
+    export_data = create_export_data()
+    if not export_data:
+        return None
+    
+    # Create Excel file in memory
+    output = BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Overview sheet
+        overview_data = {
+            'Campo': ['Decisión', 'Estrategia Corporativa', 'Objetivo', 'Tiempo Asignado', 'Exportado'],
+            'Valor': [
+                export_data.get('decision', ''),
+                export_data.get('estrategia_corporativa', ''),
+                export_data.get('objetivo', ''),
+                export_data.get('asignacion_tiempo', {}).get('tiempo', ''),
+                export_data.get('meta', {}).get('exported_at', '')
+            ]
+        }
+        pd.DataFrame(overview_data).to_excel(writer, sheet_name='Resumen', index=False)
+        
+        # Impact assessment sheet
+        impact_data = export_data.get('impacto', {})
+        impact_df = pd.DataFrame({
+            'Plazo': ['Corto', 'Medio', 'Largo'],
+            'Impacto': [impact_data.get('corto', ''), impact_data.get('medio', ''), impact_data.get('largo', '')]
+        })
+        impact_df.to_excel(writer, sheet_name='Impacto', index=False)
+        
+        # Alternatives sheet
+        alternatives = export_data.get('alternativas', [])
+        if alternatives:
+            alt_df = pd.DataFrame(alternatives)
+            alt_df.to_excel(writer, sheet_name='Alternativas', index=False)
+        
+        # Priorities sheet
+        priorities = export_data.get('prioridades', [])
+        if priorities:
+            prio_df = pd.DataFrame(priorities)
+            prio_df.to_excel(writer, sheet_name='Prioridades', index=False)
+        
+        # Information sheets
+        info = export_data.get('informacion', {})
+        
+        # KPIs
+        kpis = info.get('kpis', [])
+        if kpis:
+            kpi_df = pd.DataFrame(kpis)
+            kpi_df.to_excel(writer, sheet_name='KPIs', index=False)
+        
+        # Timeline
+        timeline = info.get('timeline_items', [])
+        if timeline:
+            timeline_df = pd.DataFrame(timeline)
+            timeline_df.to_excel(writer, sheet_name='Timeline', index=False)
+        
+        # Stakeholders
+        stakeholders = info.get('stakeholders', [])
+        if stakeholders:
+            stake_df = pd.DataFrame(stakeholders)
+            stake_df.to_excel(writer, sheet_name='Stakeholders', index=False)
+        
+        # MCDA sheet
+        mcda = export_data.get('mcda', {})
+        criteria = mcda.get('criteria', [])
+        if criteria:
+            criteria_df = pd.DataFrame(criteria)
+            criteria_df.to_excel(writer, sheet_name='MCDA_Criterios', index=False)
+        
+        # MCDA Scores
+        scores_table = mcda.get('scores_table', {})
+        if isinstance(scores_table, dict) and 'data' in scores_table:
+            scores_df = pd.DataFrame(scores_table['data'])
+            if not scores_df.empty:
+                scores_df.to_excel(writer, sheet_name='MCDA_Puntuaciones', index=False)
+        
+        # Scenarios sheet
+        scenarios = export_data.get('scenarios', [])
+        if scenarios:
+            scenarios_df = pd.DataFrame(scenarios)
+            scenarios_df.to_excel(writer, sheet_name='Escenarios', index=False)
+    
+    output.seek(0)
+    return output
+
+
+def import_excel_data(excel_file) -> Tuple[bool, str]:
+    """Import data from Excel file."""
+    try:
+        # Read all sheets
+        excel_data = pd.read_excel(excel_file, sheet_name=None)
+        
+        # Clear existing session state (preserve Streamlit internal keys)
+        keys_to_preserve = {k for k in st.session_state.keys() if k.startswith('_') or k in ['current_page', 'show_sidebar']}
+        keys_to_clear = set(st.session_state.keys()) - keys_to_preserve
+        for key in keys_to_clear:
+            del st.session_state[key]
+        
+        # Initialize defaults
+        initialize_session_defaults()
+        
+        # Import overview data
+        if 'Resumen' in excel_data:
+            overview = excel_data['Resumen']
+            if not overview.empty:
+                for _, row in overview.iterrows():
+                    campo = row.get('Campo', '')
+                    valor = row.get('Valor', '')
+                    if campo == 'Decisión':
+                        st.session_state['decision'] = str(valor) if pd.notna(valor) else ''
+                    elif campo == 'Estrategia Corporativa':
+                        st.session_state['estrategia_corporativa'] = str(valor) if pd.notna(valor) else ''
+                    elif campo == 'Objetivo':
+                        st.session_state['objetivo'] = str(valor) if pd.notna(valor) else ''
+                    elif campo == 'Tiempo Asignado':
+                        st.session_state['tiempo'] = str(valor) if pd.notna(valor) else 'Menos de media hora'
+        
+        # Import impact data
+        if 'Impacto' in excel_data:
+            impact = excel_data['Impacto']
+            if not impact.empty:
+                for _, row in impact.iterrows():
+                    plazo = row.get('Plazo', '').lower()
+                    impacto = row.get('Impacto', '')
+                    if plazo == 'corto':
+                        st.session_state['impacto_corto'] = str(impacto) if pd.notna(impacto) else 'bajo'
+                    elif plazo == 'medio':
+                        st.session_state['impacto_medio'] = str(impacto) if pd.notna(impacto) else 'medio'
+                    elif plazo == 'largo':
+                        st.session_state['impacto_largo'] = str(impacto) if pd.notna(impacto) else 'bajo'
+        
+        # Import alternatives
+        if 'Alternativas' in excel_data:
+            alternatives = excel_data['Alternativas']
+            if not alternatives.empty:
+                alts = []
+                for _, row in alternatives.iterrows():
+                    alt_id = row.get('id', str(uuid.uuid4()))
+                    text = row.get('text', '')
+                    if pd.notna(text) and str(text).strip():
+                        alts.append({'id': str(alt_id), 'text': str(text).strip()})
+                st.session_state['alts'] = alts
+        
+        # Import priorities
+        if 'Prioridades' in excel_data:
+            priorities = excel_data['Prioridades']
+            if not priorities.empty:
+                prios = []
+                for _, row in priorities.iterrows():
+                    prio_id = row.get('id', str(uuid.uuid4()))
+                    text = row.get('text', '')
+                    if pd.notna(text) and str(text).strip():
+                        prios.append({'id': str(prio_id), 'text': str(text).strip()})
+                st.session_state['priorities'] = prios
+        
+        # Import KPIs
+        if 'KPIs' in excel_data:
+            kpis = excel_data['KPIs']
+            if not kpis.empty:
+                kpi_list = []
+                for _, row in kpis.iterrows():
+                    kpi_id = row.get('id', str(uuid.uuid4()))
+                    name = row.get('name', '')
+                    value = row.get('value', '')
+                    unit = row.get('unit', '')
+                    if pd.notna(name) and str(name).strip():
+                        kpi_list.append({
+                            'id': str(kpi_id),
+                            'name': str(name).strip(),
+                            'value': str(value) if pd.notna(value) else '',
+                            'unit': str(unit) if pd.notna(unit) else ''
+                        })
+                st.session_state['kpis'] = kpi_list
+        
+        # Import MCDA criteria
+        if 'MCDA_Criterios' in excel_data:
+            criteria = excel_data['MCDA_Criterios']
+            if not criteria.empty:
+                crit_list = []
+                for _, row in criteria.iterrows():
+                    name = row.get('name', '')
+                    weight = row.get('weight', 0.5)
+                    if pd.notna(name) and str(name).strip():
+                        crit_list.append({
+                            'name': str(name).strip(),
+                            'weight': float(weight) if pd.notna(weight) else 0.5
+                        })
+                if crit_list:
+                    st.session_state['mcda_criteria'] = crit_list
+        
+        return True, "Datos importados exitosamente desde Excel"
+        
+    except Exception as e:
+        return False, f"Error al importar Excel: {str(e)}"

@@ -42,12 +42,30 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# Conditional sidebar visibility based on user preference
+if not st.session_state.get("show_sidebar", False):
+    st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {
+            display: none;
+        }
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 # Initialize session state using optimized manager
 init_session_state()
 
-# Initialize routing state
+# Initialize routing state with URL parameter support
 if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "landing"  # Default to landing page
+    # Check URL parameters for direct routing
+    url_page = st.query_params.get("page")
+    if url_page == "app":
+        st.session_state["current_page"] = "app"
+    else:
+        st.session_state["current_page"] = "landing"  # Default to landing page
 
 # Handle pending import (before any widgets are created)
 if st.session_state.get("_pending_import", False):
@@ -139,16 +157,19 @@ def render_main_app():
     # Navigation bar for app pages
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("← Home", key="nav_to_landing", help="Return to landing page"):
+        if st.button("← 🏠", key="nav_to_landing", help="Return to landing page"):
             st.session_state["current_page"] = "landing"
+            st.query_params.clear()  # Remove URL parameters
             st.rerun()
     
     with col2:
         st.markdown(f"<h2 style='text-align: center; margin: 0;'>{APP_ICON} {APP_NAME} - Decision Analysis</h2>", unsafe_allow_html=True)
     
     with col3:
-        # Export/Import in header for easy access
-        pass
+        # Sidebar toggle button
+        if st.button("⚙️", key="toggle_sidebar", help="Show/hide export/import options", type="secondary"):
+            st.session_state["show_sidebar"] = not st.session_state.get("show_sidebar", False)
+            st.rerun()
     
     st.markdown("---")
 
@@ -220,8 +241,9 @@ def render_main_app():
         with tab_map[TAB_RESULTADOS]:
             render_resultados_tab()
 
-    # Render sidebar
-    render_sidebar()
+    # Render sidebar if visible
+    if st.session_state.get("show_sidebar", False):
+        render_sidebar()
 
     # Performance monitoring and optimization (only in debug mode)
     try:
