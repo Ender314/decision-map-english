@@ -7,21 +7,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from config.constants import IMPACT_OPTS, IMPACT_MAP, PLAZO_ORDER, YMAX
-from utils.calculations import calculate_relevance_percentage
+from utils.calculations import calculate_relevance_percentage, calculate_recommended_time
 from utils.visualizations import create_impact_chart
 from utils.performance import monitor_performance
-
-
-def calculate_recommended_tiempo(relevancia_pct: float) -> str:
-    """Calculate recommended time allocation based on relevance percentage."""
-    if relevancia_pct <= 20:
-        return "Menos de media hora"
-    elif relevancia_pct <= 45:
-        return "Un par de horas"
-    elif relevancia_pct <= 80:
-        return "Una mañana"
-    else:
-        return "Un par de días"
 
 
 @monitor_performance("render_dimensionado_tab")
@@ -85,8 +73,8 @@ def render_dimensionado_tab():
     st.write('##')
     st.markdown('¿Cuánto tiempo crees que deberías dedicarle <u>toda tu atención</u> a esta decisión?', unsafe_allow_html=True)
 
-    # Calculate recommended tiempo based on relevancia (exact original logic)
-    recommended_tiempo = calculate_recommended_tiempo(relevancia_pct)
+    # Calculate recommended tiempo based on relevancia (uses shared calculation)
+    recommended_tiempo = calculate_recommended_time(relevancia_pct)
     
     # Only auto-update if user hasn't manually overridden the selection
     if not st.session_state.get("tiempo_user_override", False):

@@ -1,4 +1,4 @@
-# Lambda Pro - Clean Modular Version (v1.5)
+# Focal Path Pro - Clean Modular Version (v1.6)
 
 ## 🎯 The Perfect Balance
 
@@ -43,17 +43,17 @@ This is the **final clean version** - a balanced approach that provides the bene
 ## 🚀 Quick Start
 
 ```bash
-# Run the clean version
+# Run the app
 cd "c:\Users\yomis\OneDrive\Desarrollos\Lambda project Pro"
 streamlit_venv\Scripts\activate
-python -m streamlit run src/app.py --server.port 8501
+python -m streamlit run src/app_with_routing.py --server.port 8501
 ```
 
 ## 📁 Simple Structure
 
 ```
 src/
-├── app.py                     # Main app (120 lines vs 1,824 original)
+├── app_with_routing.py        # Main app with landing/offer page routing
 ├── config/
 │   └── constants.py           # Configuration constants
 ├── utils/
@@ -61,14 +61,17 @@ src/
 │   ├── data_manager.py        # Export/import utilities
 │   └── visualizations.py     # Chart generation
 └── components/
-    ├── dimensionado.py        # Impact assessment (150 lines)
-    ├── alternativas.py        # Alternatives management (60 lines)
-    ├── prioridades.py         # Priorities with ordering (80 lines)
-    ├── informacion.py         # KPIs, timeline, stakeholders (200 lines)
-    ├── evaluacion.py          # MCDA evaluation (120 lines)
-    ├── scenarios.py           # Scenario planning (140 lines)
-    ├── resultados.py          # Executive summary (180 lines)
-    └── sidebar.py             # Export/import (150 lines)
+    ├── landing_page.py        # Marketing landing page
+    ├── offer_page.py          # Product offer page
+    ├── dimensionado.py        # Impact assessment
+    ├── alternativas.py        # Alternatives management
+    ├── objetivo.py            # Objective & strategy
+    ├── prioridades.py         # Priorities with ordering
+    ├── informacion.py         # KPIs, timeline, stakeholders
+    ├── evaluacion.py          # MCDA evaluation
+    ├── scenarios.py           # Scenario planning
+    ├── resultados.py          # Executive summary
+    └── sidebar.py             # Export/import
 ```
 
 **Total: ~1,040 lines** (vs 1,824 original monolith)
@@ -136,6 +139,26 @@ src/
 - ✅ **Simpler to understand** - direct operations
 - ✅ **Easier to modify** - no abstractions
 - ✅ **Same functionality** - nothing lost
+
+## ⚠️ Streamlit Best Practices
+
+### Do NOT use CSS to hide/show components dynamically
+
+**Problem**: Using CSS like `display: none` on Streamlit components (e.g., `[data-testid="stSidebar"]`) causes browser reconnection issues that result in **complete session state loss**.
+
+**Solution**: Use conditional Python rendering instead:
+```python
+# ❌ BAD - causes session state loss
+st.markdown("""<style>[data-testid="stSidebar"] { display: none; }</style>""")
+
+# ✅ GOOD - preserves session state
+if st.session_state.get("show_sidebar", False):
+    render_sidebar()
+```
+
+### Avoid unnecessary `st.rerun()` calls
+
+Button clicks already trigger automatic reruns. Adding explicit `st.rerun()` can cause race conditions.
 
 ## 🏆 The Perfect Balance
 

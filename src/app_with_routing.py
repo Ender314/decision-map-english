@@ -43,18 +43,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed", # No funciona por usar en mi caso por usar 'render page' como función o algo así
 )
 
-# Conditional sidebar visibility based on user preference
-if not st.session_state.get("show_sidebar", False):
-    st.markdown("""
-    <style>
-        [data-testid="stSidebar"] {
-            display: none;
-        }
-        [data-testid="collapsedControl"] {
-            display: none;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+# IMPORTANT: Do NOT use CSS to hide/show Streamlit components dynamically!
+# CSS-based hiding (e.g., display:none on [data-testid="stSidebar"]) causes browser
+# reconnection issues that result in complete session state loss.
+# Instead, use conditional Python rendering: if show_sidebar: render_sidebar()
+# See render_main_app() line ~175 for the correct pattern.
 
 # Initialize session state using optimized manager
 init_session_state()
@@ -71,84 +64,14 @@ if "current_page" not in st.session_state:
         st.session_state["current_page"] = "landing"  # Default to landing page
 
 # Handle pending import (before any widgets are created)
+# Uses unified import_json_data from data_manager as single source of truth
 if st.session_state.get("_pending_import", False):
     json_data = st.session_state.get("_import_data", {})
     if json_data:
-        from utils.data_manager import parse_date_string
+        from utils.data_manager import import_json_data
         
-        # Import core data
-        st.session_state["decision"] = json_data.get("decision", "")
-        st.session_state["estrategia_corporativa"] = json_data.get("estrategia_corporativa", "")
-        st.session_state["objetivo"] = json_data.get("objetivo", "")
-        
-        # Import impact data
-        impacto = json_data.get("impacto", {})
-        st.session_state["impacto_corto"] = impacto.get("corto", "bajo")
-        st.session_state["impacto_medio"] = impacto.get("medio", "medio")
-        st.session_state["impacto_largo"] = impacto.get("largo", "bajo")
-        
-        # Import time allocation
-        asignacion = json_data.get("asignacion_tiempo", {})
-        st.session_state["tiempo"] = asignacion.get("tiempo", "Menos de media hora")
-        st.session_state["tiempo_user_override"] = asignacion.get("tiempo_user_override", False)
-        
-        # Import alternatives
-        st.session_state["alts"] = json_data.get("alternativas", [])
-        
-        # Import priorities
-        st.session_state["priorities"] = json_data.get("prioridades", [])
-        
-        # Import information
-        info = json_data.get("informacion", {})
-        st.session_state["past_decisions"] = info.get("past_decisions", [])
-        st.session_state["kpis"] = info.get("kpis", [])
-        
-        # Parse timeline dates
-        timeline_items = info.get("timeline_items", [])
-        for item in timeline_items:
-            if item.get("date"):
-                item["date"] = parse_date_string(item["date"])
-        st.session_state["timeline_items"] = timeline_items
-        
-        st.session_state["stakeholders"] = info.get("stakeholders", [])
-        st.session_state["quantitative_notes"] = info.get("quantitative_notes", "")
-        st.session_state["qualitative_notes"] = info.get("qualitative_notes", "")
-        
-        # Import MCDA data
-        mcda = json_data.get("mcda", {})
-        st.session_state["mcda_criteria"] = mcda.get("criteria", [])
-        st.session_state["mcda_scores"] = mcda.get("scores", {})
-        
-        # Import scenarios
-        scenarios_data = json_data.get("scenarios", [])
-        scenarios_dict = {}
-        for scenario in scenarios_data:
-            # Generate a simple ID based on alternativa name
-            alt_name = scenario.get("alternativa", "")
-            # Find matching alternative ID
-            alt_id = None
-            for alt in st.session_state["alts"]:
-                if alt["text"] == alt_name:
-                    alt_id = alt["id"]
-                    break
-            
-            if alt_id:
-                scenarios_dict[alt_id] = {
-                    "name": alt_name,
-                    "best_desc": scenario.get("best_desc", ""),
-                    "worst_desc": scenario.get("worst_desc", ""),
-                    "best_score": scenario.get("best_score", 7.0),
-                    "worst_score": scenario.get("worst_score", 2.0),
-                    "p_best": scenario.get("p_best", 0.5),
-                    "p_best_pct": scenario.get("p_best_pct", 50),
-                    "ev": scenario.get("EV", 0)
-                }
-        
-        st.session_state["scenarios"] = scenarios_dict
-        
-        # Set redirect flag and switch to app
-        st.session_state["redirect_to_first_tab"] = True
-        st.session_state["current_page"] = "app"
+        # Use unified import function with routing enabled
+        import_json_data(json_data, navigate_to_app=True, show_redirect_message=True)
         
         # Clear import flags
         st.session_state["_pending_import"] = False
@@ -169,10 +92,10 @@ def render_main_app():
         st.markdown(f"<h2 style='text-align: center; margin: 0;'>{APP_ICON} {APP_NAME}</h2>", unsafe_allow_html=True)
     
     with col3:
-        # Sidebar toggle button
+        # Sidebar toggle button - no st.rerun() needed since sidebar renders conditionally
+        # Note: Avoid st.rerun() here - button clicks already trigger automatic rerun
         if st.button("⚙️", key="toggle_sidebar", help="Show/hide export/import options", type="secondary"):
             st.session_state["show_sidebar"] = not st.session_state.get("show_sidebar", False)
-            st.rerun()
     
     st.markdown("---")
 

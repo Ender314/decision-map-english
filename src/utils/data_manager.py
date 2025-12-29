@@ -83,7 +83,7 @@ def initialize_session_defaults() -> None:
 
 
 def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
-    """Validate that JSON has the expected structure from this app - exact original validation."""
+    """Validate that JSON has the expected structure from this app."""
     required_keys = ["meta", "decision", "impacto", "alternativas", "asignacion_tiempo", 
                    "objetivo", "prioridades", "informacion", "mcda", "scenarios"]
     # Note: "estrategia_corporativa" is optional for backward compatibility
@@ -97,8 +97,10 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     if not isinstance(data.get("meta"), dict):
         return False, "Estructura 'meta' inválida"
     
-    if data["meta"].get("app") != "Lambda Pro":
-        return False, f"Este JSON no es de Lambda Pro (app: {data['meta'].get('app')})"
+    # Accept both current app name and legacy "Lambda Pro" for backward compatibility
+    valid_app_names = {APP_NAME, "Lambda Pro"}
+    if data["meta"].get("app") not in valid_app_names:
+        return False, f"Este JSON no es de {APP_NAME} (app: {data['meta'].get('app')})"
     
     # Check critical structures
     if not isinstance(data.get("alternativas"), list):
@@ -244,11 +246,21 @@ def create_export_data() -> Dict[str, Any]:
     return export_data
 
 
-def import_json_data(data: Dict[str, Any]) -> None:
-    """Import JSON data into session state, clearing existing data."""
+def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_redirect_message: bool = False) -> None:
+    """
+    Import JSON data into session state, clearing existing data.
     
-    # Clear existing session state (preserve Streamlit internal keys)
-    keys_to_preserve = [k for k in st.session_state.keys() if k.startswith('FormSubmitter:')]
+    This is the single source of truth for JSON import logic.
+    
+    Args:
+        data: The parsed JSON data to import
+        navigate_to_app: If True, set current_page to "app" after import
+        show_redirect_message: If True, set redirect_to_first_tab flag for UI feedback
+    """
+    
+    # Clear existing session state (preserve Streamlit internal keys and routing)
+    keys_to_preserve = [k for k in st.session_state.keys() 
+                        if k.startswith('FormSubmitter:') or k.startswith('_')]
     current_state = {k: st.session_state[k] for k in keys_to_preserve}
     st.session_state.clear()
     st.session_state.update(current_state)
@@ -376,6 +388,13 @@ def import_json_data(data: Dict[str, Any]) -> None:
                 "p_best_pct": scenario.get("p_best_pct", 50)
             }
     st.session_state["scenarios"] = imported_scenarios
+    
+    # Handle routing if requested (for use from app_with_routing.py)
+    if show_redirect_message:
+        st.session_state["redirect_to_first_tab"] = True
+    
+    if navigate_to_app:
+        st.session_state["current_page"] = "app"
 
 
 def create_filename_slug(text: str) -> str:

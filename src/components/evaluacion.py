@@ -10,14 +10,21 @@ from utils.calculations import normalize_weights, mcda_totals_and_ranking
 from utils.visualizations import create_mcda_radar_chart
 
 
+def _on_weights_changed():
+    """Callback when weights are edited in data_editor."""
+    edited_data = st.session_state.get("weights_editor")
+    if edited_data is not None and "edited_rows" in edited_data:
+        for row_idx, changes in edited_data["edited_rows"].items():
+            if "Peso" in changes:
+                new_weight = changes["Peso"]
+                row_idx = int(row_idx)
+                if 0 <= row_idx < len(st.session_state.mcda_criteria):
+                    st.session_state.mcda_criteria[row_idx]["weight"] = new_weight
+
+
 def render_evaluacion_tab():
     """Render the Evaluación (MCDA Evaluation) tab."""
     st.subheader("⚖️ Evaluación")
-    
-    # Handle deferred weight changes from previous run
-    if st.session_state.get("_weights_changed", False):
-        st.session_state["_weights_changed"] = False
-        st.rerun()
     
     # Clean up orphaned slider states when alternatives/priorities change
     current_slider_keys = set()
@@ -209,7 +216,7 @@ def render_evaluacion_tab():
     # Display as proper editable data table
     weight_df = pd.DataFrame(weight_data)
     
-    edited_weights = st.data_editor(
+    st.data_editor(
         weight_df,
         column_config={
             "Prioridad": st.column_config.TextColumn(
@@ -228,24 +235,9 @@ def render_evaluacion_tab():
         },
         hide_index=True,
         use_container_width=True,
-        key="weights_editor"
+        key="weights_editor",
+        on_change=_on_weights_changed
     )
-    
-    # Update session state with edited weights - avoid immediate rerun
-    weights_changed = False
-    for i, row in edited_weights.iterrows():
-        for j, criterion in enumerate(st.session_state.mcda_criteria):
-            if criterion["name"] == row["Prioridad"]:
-                old_weight = st.session_state.mcda_criteria[j]["weight"]
-                new_weight = row["Peso"]
-                if abs(old_weight - new_weight) > 0.001:  # Small threshold for float comparison
-                    st.session_state.mcda_criteria[j]["weight"] = new_weight
-                    weights_changed = True
-                break
-    
-    # Store weight change flag for next run instead of immediate rerun
-    if weights_changed:
-        st.session_state["_weights_changed"] = True
     
     # Recalculate normalized weights after edits
     updated_weight_map = normalize_weights(st.session_state.mcda_criteria)
