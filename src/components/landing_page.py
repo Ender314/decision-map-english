@@ -137,7 +137,8 @@ def render_landing_page():
 
     # Hero Section
     st.markdown('<h1 class="main-header">⚡ Focal Path Pro</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Transforma Decisiones Corporativas Complejas en Éxito Basado en Datos</p>', unsafe_allow_html=True)
+    # st.markdown('<p class="subtitle">Transforma Decisiones Corporativas Complejas en Éxito Basado en Datos</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Convierte la paralisis por análisis en claridad <br> Convierte la claridad en progreso</p>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
