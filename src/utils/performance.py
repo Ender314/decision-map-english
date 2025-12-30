@@ -176,10 +176,8 @@ def optimize_session_state():
     # Clean up empty lists and temporary data
     cleanup_session()
     
-    # Validate data integrity
+    # Validate data integrity (silent - no user-facing warnings)
     errors = validate_session()
-    if errors:
-        st.warning(f"⚠️ Data integrity issues found: {', '.join(errors)}")
     
     # Clear old performance logs
     if "_performance_log" in st.session_state:

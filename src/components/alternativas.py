@@ -23,7 +23,7 @@ def remove_alternative(alt_id: str):
 
 def render_alternativas_tab():
     """Render the Alternativas (Alternatives) tab - exact original functionality."""
-    st.subheader("🔀 Alternativas posibles")
+    st.subheader("🧭 Alternativas posibles")
 
     if not st.session_state.alts:
         st.info("No hay alternativas todavía. Pulsa **Añadir** para crear la primera.")

@@ -6,20 +6,14 @@ Clean MCDA implementation without over-engineering.
 
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 from utils.calculations import normalize_weights, mcda_totals_and_ranking
 from utils.visualizations import create_mcda_radar_chart
 
 
-def _on_weights_changed():
-    """Callback when weights are edited in data_editor."""
-    edited_data = st.session_state.get("weights_editor")
-    if edited_data is not None and "edited_rows" in edited_data:
-        for row_idx, changes in edited_data["edited_rows"].items():
-            if "Peso" in changes:
-                new_weight = changes["Peso"]
-                row_idx = int(row_idx)
-                if 0 <= row_idx < len(st.session_state.mcda_criteria):
-                    st.session_state.mcda_criteria[row_idx]["weight"] = new_weight
+def get_position_based_weights(n: int) -> list:
+    """Calculate default weights based on position: 1st=1, 2nd=0.5, ..., nth=1/n"""
+    return [1.0 / (i + 1) for i in range(n)]
 
 
 def render_evaluacion_tab():
@@ -53,32 +47,29 @@ def render_evaluacion_tab():
     
 
     
-    # Initialize or update criteria more carefully
-    existing_criteria_names = {c["name"] for c in st.session_state.mcda_criteria}
-    current_prioridad_names = set(prioridad_names)
+    # Initialize or update criteria based on priorities
+    existing_criteria_names = [c["name"] for c in st.session_state.mcda_criteria]
     
-    # Only reinitialize if priorities have fundamentally changed
-    if not existing_criteria_names or existing_criteria_names != current_prioridad_names:
-        # Preserve existing weights where possible
-        old_weights = {c["name"]: c["weight"] for c in st.session_state.mcda_criteria}
-        default_weight = 1.0 / len(prioridad_names) if prioridad_names else 0.5
-        
+    # Check if priorities changed (added/removed) or just reordered
+    priorities_changed = set(existing_criteria_names) != set(prioridad_names)
+    priorities_reordered = existing_criteria_names != prioridad_names
+    
+    if priorities_changed:
+        # Priorities added or removed - rebuild with position-based weights
+        position_weights = get_position_based_weights(len(prioridad_names))
         st.session_state.mcda_criteria = [
-            {"name": name, "weight": old_weights.get(name, default_weight)} 
-            for name in prioridad_names
+            {"name": name, "weight": position_weights[i]} 
+            for i, name in enumerate(prioridad_names)
         ]
-    
-    # Create editable table for weights
-    weight_data = []
-    for criterion in st.session_state.mcda_criteria:
-        if criterion["name"] in prioridad_names:
-            weight_data.append({
-                "Prioridad": criterion["name"],
-                "Peso": criterion["weight"]
-            })
-    
-    # Normalize weights (needed for calculations)
-    weight_map = normalize_weights(st.session_state.mcda_criteria)
+        # Reset override flag since structure changed
+        st.session_state.weights_user_override = False
+    elif priorities_reordered and not st.session_state.get("weights_user_override", False):
+        # Priorities just reordered and user hasn't manually edited - recalculate by position
+        position_weights = get_position_based_weights(len(prioridad_names))
+        st.session_state.mcda_criteria = [
+            {"name": name, "weight": position_weights[i]} 
+            for i, name in enumerate(prioridad_names)
+        ]
     
     # st.markdown("---")
     
@@ -167,15 +158,15 @@ def render_evaluacion_tab():
     
     st.markdown("---")
     
-    # Results
+    # Results FIRST
     st.markdown("### 🏆 Resultados")
     
-    # Calculate totals and ranking
+    # Calculate totals and ranking using current mcda_criteria weights
+    weight_map = normalize_weights(st.session_state.mcda_criteria)
     totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
     
     if ranking_list:
         # Visual Analysis first
-        # st.markdown("#### 📈 Análisis Visual")
         try:
             # Create radar chart for top 3 alternatives
             top_alts = ranking_list[:3]
@@ -187,8 +178,7 @@ def render_evaluacion_tab():
         st.markdown("")
         st.markdown("")
         
-        # Ranking table second
-        # st.markdown("#### 🏆 Ranking Final")
+        # Ranking table
         ranking_df = pd.DataFrame(ranking_list)
         ranking_df['Posición'] = range(1, len(ranking_df) + 1)
         ranking_df['Puntuación'] = ranking_df['score'].round(2)
@@ -210,39 +200,81 @@ def render_evaluacion_tab():
                 st.markdown(f"**{criterion}**: {score:.1f} × {weight:.1%} = {weighted_score:.2f}")
     else:
         st.info("💡 Completa la evaluación para ver los resultados")
-
-    st.markdown("---")  
-
-    # Display as proper editable data table
-    weight_df = pd.DataFrame(weight_data)
     
-    st.data_editor(
-        weight_df,
-        column_config={
-            "Prioridad": st.column_config.TextColumn(
-                "Prioridad",
-                disabled=True,
-                width="medium"
-            ),
-            "Peso": st.column_config.NumberColumn(
-                "Peso",
-                min_value=0.0,
-                max_value=1.0,
-                step=0.05,
-                format="%.2f",
-                width="small"
+    st.markdown("---")
+    
+    # Weight sliders section (no expander)
+    st.markdown("### 📐 Pesos de Prioridades")
+    
+    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
+    
+    # Two columns: sliders on left, vertical bar chart on right
+    col_sliders, col_chart = st.columns([2, 1])
+    
+    current_weights = []
+    
+    with col_sliders:
+        for i, criterion in enumerate(st.session_state.mcda_criteria):
+            if criterion["name"] in prioridad_names:
+                slider_key = f"weight_slider_{criterion['name']}"
+                
+                # Initialize slider state if not exists
+                if slider_key not in st.session_state:
+                    st.session_state[slider_key] = float(criterion.get("weight", 0.5))
+                
+                # Inline layout: label and slider on same row
+                label_col, slider_col = st.columns([1, 2])
+                with label_col:
+                    st.markdown(f"**{criterion['name']}**")
+                with slider_col:
+                    new_weight = st.slider(
+                        criterion['name'],
+                        min_value=0.0,
+                        max_value=1.0,
+                        value=st.session_state[slider_key],
+                        step=0.05,
+                        key=slider_key,
+                        label_visibility="collapsed"
+                    )
+                
+                # Update weight and set override flag if user changed it
+                if new_weight != criterion["weight"]:
+                    st.session_state.mcda_criteria[i]["weight"] = new_weight
+                    st.session_state.weights_user_override = True
+                
+                current_weights.append({"name": criterion["name"], "weight": new_weight, "color": colors[i % len(colors)]})
+    
+    # Vertical stacked bar chart on the right
+    with col_chart:
+        if current_weights:
+            st.markdown("**Pesos normalizados**")
+            weight_map_display = normalize_weights(current_weights)
+            
+            fig = go.Figure()
+            
+            for i, item in enumerate(current_weights):
+                name = item["name"]
+                normalized = weight_map_display.get(name, 0)
+                # Truncate name if too long for label
+                display_name = name[:15] + "..." if len(name) > 18 else name
+                fig.add_trace(go.Bar(
+                    x=['Pesos'],
+                    y=[normalized],
+                    name=name,
+                    marker_color=item["color"],
+                    text=display_name,
+                    textposition='inside',
+                    insidetextanchor='middle',
+                    hovertemplate=f"{normalized:.0%}<extra></extra>"
+                ))
+            
+            fig.update_layout(
+                barmode='stack',
+                height=250,
+                margin=dict(l=0, r=0, t=10, b=10),
+                showlegend=False,
+                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+                yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, 1]),
             )
-        },
-        hide_index=True,
-        use_container_width=True,
-        key="weights_editor",
-        on_change=_on_weights_changed
-    )
-    
-    # Recalculate normalized weights after edits
-    updated_weight_map = normalize_weights(st.session_state.mcda_criteria)
-    
-    # Show normalized weights
-    with st.expander("Pesos Normalizados"):
-        for name, weight in updated_weight_map.items():
-            st.markdown(f"**{name}**: {weight:.1%}")
+            
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

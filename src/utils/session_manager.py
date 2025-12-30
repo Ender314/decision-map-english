@@ -49,6 +49,7 @@ class SessionStateManager:
         
         # Internal flags
         "_weights_changed": False,
+        "weights_user_override": False,
     }
     
     @staticmethod

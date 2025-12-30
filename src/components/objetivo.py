@@ -14,7 +14,7 @@ def render_objetivo_tab():
     """
     
     # Tactical Alternatives (First - Micro Level)
-    st.markdown("### 🔀 Alternativas")
+    st.markdown("### 🧭 Alternativas")
     
     # Show alternatives if they exist
     alternatives = st.session_state.get("alts", [])

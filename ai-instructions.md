@@ -1,0 +1,84 @@
+# AI Instructions — Focal Path Pro
+
+## Overview
+**Focal Path Pro** is a Streamlit-based decision analysis application (Spanish UI). It implements Multi-Criteria Decision Analysis (MCDA) with scenario planning, impact assessment, and visualization tools.
+
+## Architecture
+
+### Entry Point
+- **`src/app_with_routing.py`** — Main app with page routing (`landing` → `offer` → `app`)
+- Routing via `st.session_state["current_page"]`; URL params supported (`?page=app`)
+
+### Directory Structure
+```
+src/
+├── app_with_routing.py    # Main entry, routing logic
+├── config/constants.py    # All constants, tab names, impact mappings
+├── utils/
+│   ├── calculations.py    # Math ops, MCDA normalization, scoring
+│   ├── data_manager.py    # JSON/Excel export/import, validation
+│   ├── session_manager.py # Session state initialization & cleanup
+│   ├── visualizations.py  # Plotly chart generation
+│   ├── violin_plots.py    # Scenario distribution visualizations
+│   └── performance.py     # Debug mode performance tools
+└── components/
+    ├── landing_page.py    # Marketing landing page
+    ├── offer_page.py      # Product offer page
+    ├── sidebar.py         # Export/import UI
+    ├── dimensionado.py    # Impact assessment (corto/medio/largo)
+    ├── alternativas.py    # Decision alternatives CRUD
+    ├── objetivo.py        # Strategic objective input
+    ├── prioridades.py     # Priority ordering
+    ├── informacion.py     # KPIs, timeline, stakeholders
+    ├── evaluacion.py      # MCDA scoring with radar charts
+    ├── scenarios.py       # Probability distributions
+    └── resultados.py      # Executive summary dashboard
+```
+
+### Session State Pattern
+- All state stored in `st.session_state` directly (no complex abstractions)
+- Defaults defined in `SessionStateManager.DEFAULTS` (`session_manager.py`)
+- Key structures: `alts`, `priorities`, `mcda_criteria`, `mcda_scores`, `scenarios`
+
+## Key Conventions
+
+### Streamlit Anti-Patterns (CRITICAL)
+1. **Never use CSS to hide/show components** — causes session state loss
+2. **Avoid unnecessary `st.rerun()`** — button clicks auto-rerun
+3. Use **conditional Python rendering** instead: `if show_sidebar: render_sidebar()`
+
+### Data Flow
+- **Import**: Sidebar upload → `_pending_import` flag → `import_json_data()` before widgets
+- **Export**: `create_export_data()` → JSON with strict schema validation
+- All items use `{"id": uuid, "text": ...}` pattern for alternatives/priorities
+
+### Tabs System
+- Tab visibility controlled by `get_sections_for_time()` based on `tiempo` selection
+- Tab constants in `config/constants.py`: `TAB_DIMENSIONADO`, `TAB_ALTERNATIVAS`, etc.
+- Display names with emojis: `TAB_DISPLAY_NAMES` dict
+
+## Development Workflow
+
+### Run Locally
+```bash
+cd "c:\Users\yomis\OneDrive\Desarrollos\Lambda project Pro"
+streamlit_venv\Scripts\activate
+python -m streamlit run src/app_with_routing.py --server.port 8501
+```
+
+### Debug Mode
+- Set `debug_mode = true` in `.streamlit/secrets.toml`
+- Or use URL param: `?debug=true`
+
+### Dependencies
+Core: `streamlit>=1.28.0`, `pandas`, `numpy`, `plotly`, `seaborn`, `matplotlib`, `openpyxl`
+
+## JSON Schema (Import/Export)
+Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
+
+Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lambda Pro".
+
+## Extending the App
+- **New tab**: Add component in `components/`, constant in `constants.py`, render call in `app_with_routing.py`
+- **New visualization**: Add to `visualizations.py` or `violin_plots.py`
+- **Session defaults**: Update `SessionStateManager.DEFAULTS`

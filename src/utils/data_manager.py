@@ -73,6 +73,7 @@ def initialize_session_defaults() -> None:
         "mcda_criteria": DEFAULT_MCDA_CRITERIA.copy(),
         "mcda_scores": {},  # {alt_name: {criterion: score}}
         "mcda_scores_df": None,
+        "weights_user_override": False,  # Track manual weight edits
         
         # Escenarios
         "scenarios": {},  # {alt_id: scenario_data}
@@ -239,6 +240,7 @@ def create_export_data() -> Dict[str, Any]:
             "scores": st.session_state.get("mcda_scores", {}),
             "scores_table": json_safe_convert(scores_df) if isinstance(scores_df, pd.DataFrame) else scores_df,
             "ranking": ranking_list,
+            "weights_user_override": st.session_state.get("weights_user_override", False),
         },
         "scenarios": scenario_rows,
     }
@@ -364,6 +366,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     mcda = data.get("mcda", {})
     st.session_state["mcda_criteria"] = mcda.get("criteria", DEFAULT_MCDA_CRITERIA.copy())
     st.session_state["mcda_scores"] = mcda.get("scores", {})
+    st.session_state["weights_user_override"] = mcda.get("weights_user_override", False)
     
     # Import scenarios (convert to proper format)
     scenarios_data = data.get("scenarios", [])
@@ -390,8 +393,9 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     st.session_state["scenarios"] = imported_scenarios
     
     # Handle routing if requested (for use from app_with_routing.py)
-    if show_redirect_message:
-        st.session_state["redirect_to_first_tab"] = True
+    # Note: redirect_to_first_tab disabled - users prefer staying on current view
+    # if show_redirect_message:
+    #     st.session_state["redirect_to_first_tab"] = True
     
     if navigate_to_app:
         st.session_state["current_page"] = "app"
@@ -418,14 +422,16 @@ def create_excel_export() -> BytesIO:
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         # Overview sheet
         tiempo_data = export_data.get('asignacion_tiempo', {})
+        mcda_data = export_data.get('mcda', {})
         overview_data = {
-            'Campo': ['Decisión', 'Estrategia Corporativa', 'Objetivo', 'Tiempo Asignado', 'Tiempo Manual', 'Exportado'],
+            'Campo': ['Decisión', 'Estrategia Corporativa', 'Objetivo', 'Tiempo Asignado', 'Tiempo Manual', 'Pesos Manual', 'Exportado'],
             'Valor': [
                 export_data.get('decision', ''),
                 export_data.get('estrategia_corporativa', ''),
                 export_data.get('objetivo', ''),
                 tiempo_data.get('tiempo', ''),
                 'Sí' if tiempo_data.get('tiempo_user_override', False) else 'No',
+                'Sí' if mcda_data.get('weights_user_override', False) else 'No',
                 export_data.get('meta', {}).get('exported_at', '')
             ]
         }
@@ -454,6 +460,12 @@ def create_excel_export() -> BytesIO:
         # Information sheets
         info = export_data.get('informacion', {})
         
+        # Past Decisions
+        past_decisions = info.get('past_decisions', [])
+        if past_decisions:
+            past_df = pd.DataFrame(past_decisions)
+            past_df.to_excel(writer, sheet_name='Decisiones_Pasadas', index=False)
+        
         # KPIs
         kpis = info.get('kpis', [])
         if kpis:
@@ -471,6 +483,17 @@ def create_excel_export() -> BytesIO:
         if stakeholders:
             stake_df = pd.DataFrame(stakeholders)
             stake_df.to_excel(writer, sheet_name='Stakeholders', index=False)
+        
+        # Notes
+        notes_data = {
+            'Tipo': ['Cuantitativas', 'Cualitativas'],
+            'Notas': [
+                info.get('quantitative_notes', ''),
+                info.get('qualitative_notes', '')
+            ]
+        }
+        notes_df = pd.DataFrame(notes_data)
+        notes_df.to_excel(writer, sheet_name='Notas', index=False)
         
         # MCDA sheet
         mcda = export_data.get('mcda', {})
@@ -532,6 +555,8 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         st.session_state['tiempo'] = str(valor) if pd.notna(valor) else 'Menos de media hora'
                     elif campo == 'Tiempo Manual':
                         st.session_state['tiempo_user_override'] = str(valor).lower() in ['sí', 'si', 'yes', 'true', '1'] if pd.notna(valor) else False
+                    elif campo == 'Pesos Manual':
+                        st.session_state['weights_user_override'] = str(valor).lower() in ['sí', 'si', 'yes', 'true', '1'] if pd.notna(valor) else False
         
         # Import impact data
         if 'Impacto' in excel_data:
@@ -589,6 +614,78 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                             'unit': str(unit) if pd.notna(unit) else ''
                         })
                 st.session_state['kpis'] = kpi_list
+        
+        # Import Timeline
+        if 'Timeline' in excel_data:
+            timeline = excel_data['Timeline']
+            if not timeline.empty:
+                timeline_list = []
+                for _, row in timeline.iterrows():
+                    item_id = row.get('id', str(uuid.uuid4()))
+                    event = row.get('event', '')
+                    date_val = row.get('date', None)
+                    if pd.notna(event) and str(event).strip():
+                        # Parse date
+                        parsed_date = None
+                        if pd.notna(date_val):
+                            parsed_date = parse_date_string(str(date_val))
+                        timeline_list.append({
+                            'id': str(item_id),
+                            'event': str(event).strip(),
+                            'date': parsed_date
+                        })
+                st.session_state['timeline_items'] = timeline_list
+        
+        # Import Stakeholders
+        if 'Stakeholders' in excel_data:
+            stakeholders = excel_data['Stakeholders']
+            if not stakeholders.empty:
+                stakeholder_list = []
+                for _, row in stakeholders.iterrows():
+                    item_id = row.get('id', str(uuid.uuid4()))
+                    name = row.get('name', '')
+                    opinion = row.get('opinion', '')
+                    if pd.notna(name) and str(name).strip():
+                        stakeholder_list.append({
+                            'id': str(item_id),
+                            'name': str(name).strip(),
+                            'opinion': str(opinion).strip() if pd.notna(opinion) else ''
+                        })
+                st.session_state['stakeholders'] = stakeholder_list
+        
+        # Import Past Decisions
+        if 'Decisiones_Pasadas' in excel_data:
+            past_decisions = excel_data['Decisiones_Pasadas']
+            if not past_decisions.empty:
+                past_list = []
+                for _, row in past_decisions.iterrows():
+                    item_id = row.get('id', str(uuid.uuid4()))
+                    decision = row.get('decision', '')
+                    results = row.get('results', '')
+                    lessons = row.get('lessons', '')
+                    if pd.notna(decision) and str(decision).strip():
+                        past_list.append({
+                            'id': str(item_id),
+                            'decision': str(decision).strip(),
+                            'results': str(results).strip() if pd.notna(results) else '',
+                            'lessons': str(lessons).strip() if pd.notna(lessons) else ''
+                        })
+                st.session_state['past_decisions'] = past_list
+        
+        # Import Notes
+        if 'Notas' in excel_data:
+            notes = excel_data['Notas']
+            if not notes.empty:
+                for _, row in notes.iterrows():
+                    tipo = row.get('Tipo', '')
+                    nota = row.get('Notas', '')
+                    if pd.notna(tipo):
+                        tipo_str = str(tipo).lower()
+                        nota_str = str(nota).strip() if pd.notna(nota) else ''
+                        if 'cuantitativa' in tipo_str:
+                            st.session_state['quantitative_notes'] = nota_str
+                        elif 'cualitativa' in tipo_str:
+                            st.session_state['qualitative_notes'] = nota_str
         
         # Import MCDA criteria
         if 'MCDA_Criterios' in excel_data:
@@ -669,8 +766,8 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                 if imported_scenarios:
                     st.session_state['scenarios'] = imported_scenarios
         
-        # Set redirect flag to show import success
-        st.session_state["redirect_to_first_tab"] = True
+        # Note: redirect_to_first_tab disabled - users prefer staying on current view
+        # st.session_state["redirect_to_first_tab"] = True
         
         return True, "Datos importados exitosamente desde Excel"
         

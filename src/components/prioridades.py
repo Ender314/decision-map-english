@@ -45,7 +45,7 @@ def render_prioridades_tab():
         st.markdown(f"🎯 *{objetivo_text}*")
         st.markdown("---")
     
-    st.subheader("📌 Prioridades")
+    st.subheader("⭐ Prioridades")
     
     # Show existing priorities with reordering
     if st.session_state.priorities:
@@ -97,5 +97,5 @@ def render_prioridades_tab():
         st.info("💡 **Siguiente paso**: Añade al menos una prioridad más para poder hacer una evaluación balanceada")
     
     # Warning for too many priorities
-    if len(valid_priorities) > 3:
+    if len(valid_priorities) > 4:
         st.warning("⚠️ **Cuidado, demasiadas prioridades es no tenerlas**")

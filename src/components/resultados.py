@@ -37,7 +37,7 @@ def render_resultados_tab():
     )
     
     # Decision Overview
-    st.markdown("## 🧭 Visión General de la Decisión")
+    st.markdown("## 🎈 Visión General de la Decisión")
     
     col1, col2, col3, col4 = st.columns(4)
     

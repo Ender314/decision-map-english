@@ -99,7 +99,6 @@ def create_mcda_ranking_chart(ranking: pd.Series) -> go.Figure:
     return fig
 
 
-@st.cache_data
 def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], alt_names: List[str]) -> go.Figure:
     """
     Create MCDA radar chart for comparing alternatives across criteria.
@@ -112,7 +111,9 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
     Returns:
         Plotly figure
     """
-    theta = criteria_names + [criteria_names[0]]  # close loop
+    # Ensure criteria names are treated as strings (not numeric angles)
+    theta_labels = [str(name) for name in criteria_names]
+    theta = theta_labels + [theta_labels[0]]  # close loop
     fig = go.Figure()
     
     for alt in alt_names:
@@ -127,7 +128,14 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
         ))
     
     fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 5]),
+            angularaxis=dict(
+                type='category',  # Force categorical axis (not numeric angles)
+                categoryorder='array',
+                categoryarray=theta_labels  # Explicit order
+            )
+        ),
         showlegend=True,
         height=420,
         margin=dict(l=20, r=20, t=20, b=20),
