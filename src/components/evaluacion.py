@@ -178,14 +178,36 @@ def render_evaluacion_tab():
         st.markdown("")
         st.markdown("")
         
-        # Ranking table
-        ranking_df = pd.DataFrame(ranking_list)
-        ranking_df['Posición'] = range(1, len(ranking_df) + 1)
-        ranking_df['Puntuación'] = ranking_df['score'].round(2)
-        ranking_df = ranking_df[['Posición', 'alternativa', 'Puntuación']]
-        ranking_df.columns = ['', 'Alternativa', 'Puntuación']
+        # Ranking horizontal bar chart (winner uses same color as radar chart line)
+        max_score = 5.0
+        WINNER_COLOR = '#83c9ff'  # Match radar chart winner line color
+        bar_colors = [WINNER_COLOR if i == 0 else '#D3D3D3' for i in range(len(ranking_list))]
         
-        st.dataframe(ranking_df, hide_index=True, use_container_width=True)
+        fig_ranking = go.Figure()
+        # Reverse to show highest at top
+        for i, item in enumerate(reversed(ranking_list)):
+            color_idx = len(ranking_list) - 1 - i
+            fig_ranking.add_trace(go.Bar(
+                y=[item['alternativa']],
+                x=[item['score']],
+                orientation='h',
+                marker_color=bar_colors[color_idx],
+                text=f"{item['score']:.2f}",
+                textposition='outside',
+                textfont=dict(size=14, color='#333'),
+                hovertemplate=f"<b>{item['alternativa']}</b><br>Puntuación: {item['score']:.2f}<extra></extra>"
+            ))
+        
+        fig_ranking.update_layout(
+            height=max(200, len(ranking_list) * 50),
+            margin=dict(l=10, r=60, t=10, b=10),
+            showlegend=False,
+            # xaxis=dict(range=[0, max_score * 1], title="Puntuación", showgrid=True, gridcolor='#eee'),
+            xaxis=dict(range=[0, ranking_list[0]['score'] * 1.2], title="Puntuación", showgrid=True, gridcolor='#eee'),
+            yaxis=dict(showgrid=False),
+            bargap=0.3
+        )
+        st.plotly_chart(fig_ranking, use_container_width=True, config={'displayModeBar': False})
         
         # Winner announcement
         winner = ranking_list[0]

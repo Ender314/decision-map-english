@@ -93,8 +93,8 @@ def render_prioridades_tab():
     # Show guidance based on current state
     valid_priorities = [p for p in st.session_state.priorities if p["text"].strip()]
     
-    if len(valid_priorities) == 1:
-        st.info("💡 **Siguiente paso**: Añade al menos una prioridad más para poder hacer una evaluación balanceada")
+    # if len(valid_priorities) == 1:
+    #     st.info("💡 **Siguiente paso**: Añade al menos una prioridad más para poder hacer una evaluación balanceada")
     
     # Warning for too many priorities
     if len(valid_priorities) > 4:
