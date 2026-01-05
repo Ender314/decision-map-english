@@ -208,6 +208,7 @@ def render_scenarios_tab():
         )
 
         st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
+        
     st.markdown("---")
     
     # Risk-Adjusted Decision Matrix
