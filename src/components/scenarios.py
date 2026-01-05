@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from config.constants import PROBABILITY_STEPS
 from utils.calculations import scenario_expected_value
 
@@ -66,7 +67,7 @@ def render_scenarios_tab():
             # Sync range slider
             range_key = f"impact_range_{alt_id}"
             if range_key not in st.session_state:
-                worst_score = scenario_data.get("worst_score", 2.0)
+                worst_score = scenario_data.get("worst_score", 3.0)
                 best_score = scenario_data.get("best_score", 7.0)
                 st.session_state[range_key] = (int(worst_score), int(best_score))
     
@@ -81,7 +82,7 @@ def render_scenarios_tab():
                 "best_desc": "",
                 "best_score": 7.0,
                 "worst_desc": "",
-                "worst_score": 2.0,
+                "worst_score": 3.0,
                 "p_best": 0.5,
                 "p_best_pct": 50,
             }
@@ -199,13 +200,167 @@ def render_scenarios_tab():
     
     st.caption("💎 **Violin Chart**: La anchura representa la densidad de probabilidad. Los diamantes brillantes indican el valor esperado (EV).")
 
+    # Summary table
+    with st.expander('Resumen escenarios'):
+        st.dataframe(
+            summary_df[["Alternativa", "Worst", "Best", "EV"]].style.format({"EV": "{:.2f}"}),
+            use_container_width=True
+        )
+
+        st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
+    st.markdown("---")
+    
+    # Risk-Adjusted Decision Matrix
+    st.markdown("### 🎯 Matriz de Decisión")
+    
+    # Get MCDA scores if available
+    mcda_ranking = []
+    if "mcda_scores" in st.session_state and st.session_state.mcda_scores:
+        from utils.calculations import normalize_weights, mcda_totals_and_ranking
+        
+        # Get scores DataFrame
+        if "mcda_scores_df" in st.session_state and "mcda_criteria" in st.session_state:
+            scores_df = st.session_state.mcda_scores_df
+            _, mcda_ranking = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+    
+    if not mcda_ranking:
+        st.info("💡 Completa la **Evaluación** para ver la Matriz de Decisión combinada.")
+    else:
+        # Build combined data
+        combined_data = []
+        for row in summary_rows:
+            alt_name = row["Alternativa"]
+            ev = row["EV"]
+            ev_scaled = ev / 2.0  # Scale 0-10 to 0-5
+            uncertainty = row["Range"]
+            
+            # Find MCDA score for this alternative
+            mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
+            
+            if mcda_score is not None:
+                # Composite: 50% MCDA + 50% EV (both in 0-5 scale)
+                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                combined_data.append({
+                    "name": alt_name,
+                    "mcda": mcda_score,
+                    "ev": ev,
+                    "ev_scaled": ev_scaled,
+                    "uncertainty": uncertainty,
+                    "composite": composite
+                })
+        
+        if combined_data:
+            # Create bubble chart
+            fig = go.Figure()
+            
+            # Color scale based on composite score
+            max_composite = max(d["composite"] for d in combined_data)
+            min_composite = min(d["composite"] for d in combined_data)
+            
+            for item in combined_data:
+                # Normalize composite for color (0-1)
+                if max_composite > min_composite:
+                    color_val = (item["composite"] - min_composite) / (max_composite - min_composite)
+                else:
+                    color_val = 0.5
+                
+                # Bubble size based on uncertainty (smaller uncertainty = smaller bubble)
+                bubble_size = 20 + item["uncertainty"] * 16
+                
+                # Opacity inversely proportional to uncertainty (larger bubbles = more transparent)
+                # Range from 0.9 (low uncertainty) to 0.4 (high uncertainty)
+                max_uncertainty = 10  # Max possible range
+                opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.9
+                
+                fig.add_trace(go.Scatter(
+                    x=[item["mcda"]],
+                    y=[item["ev_scaled"]],
+                    mode="markers+text",
+                    marker=dict(
+                        size=bubble_size,
+                        color=item["composite"],
+                        colorscale="Viridis",
+                        cmin=min_composite,
+                        cmax=max_composite,
+                        opacity=opacity,
+                        line=dict(width=2, color="white")
+                    ),
+                    text=item["name"],
+                    textposition="top center",
+                    textfont=dict(size=12, color="#333"),
+                    name=item["name"],
+                    hovertemplate=(
+                        f"<b>{item['name']}</b><br>"
+                        f"MCDA: {item['mcda']:.2f}<br>"
+                        f"EV: {item['ev']:.2f} (escala 0-10)<br>"
+                        f"Incertidumbre: {item['uncertainty']:.0f}<br>"
+                        f"Compuesto: {item['composite']:.2f}"
+                        "<extra></extra>"
+                    )
+                ))
+            
+            # Add quadrant lines at midpoint (2.5 on 0-5 scale)
+            fig.add_hline(y=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
+            fig.add_vline(x=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
+            
+            # Add quadrant labels
+            fig.add_annotation(x=1.25, y=4.5, text="Alto potencial", showarrow=False, font=dict(size=10, color="#888"))
+            fig.add_annotation(x=3.75, y=4.5, text="✓ Óptimo", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
+            fig.add_annotation(x=1.25, y=0.5, text="Evitar", showarrow=False, font=dict(size=10, color="#888"))
+            fig.add_annotation(x=3.75, y=0.5, text="Seguro limitado", showarrow=False, font=dict(size=10, color="#888"))
+            
+            fig.update_layout(
+                height=400,
+                margin=dict(l=60, r=20, t=40, b=60),
+                showlegend=False,
+                xaxis=dict(
+                    title="Puntuación MCDA (criterios)",
+                    range=[0, 5.2],
+                    showgrid=False,
+                    dtick=1
+                ),
+                yaxis=dict(
+                    title="Valor Esperado (escenarios)",
+                    range=[0, 5.2],
+                    showgrid=False,
+                    dtick=1
+                ),
+                plot_bgcolor="white"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor escenario). Burbujas más grandes indican mayor variabilidad.")
+            
+            # Composite ranking table
+            st.markdown("")
+            st.markdown("**Ranking Compuesto**")
+            
+            # Sort by composite descending
+            combined_sorted = sorted(combined_data, key=lambda x: x["composite"], reverse=True)
+            
+            ranking_df = pd.DataFrame([{
+                "Alternativa": d["name"],
+                "MCDA": d["mcda"],
+                "EV (0-5)": d["ev_scaled"],
+                "Incertidumbre": d["uncertainty"],
+                "Compuesto": d["composite"]
+            } for d in combined_sorted])
+            
+            st.dataframe(
+                ranking_df.style.format({
+                    "MCDA": "{:.2f}",
+                    "EV (0-5)": "{:.2f}",
+                    "Incertidumbre": "{:.0f}",
+                    "Compuesto": "{:.2f}"
+                }),
+                use_container_width=True
+            )
+            
+            # Winner announcement
+            winner = combined_sorted[0]
+            st.success(f"🏆 **Recomendación final**: {winner['name']} (Compuesto: {winner['composite']:.2f})")
+            st.caption("Compuesto = 50% MCDA + 50% EV. Escala 0–5.")
+    
     st.markdown("---")
 
-    # Summary table
-    st.markdown("**Resumen**")
-    st.dataframe(
-        summary_df[["Alternativa", "Worst", "Best", "EV"]].style.format({"EV": "{:.2f}"}),
-        use_container_width=True
-    )
 
-    st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")

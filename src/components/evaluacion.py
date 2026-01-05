@@ -269,7 +269,7 @@ def render_evaluacion_tab():
     # Vertical stacked bar chart on the right
     with col_chart:
         if current_weights:
-            st.markdown("**Pesos normalizados**")
+            # st.markdown("**Pesos normalizados**")
             weight_map_display = normalize_weights(current_weights)
             
             fig = go.Figure()

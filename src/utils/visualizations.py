@@ -116,6 +116,11 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
     theta = theta_labels + [theta_labels[0]]  # close loop
     fig = go.Figure()
     
+    # Calculate max score for dynamic radial axis
+    max_score = scores_df.loc[alt_names, criteria_names].max().max()
+    # Round up to nearest 0.5 for cleaner axis, minimum 1.0
+    radial_max = max(1.0, ((max_score // 0.5) + 1) * 0.5)
+    
     for alt in alt_names:
         r_vals = scores_df.loc[alt, criteria_names].tolist()
         r_vals.append(r_vals[0])
@@ -129,7 +134,7 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
     
     fig.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 5]),
+            radialaxis=dict(visible=True, range=[0, radial_max], dtick=1),
             angularaxis=dict(
                 type='category',  # Force categorical axis (not numeric angles)
                 categoryorder='array',

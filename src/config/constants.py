@@ -23,7 +23,7 @@ TAB_DISPLAY_NAMES = {
     TAB_INFO: "📝 Información",
     TAB_EVAL: "⚖️ Evaluación",
     TAB_RESULTADOS: "📊 Resultados",
-    TAB_SCENARIOS: "🎲 Escenarios"
+    TAB_SCENARIOS: "🔮 Escenarios"
 }
 
 # Tab flow configuration
