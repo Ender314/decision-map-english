@@ -78,7 +78,7 @@ def create_decision_matrix_chart(combined_data: list) -> go.Figure:
         fig.add_trace(go.Scatter(
             x=[item["mcda"]],
             y=[item["ev_scaled"]],
-            mode="markers+text",
+            mode="markers",
             marker=dict(
                 size=bubble_size,
                 color=item["composite"],
@@ -88,9 +88,6 @@ def create_decision_matrix_chart(combined_data: list) -> go.Figure:
                 opacity=opacity,
                 line=dict(width=2, color="white")
             ),
-            text=item["name"],
-            textposition="top center",
-            textfont=dict(size=11, color="#333"),
             name=item["name"],
             hovertemplate=(
                 f"<b>{item['name']}</b><br>"

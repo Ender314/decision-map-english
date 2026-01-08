@@ -88,6 +88,7 @@ def render_scenarios_tab():
             }
         
         scenario_data = st.session_state.scenarios[alt_id]
+        scenario_data["name"] = alt_name  # Keep name synced with current alternative text
         
         with st.expander(f"⚙️ {alt_name}", expanded=False):
             # Row 1: Worst → Probabilidad → Best
@@ -208,7 +209,7 @@ def render_scenarios_tab():
         )
 
         st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
-        
+
     st.markdown("---")
     
     # Risk-Adjusted Decision Matrix
@@ -253,6 +254,26 @@ def render_scenarios_tab():
         if combined_data:
             # Create bubble chart
             fig = go.Figure()
+
+            def wrap_legend_label(label: str, max_len: int = 26) -> str:
+                parts = (label or "").split()
+                if not parts:
+                    return label or ""
+
+                lines = []
+                current = ""
+                for part in parts:
+                    candidate = part if not current else f"{current} {part}"
+                    if len(candidate) <= max_len:
+                        current = candidate
+                    else:
+                        if current:
+                            lines.append(current)
+                        current = part
+                if current:
+                    lines.append(current)
+
+                return "<br>".join(lines)
             
             # Color scale based on composite score
             max_composite = max(d["composite"] for d in combined_data)
@@ -271,12 +292,12 @@ def render_scenarios_tab():
                 # Opacity inversely proportional to uncertainty (larger bubbles = more transparent)
                 # Range from 0.9 (low uncertainty) to 0.4 (high uncertainty)
                 max_uncertainty = 10  # Max possible range
-                opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.9
+                opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.85
                 
                 fig.add_trace(go.Scatter(
                     x=[item["mcda"]],
                     y=[item["ev_scaled"]],
-                    mode="markers+text",
+                    mode="markers",
                     marker=dict(
                         size=bubble_size,
                         color=item["composite"],
@@ -286,10 +307,7 @@ def render_scenarios_tab():
                         opacity=opacity,
                         line=dict(width=2, color="white")
                     ),
-                    text=item["name"],
-                    textposition="top center",
-                    textfont=dict(size=12, color="#333"),
-                    name=item["name"],
+                    name=wrap_legend_label(item["name"]),
                     hovertemplate=(
                         f"<b>{item['name']}</b><br>"
                         f"MCDA: {item['mcda']:.2f}<br>"
@@ -312,8 +330,19 @@ def render_scenarios_tab():
             
             fig.update_layout(
                 height=400,
-                margin=dict(l=60, r=20, t=40, b=60),
-                showlegend=False,
+                margin=dict(l=60, r=170, t=40, b=60),
+                showlegend=True,
+                legend=dict(
+                    title=dict(text="Alternativas"),
+                    x=1.02,
+                    y=1.0,
+                    xanchor="left",
+                    yanchor="top",
+                    bgcolor="rgba(255,255,255,0.85)",
+                    bordercolor="rgba(0,0,0,0.15)",
+                    borderwidth=1,
+                    itemsizing="constant"
+                ),
                 xaxis=dict(
                     title="Puntuación MCDA (criterios)",
                     range=[0, 5.2],

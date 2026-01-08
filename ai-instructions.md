@@ -37,7 +37,7 @@ src/
 
 ### Session State Pattern
 - All state stored in `st.session_state` directly (no complex abstractions)
-- Defaults defined in `SessionStateManager.DEFAULTS` (`session_manager.py`)
+- Defaults initialized via `init_session_state()` using `SessionStateManager.DEFAULTS` (`utils/session_manager.py`)
 - Key structures: `alts`, `priorities`, `mcda_criteria`, `mcda_scores`, `scenarios`
 
 ## Key Conventions
@@ -51,6 +51,10 @@ src/
 - **Import**: Sidebar upload → `_pending_import` flag → `import_json_data()` before widgets
 - **Export**: `create_export_data()` → JSON with strict schema validation
 - All items use `{"id": uuid, "text": ...}` pattern for alternatives/priorities
+
+### Excel Support
+- **Excel Export**: `create_excel_export()` → in-memory `.xlsx` via `openpyxl`
+- **Excel Import**: `import_excel_data()` → loads sheets and repopulates `st.session_state`
 
 ### Tabs System
 - Tab visibility controlled by `get_sections_for_time()` based on `tiempo` selection
@@ -77,6 +81,10 @@ Core: `streamlit>=1.28.0`, `pandas`, `numpy`, `plotly`, `seaborn`, `matplotlib`,
 Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
 
 Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lambda Pro".
+
+### Scenarios Representation
+- **In-session**: `st.session_state["scenarios"]` is a dict keyed by `alt_id`
+- **Export JSON**: `scenarios` is exported as a list of rows (one per alternativa) including `alternativa`, `worst_desc`, `best_desc`, scores, probabilities, and `EV`
 
 ## Extending the App
 - **New tab**: Add component in `components/`, constant in `constants.py`, render call in `app_with_routing.py`

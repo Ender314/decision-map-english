@@ -32,13 +32,12 @@ This is the **final clean version** - a balanced approach that provides the bene
 - ✅ **Statistical Annotations**: Quartiles, medians, and ranges
 
 ### **What's NOT Included** (Removed Complexity)
-- ❌ SessionManager class
 - ❌ Generic CRUD components  
-- ❌ Performance monitoring
 - ❌ Advanced caching systems
 - ❌ Error boundaries
 - ❌ Feature toggles
 - ❌ Migration utilities
+- ❌ Unnecessary abstractions
 
 ## 🚀 Quick Start
 
@@ -53,28 +52,35 @@ python -m streamlit run src/app_with_routing.py --server.port 8501
 
 ```
 src/
-├── app_with_routing.py        # Main app with landing/offer page routing
-├── config/
-│   └── constants.py           # Configuration constants
-├── utils/
-│   ├── calculations.py        # Mathematical operations
-│   ├── data_manager.py        # Export/import utilities
-│   └── visualizations.py     # Chart generation
-└── components/
-    ├── landing_page.py        # Marketing landing page
-    ├── offer_page.py          # Product offer page
-    ├── dimensionado.py        # Impact assessment
-    ├── alternativas.py        # Alternatives management
-    ├── objetivo.py            # Objective & strategy
-    ├── prioridades.py         # Priorities with ordering
-    ├── informacion.py         # KPIs, timeline, stakeholders
-    ├── evaluacion.py          # MCDA evaluation
-    ├── scenarios.py           # Scenario planning
-    ├── resultados.py          # Executive summary
-    └── sidebar.py             # Export/import
+    ├── app_with_routing.py        # Main app with landing/offer page routing
+    ├── config/
+    │   └── constants.py           # Configuration constants
+    ├── utils/
+    │   ├── calculations.py        # Mathematical operations
+    │   ├── data_manager.py        # Export/import utilities (JSON + Excel)
+    │   ├── session_manager.py     # Session defaults + lightweight integrity checks
+    │   ├── performance.py         # Debug/performance helpers (debug mode)
+    │   ├── visualizations.py      # Chart generation
+    │   └── violin_plots.py       # Scenario distribution visualizations
+    └── components/
+        ├── landing_page.py        # Marketing landing page
+        ├── offer_page.py          # Product offer page
+        ├── dimensionado.py        # Impact assessment
+        ├── alternativas.py        # Alternatives management
+        ├── objetivo.py            # Objective & strategy
+        ├── prioridades.py         # Priorities with ordering
+        ├── informacion.py         # KPIs, timeline, stakeholders
+        ├── evaluacion.py          # MCDA evaluation
+        ├── scenarios.py           # Scenario planning
+        ├── resultados.py          # Executive summary
+        └── sidebar.py             # Export/import
 ```
 
 **Total: ~1,040 lines** (vs 1,824 original monolith)
+
+## 🏷️ Versioning Note
+
+This repo uses a **marketing/release label** in this README (e.g. **v1.6**) while the app code also contains an internal `APP_VERSION` (and the export `meta.version`) used for schema compatibility. If you change export structure, update the internal version accordingly.
 
 ## 🎯 Design Philosophy
 
