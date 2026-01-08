@@ -80,6 +80,10 @@ def render_dimensionado_tab():
     if not st.session_state.get("tiempo_user_override", False):
         if st.session_state.get("tiempo") != recommended_tiempo:
             st.session_state["tiempo"] = recommended_tiempo
+        # Keep the widget key in sync too. If `tiempo_widget` already exists,
+        # Streamlit will prioritize it over the `value=` argument below.
+        if st.session_state.get("tiempo_widget") != recommended_tiempo:
+            st.session_state["tiempo_widget"] = recommended_tiempo
     
     # Use a callback to detect manual changes (exact original)
     def on_tiempo_change():
