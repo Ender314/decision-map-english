@@ -168,6 +168,11 @@ def render_evaluacion_tab():
     # Results FIRST
     st.markdown("### 🏆 Resultados")
     
+    # Colors for priority visualization (used in ranking breakdown and weight sliders)
+    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
+    # Map priority names to colors based on their position in mcda_criteria
+    priority_colors = {c["name"]: colors[i % len(colors)] for i, c in enumerate(st.session_state.mcda_criteria)}
+    
     # Calculate totals and ranking using current mcda_criteria weights
     weight_map = normalize_weights(st.session_state.mcda_criteria)
     totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
@@ -185,31 +190,56 @@ def render_evaluacion_tab():
         st.markdown("")
         st.markdown("")
         
-        # Ranking horizontal bar chart (winner uses same color as radar chart line)
-        max_score = 5.0
-        WINNER_COLOR = '#83c9ff'  # Match radar chart winner line color
-        bar_colors = [WINNER_COLOR if i == 0 else '#D3D3D3' for i in range(len(ranking_list))]
+        # Check if stacked breakdown view is enabled
+        show_breakdown = st.session_state.get("show_ranking_breakdown", False)
         
+        # Ranking horizontal bar chart
         fig_ranking = go.Figure()
-        # Reverse to show highest at top
-        for i, item in enumerate(reversed(ranking_list)):
-            color_idx = len(ranking_list) - 1 - i
-            fig_ranking.add_trace(go.Bar(
-                y=[item['alternativa']],
-                x=[item['score']],
-                orientation='h',
-                marker_color=bar_colors[color_idx],
-                text=f"{item['score']:.2f}",
-                textposition='outside',
-                textfont=dict(size=14, color='#333'),
-                hovertemplate=f"<b>{item['alternativa']}</b><br>Puntuación: {item['score']:.2f}<extra></extra>"
-            ))
+        
+        if show_breakdown:
+            # Stacked bar showing contribution per priority
+            for i, item in enumerate(reversed(ranking_list)):
+                alt_name = item['alternativa']
+                alt_scores = st.session_state.mcda_scores.get(alt_name, {})
+                
+                for criterion in prioridad_names:
+                    score = alt_scores.get(criterion, 0)
+                    weight = weight_map.get(criterion, 0)
+                    contribution = score * weight
+                    
+                    fig_ranking.add_trace(go.Bar(
+                        y=[alt_name],
+                        x=[contribution],
+                        orientation='h',
+                        name=criterion,
+                        marker_color=priority_colors.get(criterion, '#999'),
+                        hovertemplate=f"<b>{criterion}</b><br>{score:.1f} × {weight:.1%} = {contribution:.2f}<extra></extra>",
+                        showlegend=(i == len(ranking_list) - 1)  # Only show legend for first alt (top)
+                    ))
+            
+            fig_ranking.update_layout(barmode='stack')
+        else:
+            # Simple bars (original view)
+            WINNER_COLOR = '#83c9ff'
+            bar_colors = [WINNER_COLOR if i == 0 else '#D3D3D3' for i in range(len(ranking_list))]
+            
+            for i, item in enumerate(reversed(ranking_list)):
+                color_idx = len(ranking_list) - 1 - i
+                fig_ranking.add_trace(go.Bar(
+                    y=[item['alternativa']],
+                    x=[item['score']],
+                    orientation='h',
+                    marker_color=bar_colors[color_idx],
+                    text=f"{item['score']:.2f}",
+                    textposition='outside',
+                    textfont=dict(size=14, color='#333'),
+                    hovertemplate=f"<b>{item['alternativa']}</b><br>Puntuación: {item['score']:.2f}<extra></extra>"
+                ))
         
         fig_ranking.update_layout(
             height=max(200, len(ranking_list) * 50),
             margin=dict(l=10, r=60, t=10, b=10),
             showlegend=False,
-            # xaxis=dict(range=[0, max_score * 1], title="Puntuación", showgrid=True, gridcolor='#eee'),
             xaxis=dict(range=[0, ranking_list[0]['score'] * 1.2], title="Puntuación", showgrid=True, gridcolor='#eee'),
             yaxis=dict(showgrid=False),
             bargap=0.3
@@ -227,6 +257,13 @@ def render_evaluacion_tab():
                 weight = weight_map.get(criterion, 0)
                 weighted_score = score * weight
                 st.markdown(f"**{criterion}**: {score:.1f} × {weight:.1%} = {weighted_score:.2f}")
+            
+            st.markdown("")
+            st.checkbox(
+                "Visualizar contribución por criterio",
+                value=st.session_state.get("show_ranking_breakdown", False),
+                key="show_ranking_breakdown"
+            )
     else:
         st.info("💡 Completa la evaluación para ver los resultados")
     
@@ -234,8 +271,6 @@ def render_evaluacion_tab():
     
     # Weight sliders section (no expander)
     st.markdown("### 📐 Pesos de Prioridades")
-    
-    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
     
     # Initialize pending_weights from committed weights if not present or structure changed
     committed_weight_map = {c["name"]: c["weight"] for c in st.session_state.mcda_criteria}
