@@ -63,6 +63,13 @@ def render_evaluacion_tab():
         ]
         # Reset override flag since structure changed
         st.session_state.weights_user_override = False
+        # Clear pending_weights so they reinitialize from fresh mcda_criteria
+        if "pending_weights" in st.session_state:
+            del st.session_state.pending_weights
+        # Clear weight slider widget states to avoid stale values
+        for key in list(st.session_state.keys()):
+            if key.startswith("weight_slider_"):
+                del st.session_state[key]
     elif priorities_reordered and not st.session_state.get("weights_user_override", False):
         # Priorities just reordered and user hasn't manually edited - recalculate by position
         position_weights = get_position_based_weights(len(prioridad_names))
@@ -230,19 +237,32 @@ def render_evaluacion_tab():
     
     colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
     
+    # Initialize pending_weights from committed weights if not present or structure changed
+    committed_weight_map = {c["name"]: c["weight"] for c in st.session_state.mcda_criteria}
+    if "pending_weights" not in st.session_state:
+        st.session_state.pending_weights = dict(committed_weight_map)
+    else:
+        # Sync structure: add new criteria, remove old ones
+        for name in committed_weight_map:
+            if name not in st.session_state.pending_weights:
+                st.session_state.pending_weights[name] = committed_weight_map[name]
+        st.session_state.pending_weights = {
+            k: v for k, v in st.session_state.pending_weights.items() if k in committed_weight_map
+        }
+    
     # Two columns: sliders on left, vertical bar chart on right
     col_sliders, col_chart = st.columns([2, 1])
     
-    current_weights = []
+    pending_weights_list = []
     
     with col_sliders:
         for i, criterion in enumerate(st.session_state.mcda_criteria):
             if criterion["name"] in prioridad_names:
                 slider_key = f"weight_slider_{criterion['name']}"
                 
-                # Initialize slider state if not exists
+                # Initialize slider state from pending_weights
                 if slider_key not in st.session_state:
-                    st.session_state[slider_key] = float(criterion.get("weight", 0.5))
+                    st.session_state[slider_key] = float(st.session_state.pending_weights.get(criterion["name"], 0.5))
                 
                 # Inline layout: label and slider on same row
                 label_col, slider_col = st.columns([1, 2])
@@ -253,28 +273,30 @@ def render_evaluacion_tab():
                         criterion['name'],
                         min_value=0.0,
                         max_value=1.0,
-                        value=st.session_state[slider_key],
                         step=0.05,
                         key=slider_key,
                         label_visibility="collapsed"
                     )
                 
-                # Update weight and set override flag if user changed it
-                if new_weight != criterion["weight"]:
-                    st.session_state.mcda_criteria[i]["weight"] = new_weight
-                    st.session_state.weights_user_override = True
+                # Update pending_weights (stacked bar auto-refreshes with these)
+                st.session_state.pending_weights[criterion["name"]] = new_weight
                 
-                current_weights.append({"name": criterion["name"], "weight": new_weight, "color": colors[i % len(colors)]})
+                pending_weights_list.append({"name": criterion["name"], "weight": new_weight, "color": colors[i % len(colors)]})
     
-    # Vertical stacked bar chart on the right
+    # Vertical stacked bar chart on the right (uses pending_weights - auto-refresh)
     with col_chart:
-        if current_weights:
-            # st.markdown("**Pesos normalizados**")
-            weight_map_display = normalize_weights(current_weights)
+        if pending_weights_list:
+            weight_map_display = normalize_weights(pending_weights_list)
+            
+            # Sort by normalized weight descending (biggest at top = added last in stacked bar)
+            sorted_weights = sorted(
+                pending_weights_list,
+                key=lambda x: weight_map_display.get(x["name"], 0)
+            )
             
             fig = go.Figure()
             
-            for i, item in enumerate(current_weights):
+            for item in sorted_weights:
                 name = item["name"]
                 normalized = weight_map_display.get(name, 0)
                 # Truncate name if too long for label
@@ -300,3 +322,24 @@ def render_evaluacion_tab():
             )
             
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    
+    # Check if pending weights differ from committed weights
+    weights_changed = any(
+        st.session_state.pending_weights.get(c["name"]) != c["weight"]
+        for c in st.session_state.mcda_criteria
+        if c["name"] in prioridad_names
+    )
+    
+    # Submit button to apply pending weights
+    col_btn, col_hint = st.columns([1, 3])
+    with col_btn:
+        if st.button("✅ Aplicar pesos", disabled=not weights_changed, use_container_width=True):
+            # Commit pending weights to mcda_criteria
+            for i, criterion in enumerate(st.session_state.mcda_criteria):
+                if criterion["name"] in st.session_state.pending_weights:
+                    st.session_state.mcda_criteria[i]["weight"] = st.session_state.pending_weights[criterion["name"]]
+            st.session_state.weights_user_override = True
+            st.rerun()
+    with col_hint:
+        if weights_changed:
+            st.caption("⚠️ Hay cambios de pesos pendientes. Pulsa *Aplicar pesos* para actualizar los resultados.")
