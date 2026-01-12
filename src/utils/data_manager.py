@@ -259,12 +259,11 @@ def _export_risks() -> List[Dict[str, Any]]:
         risk_rows.append({
             "id": risk.get("id", risk_id),
             "title": risk.get("title", ""),
-            "category": risk.get("category", "técnico"),
             "probability": risk.get("probability", "medio"),
             "impact": risk.get("impact", "medio"),
             "linked_alt_id": risk.get("linked_alt_id"),
             "strategies": risk.get("strategies", {}),
-            "owner": risk.get("owner", ""),
+            "notes": risk.get("notes", ""),
             "status": risk.get("status", "identificado"),
             "created_at": risk.get("created_at"),
             "assessments": risk.get("assessments", [])
@@ -449,7 +448,6 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         imported_risks[risk_id] = {
             "id": risk_id,
             "title": risk.get("title", ""),
-            "category": risk.get("category", "técnico"),
             "probability": risk.get("probability", "medio"),
             "impact": risk.get("impact", "medio"),
             "linked_alt_id": risk.get("linked_alt_id"),
@@ -459,7 +457,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
                 "mitigate": "",
                 "contingency": ""
             }),
-            "owner": risk.get("owner", ""),
+            "notes": risk.get("notes", ""),
             "status": risk.get("status", "identificado"),
             "created_at": risk.get("created_at"),
             "assessments": risk.get("assessments", [])

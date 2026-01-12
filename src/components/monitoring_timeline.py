@@ -23,7 +23,7 @@ def calculate_risk_score_extended(probability: str, impact: str) -> float:
     return prob_val * impact_val
 
 
-def interpolate_risk_scores(assessments: list, date_range: list) -> list:
+def interpolate_risk_scores(assessments: list, date_range: list, start_date: date = None) -> list:
     """
     Interpolate risk scores between assessment dates using linear interpolation.
     Similar to dimensionado chart's spline approach.
@@ -31,9 +31,10 @@ def interpolate_risk_scores(assessments: list, date_range: list) -> list:
     Args:
         assessments: List of assessment dicts with date, probability, impact
         date_range: List of dates to interpolate scores for
+        start_date: Optional date when the risk was created. Returns None for dates before this.
         
     Returns:
-        List of interpolated scores for each date in date_range
+        List of interpolated scores for each date in date_range (None for dates before start_date)
     """
     if not assessments or not date_range:
         return []
@@ -53,11 +54,20 @@ def interpolate_risk_scores(assessments: list, date_range: list) -> list:
             assessment_points.append((a_date, score))
     
     if not assessment_points:
-        return [0] * len(date_range)
+        return [None] * len(date_range)
+    
+    # Use first assessment date as start_date if not provided
+    if start_date is None:
+        start_date = assessment_points[0][0]
     
     # Interpolate for each date in range
     interpolated = []
     for target_date in date_range:
+        # Return None for dates before the risk existed
+        if target_date < start_date:
+            interpolated.append(None)
+            continue
+        
         # Find surrounding assessment points
         before = None
         after = None
@@ -69,9 +79,9 @@ def interpolate_risk_scores(assessments: list, date_range: list) -> list:
                 after = (a_date, score)
         
         if before is None and after is None:
-            interpolated.append(0)
+            interpolated.append(None)
         elif before is None:
-            # Before first assessment - use first value
+            # Before first assessment but after start_date - use first value
             interpolated.append(after[1])
         elif after is None:
             # After last assessment - fade out if resolved, else hold
@@ -238,7 +248,7 @@ def render_monitoring_timeline():
     show_risk_evolution = False
     if risks:
         show_risk_evolution = st.checkbox("📈 Mostrar evolución de riesgos", value=False, 
-                                          key="show_risk_evolution_toggle",
+                                          key="monitoring_timeline_risk_evolution_toggle",
                                           help="Muestra la evolución del score de riesgo superpuesta en la línea temporal")
     
     # Create timeline visualization with interactive legend
@@ -361,7 +371,7 @@ def render_monitoring_timeline():
     # Add today marker
     today = date.today()
     min_date = min(e["date"] for e in events)
-    max_date = max(e["date"] for e in events)
+    max_date = max(max(e["date"] for e in events), today)  # Ensure chart extends to today
     
     # Extend date range slightly for better visualization
     if min_date <= today or today <= max_date:
@@ -496,9 +506,22 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         today: Current date for reference line
         y_range_max: Maximum y value for scaling risk scores
     """
+    # Find the max date across all risk assessments (not just timeline events)
+    all_assessment_dates = []
+    for risk in risks.values():
+        for assessment in risk.get("assessments", []):
+            a_date = parse_date(assessment.get("date"))
+            if a_date:
+                all_assessment_dates.append(a_date)
+    
+    # Calculate actual max date including assessments
+    actual_max_date = max_date
+    if all_assessment_dates:
+        actual_max_date = max(max_date, max(all_assessment_dates))
+    
     # Generate date range for interpolation (daily granularity)
-    chart_start = min_date - timedelta(days=7)
-    chart_end = max(max_date, today) + timedelta(days=7)
+    chart_start = min_date - timedelta(days=0)
+    chart_end = max(actual_max_date, today) + timedelta(days=1)
     
     num_days = (chart_end - chart_start).days + 1
     date_range = [chart_start + timedelta(days=i) for i in range(num_days)]
@@ -512,7 +535,7 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
     # Scale factor to fit risk scores into the timeline y-range
     scale_factor = y_range_max / max_score
     
-    # Store all interpolated scores for average calculation
+    # Store all interpolated scores for average calculation (with None handling)
     all_scores = []
     
     # Add a line for each risk
@@ -521,11 +544,14 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         if not assessments:
             continue
         
-        # Interpolate scores for this risk
-        scores = interpolate_risk_scores(assessments, date_range)
-        # Scale scores to fit timeline y-range
-        scaled_scores = [s * scale_factor for s in scores]
-        all_scores.append(scaled_scores)
+        # Get risk creation date for interpolation start
+        risk_start_date = parse_date(risk.get("created_at"))
+        
+        # Interpolate scores for this risk (starting from creation date)
+        scores = interpolate_risk_scores(assessments, date_range, start_date=risk_start_date)
+        # Scale scores to fit timeline y-range (None values stay None)
+        scaled_scores = [s * scale_factor if s is not None else None for s in scores]
+        all_scores.append(scores)  # Store unscaled for average calculation
         
         # Get risk title (truncated)
         title = risk.get("title", "Riesgo")[:25]
@@ -534,7 +560,7 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         
         color = colors[i % len(colors)]
         
-        # Add line trace
+        # Add line trace (Plotly handles None values as gaps)
         fig.add_trace(go.Scatter(
             x=date_range,
             y=scaled_scores,
@@ -581,23 +607,27 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
                 ))
     
     # Add average line (always shown, can be hidden via legend)
+    # Only include risks that existed on each day (non-None values)
     if all_scores:
-        avg_scores = []
-        # Unscale for hover display
+        avg_scores_scaled = []
         avg_scores_unscaled = []
         for day_idx in range(len(date_range)):
-            day_scores = [scores[day_idx] for scores in all_scores if day_idx < len(scores)]
+            # Filter out None values - only include risks that existed on this day
+            day_scores = [scores[day_idx] for scores in all_scores 
+                         if day_idx < len(scores) and scores[day_idx] is not None]
             if day_scores:
-                avg = sum(day_scores) / len(day_scores)
-                avg_scores.append(avg)
-                avg_scores_unscaled.append(avg / scale_factor)
+                avg_unscaled = sum(day_scores) / len(day_scores)
+                avg_scaled = avg_unscaled * scale_factor
+                avg_scores_scaled.append(avg_scaled)
+                avg_scores_unscaled.append(avg_unscaled)
             else:
-                avg_scores.append(0)
-                avg_scores_unscaled.append(0)
+                # No risks existed on this day
+                avg_scores_scaled.append(None)
+                avg_scores_unscaled.append(None)
         
         fig.add_trace(go.Scatter(
             x=date_range,
-            y=avg_scores,
+            y=avg_scores_scaled,
             mode="lines",
             name="📊 Promedio Riesgo",
             legendgroup="risk_avg",

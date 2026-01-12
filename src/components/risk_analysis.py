@@ -170,15 +170,11 @@ def render_risk_analysis_tab():
         with st.form("add_risk_form", clear_on_submit=True):
             r_title = st.text_input("Descripción del riesgo", placeholder="¿Qué podría salir mal?")
             
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             with c1:
-                r_category = st.selectbox("Categoría", RISK_CATEGORIES, index=0)
-            with c2:
                 r_prob = st.selectbox("Probabilidad", RISK_PROBABILITY, index=1)
-            with c3:
+            with c2:
                 r_impact = st.selectbox("Impacto", RISK_IMPACT, index=1)
-            
-            r_owner = st.text_input("Responsable", placeholder="¿Quién gestiona este riesgo?")
             
             if st.form_submit_button("Añadir riesgo", type="primary"):
                 if r_title.strip():
@@ -187,7 +183,6 @@ def render_risk_analysis_tab():
                     st.session_state.risks[risk_id] = {
                         "id": risk_id,
                         "title": r_title.strip(),
-                        "category": r_category,
                         "probability": r_prob,
                         "impact": r_impact,
                         "linked_alt_id": selected_alt_id,
@@ -197,7 +192,7 @@ def render_risk_analysis_tab():
                             "mitigate": "",
                             "contingency": ""
                         },
-                        "owner": r_owner.strip(),
+                        "notes": "",
                         "status": "identificado",
                         "created_at": today_iso,
                         "assessments": [
@@ -231,18 +226,8 @@ def render_risk_analysis_tab():
             
             with st.expander(f"{status_icon} **{risk['title']}** — Puntuación: {score}", expanded=False):
                 # Risk details
-                c1, c2, c3, c4 = st.columns(4)
+                c1, c2, c3 = st.columns(3)
                 with c1:
-                    new_cat = st.selectbox(
-                        "Categoría",
-                        RISK_CATEGORIES,
-                        index=RISK_CATEGORIES.index(risk.get("category", "técnico")),
-                        key=f"cat_{risk_id}"
-                    )
-                    if new_cat != risk.get("category"):
-                        st.session_state.risks[risk_id]["category"] = new_cat
-                
-                with c2:
                     new_prob = st.selectbox(
                         "Probabilidad",
                         RISK_PROBABILITY,
@@ -252,7 +237,7 @@ def render_risk_analysis_tab():
                     if new_prob != risk.get("probability"):
                         st.session_state.risks[risk_id]["probability"] = new_prob
                 
-                with c3:
+                with c2:
                     new_impact = st.selectbox(
                         "Impacto",
                         RISK_IMPACT,
@@ -262,7 +247,7 @@ def render_risk_analysis_tab():
                     if new_impact != risk.get("impact"):
                         st.session_state.risks[risk_id]["impact"] = new_impact
                 
-                with c4:
+                with c3:
                     new_status = st.selectbox(
                         "Estado",
                         RISK_STATUS,
@@ -272,14 +257,15 @@ def render_risk_analysis_tab():
                     if new_status != risk.get("status"):
                         st.session_state.risks[risk_id]["status"] = new_status
                 
-                # Owner
-                new_owner = st.text_input(
-                    "Responsable",
-                    value=risk.get("owner", ""),
-                    key=f"owner_{risk_id}"
+                # Notes field
+                new_notes = st.text_input(
+                    "Notas",
+                    value=risk.get("notes", ""),
+                    key=f"notes_{risk_id}",
+                    placeholder="Notas adicionales sobre este riesgo..."
                 )
-                if new_owner != risk.get("owner"):
-                    st.session_state.risks[risk_id]["owner"] = new_owner
+                if new_notes != risk.get("notes", ""):
+                    st.session_state.risks[risk_id]["notes"] = new_notes
                 
                 st.markdown("---")
                 st.markdown("**Estrategias de Respuesta**")
