@@ -1,4 +1,4 @@
-# Focal Path Pro - Clean Modular Version (v1.6)
+# Focal Path Pro - Clean Modular Version (v1.7)
 
 ## 🎯 The Perfect Balance
 
@@ -15,6 +15,11 @@ This is the **final clean version** - a balanced approach that provides the bene
 - ✅ **Scenario Planning**: Probability distributions with violin plots
 - ✅ **Executive Summary**: Comprehensive results dashboard
 - ✅ **Export/Import**: Complete session persistence
+
+### **✨ Post-Decision Monitoring** (New in v1.7)
+- ✅ **Risk Analysis**: Risk inventory, probability×impact matrix, mitigation strategies (avoid/transfer/mitigate/contingency)
+- ✅ **Retrospective**: Outcome tracking, decision vs chance attribution, tripwires for reevaluation triggers
+- ✅ **Lessons Learned**: Decision quality vs outcome quality assessment
 
 ### **Architecture Benefits**
 - ✅ **Organized**: Clean separation into focused components
@@ -73,10 +78,12 @@ src/
         ├── evaluacion.py          # MCDA evaluation
         ├── scenarios.py           # Scenario planning
         ├── resultados.py          # Executive summary
+        ├── risk_analysis.py       # Risk inventory & mitigation
+        ├── retro.py               # Retrospective & tripwires
         └── sidebar.py             # Export/import
 ```
 
-**Total: ~1,040 lines** (vs 1,824 original monolith)
+**Total: ~1,500 lines** (includes new post-decision monitoring features)
 
 ## 🏷️ Versioning Note
 

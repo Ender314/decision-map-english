@@ -47,6 +47,22 @@ class SessionStateManager:
         # Scenarios
         "scenarios": {},
         
+        # Risk Analysis
+        "risks": {},  # {risk_id: risk_data}
+        "selected_alternative_id": None,  # Alternative being analyzed for risks/retro
+        
+        # Retrospective
+        "retro": {
+            "decision_date": None,
+            "review_date": None,
+            "chosen_alternative_id": None,
+            "outcomes": [],  # list of outcome dicts
+            "tripwires": [],  # list of tripwire dicts
+            "lessons_learned": "",
+            "decision_quality_score": 3,
+            "outcome_quality_score": 3
+        },
+        
         # Internal flags
         "_weights_changed": False,
         "weights_user_override": False,
@@ -157,7 +173,9 @@ class SessionStateManager:
             "informacion": ["past_decisions", "kpis", "timeline_items", "stakeholders", 
                            "quantitative_notes", "qualitative_notes"],
             "mcda": ["mcda_criteria", "mcda_scores", "mcda_scores_df"],
-            "scenarios": ["scenarios"]
+            "scenarios": ["scenarios"],
+            "risks": ["risks", "selected_alternative_id"],
+            "retro": ["retro"]
         }
         
         if section in section_keys:

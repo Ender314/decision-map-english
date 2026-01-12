@@ -87,6 +87,7 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     """Validate that JSON has the expected structure from this app."""
     required_keys = ["meta", "decision", "impacto", "alternativas", "asignacion_tiempo", 
                    "objetivo", "prioridades", "informacion", "mcda", "scenarios"]
+    # Note: "risks" and "retro" are optional for backward compatibility
     # Note: "estrategia_corporativa" is optional for backward compatibility
     
     # Check top-level structure
@@ -243,9 +244,57 @@ def create_export_data() -> Dict[str, Any]:
             "weights_user_override": st.session_state.get("weights_user_override", False),
         },
         "scenarios": scenario_rows,
+        "risks": _export_risks(),
+        "retro": _export_retro(),
     }
     
     return export_data
+
+
+def _export_risks() -> List[Dict[str, Any]]:
+    """Export risks data for JSON."""
+    risks = st.session_state.get("risks", {})
+    risk_rows = []
+    for risk_id, risk in risks.items():
+        risk_rows.append({
+            "id": risk.get("id", risk_id),
+            "title": risk.get("title", ""),
+            "category": risk.get("category", "técnico"),
+            "probability": risk.get("probability", "medio"),
+            "impact": risk.get("impact", "medio"),
+            "linked_alt_id": risk.get("linked_alt_id"),
+            "strategies": risk.get("strategies", {}),
+            "owner": risk.get("owner", ""),
+            "status": risk.get("status", "identificado"),
+            "created_at": risk.get("created_at"),
+            "assessments": risk.get("assessments", [])
+        })
+    return risk_rows
+
+
+def _export_retro() -> Dict[str, Any]:
+    """Export retrospective data for JSON."""
+    retro = st.session_state.get("retro", {})
+    
+    # Convert dates to ISO strings
+    decision_date = retro.get("decision_date")
+    review_date = retro.get("review_date")
+    
+    if isinstance(decision_date, date):
+        decision_date = decision_date.isoformat()
+    if isinstance(review_date, date):
+        review_date = review_date.isoformat()
+    
+    return {
+        "decision_date": decision_date,
+        "review_date": review_date,
+        "chosen_alternative_id": retro.get("chosen_alternative_id"),
+        "outcomes": retro.get("outcomes", []),
+        "tripwires": retro.get("tripwires", []),
+        "lessons_learned": retro.get("lessons_learned", ""),
+        "decision_quality_score": retro.get("decision_quality_score", 3),
+        "outcome_quality_score": retro.get("outcome_quality_score", 3)
+    }
 
 
 def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_redirect_message: bool = False) -> None:
@@ -392,6 +441,45 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
             }
     st.session_state["scenarios"] = imported_scenarios
     
+    # Import risks (if present)
+    risks_data = data.get("risks", [])
+    imported_risks = {}
+    for risk in risks_data:
+        risk_id = risk.get("id", str(uuid.uuid4()))
+        imported_risks[risk_id] = {
+            "id": risk_id,
+            "title": risk.get("title", ""),
+            "category": risk.get("category", "técnico"),
+            "probability": risk.get("probability", "medio"),
+            "impact": risk.get("impact", "medio"),
+            "linked_alt_id": risk.get("linked_alt_id"),
+            "strategies": risk.get("strategies", {
+                "avoid": "",
+                "transfer": "",
+                "mitigate": "",
+                "contingency": ""
+            }),
+            "owner": risk.get("owner", ""),
+            "status": risk.get("status", "identificado"),
+            "created_at": risk.get("created_at"),
+            "assessments": risk.get("assessments", [])
+        }
+    st.session_state["risks"] = imported_risks
+    
+    # Import retro (if present)
+    retro_data = data.get("retro", {})
+    imported_retro = {
+        "decision_date": parse_date_string(retro_data.get("decision_date")),
+        "review_date": parse_date_string(retro_data.get("review_date")),
+        "chosen_alternative_id": retro_data.get("chosen_alternative_id"),
+        "outcomes": retro_data.get("outcomes", []),
+        "tripwires": retro_data.get("tripwires", []),
+        "lessons_learned": retro_data.get("lessons_learned", ""),
+        "decision_quality_score": retro_data.get("decision_quality_score", 3),
+        "outcome_quality_score": retro_data.get("outcome_quality_score", 3)
+    }
+    st.session_state["retro"] = imported_retro
+    
     # Handle routing if requested (for use from app_with_routing.py)
     # Note: redirect_to_first_tab disabled - users prefer staying on current view
     # if show_redirect_message:
@@ -518,6 +606,61 @@ def create_excel_export() -> BytesIO:
         if scenarios:
             scenarios_df = pd.DataFrame(scenarios)
             scenarios_df.to_excel(writer, sheet_name='Escenarios', index=False)
+        
+        # Risks sheet
+        risks = export_data.get('risks', [])
+        if risks:
+            # Flatten strategies for Excel
+            risks_flat = []
+            for risk in risks:
+                strategies = risk.get('strategies', {})
+                risks_flat.append({
+                    'id': risk.get('id', ''),
+                    'title': risk.get('title', ''),
+                    'category': risk.get('category', ''),
+                    'probability': risk.get('probability', ''),
+                    'impact': risk.get('impact', ''),
+                    'linked_alt_id': risk.get('linked_alt_id', ''),
+                    'owner': risk.get('owner', ''),
+                    'status': risk.get('status', ''),
+                    'created_at': risk.get('created_at', ''),
+                    'strategy_avoid': strategies.get('avoid', ''),
+                    'strategy_transfer': strategies.get('transfer', ''),
+                    'strategy_mitigate': strategies.get('mitigate', ''),
+                    'strategy_contingency': strategies.get('contingency', '')
+                })
+            risks_df = pd.DataFrame(risks_flat)
+            risks_df.to_excel(writer, sheet_name='Riesgos', index=False)
+        
+        # Retro sheet
+        retro = export_data.get('retro', {})
+        if retro:
+            # Main retro data
+            retro_main = {
+                'Campo': ['decision_date', 'review_date', 'chosen_alternative_id', 
+                         'lessons_learned', 'decision_quality_score', 'outcome_quality_score'],
+                'Valor': [
+                    retro.get('decision_date', ''),
+                    retro.get('review_date', ''),
+                    retro.get('chosen_alternative_id', ''),
+                    retro.get('lessons_learned', ''),
+                    retro.get('decision_quality_score', 3),
+                    retro.get('outcome_quality_score', 3)
+                ]
+            }
+            pd.DataFrame(retro_main).to_excel(writer, sheet_name='Retro_Resumen', index=False)
+            
+            # Outcomes
+            outcomes = retro.get('outcomes', [])
+            if outcomes:
+                outcomes_df = pd.DataFrame(outcomes)
+                outcomes_df.to_excel(writer, sheet_name='Retro_Resultados', index=False)
+            
+            # Tripwires
+            tripwires = retro.get('tripwires', [])
+            if tripwires:
+                tripwires_df = pd.DataFrame(tripwires)
+                tripwires_df.to_excel(writer, sheet_name='Retro_Tripwires', index=False)
     
     output.seek(0)
     return output
@@ -765,6 +908,98 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                 
                 if imported_scenarios:
                     st.session_state['scenarios'] = imported_scenarios
+        
+        # Import Risks
+        if 'Riesgos' in excel_data:
+            risks_df = excel_data['Riesgos']
+            if not risks_df.empty:
+                imported_risks = {}
+                for _, row in risks_df.iterrows():
+                    risk_id = row.get('id', str(uuid.uuid4()))
+                    if pd.notna(row.get('title', '')) and str(row.get('title', '')).strip():
+                        imported_risks[str(risk_id)] = {
+                            'id': str(risk_id),
+                            'title': str(row.get('title', '')).strip(),
+                            'category': str(row.get('category', 'técnico')) if pd.notna(row.get('category')) else 'técnico',
+                            'probability': str(row.get('probability', 'medio')) if pd.notna(row.get('probability')) else 'medio',
+                            'impact': str(row.get('impact', 'medio')) if pd.notna(row.get('impact')) else 'medio',
+                            'linked_alt_id': str(row.get('linked_alt_id', '')) if pd.notna(row.get('linked_alt_id')) else None,
+                            'owner': str(row.get('owner', '')) if pd.notna(row.get('owner')) else '',
+                            'status': str(row.get('status', 'identificado')) if pd.notna(row.get('status')) else 'identificado',
+                            'created_at': str(row.get('created_at', '')) if pd.notna(row.get('created_at')) else None,
+                            'strategies': {
+                                'avoid': str(row.get('strategy_avoid', '')) if pd.notna(row.get('strategy_avoid')) else '',
+                                'transfer': str(row.get('strategy_transfer', '')) if pd.notna(row.get('strategy_transfer')) else '',
+                                'mitigate': str(row.get('strategy_mitigate', '')) if pd.notna(row.get('strategy_mitigate')) else '',
+                                'contingency': str(row.get('strategy_contingency', '')) if pd.notna(row.get('strategy_contingency')) else ''
+                            }
+                        }
+                if imported_risks:
+                    st.session_state['risks'] = imported_risks
+        
+        # Import Retro
+        imported_retro = {
+            'decision_date': None,
+            'review_date': None,
+            'chosen_alternative_id': None,
+            'outcomes': [],
+            'tripwires': [],
+            'lessons_learned': '',
+            'decision_quality_score': 3,
+            'outcome_quality_score': 3
+        }
+        
+        if 'Retro_Resumen' in excel_data:
+            retro_df = excel_data['Retro_Resumen']
+            if not retro_df.empty:
+                for _, row in retro_df.iterrows():
+                    campo = row.get('Campo', '')
+                    valor = row.get('Valor', '')
+                    if campo == 'decision_date' and pd.notna(valor):
+                        imported_retro['decision_date'] = parse_date_string(str(valor))
+                    elif campo == 'review_date' and pd.notna(valor):
+                        imported_retro['review_date'] = parse_date_string(str(valor))
+                    elif campo == 'chosen_alternative_id' and pd.notna(valor):
+                        imported_retro['chosen_alternative_id'] = str(valor)
+                    elif campo == 'lessons_learned' and pd.notna(valor):
+                        imported_retro['lessons_learned'] = str(valor)
+                    elif campo == 'decision_quality_score' and pd.notna(valor):
+                        imported_retro['decision_quality_score'] = int(float(valor))
+                    elif campo == 'outcome_quality_score' and pd.notna(valor):
+                        imported_retro['outcome_quality_score'] = int(float(valor))
+        
+        if 'Retro_Resultados' in excel_data:
+            outcomes_df = excel_data['Retro_Resultados']
+            if not outcomes_df.empty:
+                outcomes = []
+                for _, row in outcomes_df.iterrows():
+                    outcomes.append({
+                        'id': str(row.get('id', str(uuid.uuid4()))),
+                        'description': str(row.get('description', '')) if pd.notna(row.get('description')) else '',
+                        'date': str(row.get('date', '')) if pd.notna(row.get('date')) else None,
+                        'attribution': str(row.get('attribution', 'mixto')) if pd.notna(row.get('attribution')) else 'mixto',
+                        'attribution_notes': str(row.get('attribution_notes', '')) if pd.notna(row.get('attribution_notes')) else '',
+                        'sentiment': str(row.get('sentiment', 'neutral')) if pd.notna(row.get('sentiment')) else 'neutral'
+                    })
+                imported_retro['outcomes'] = outcomes
+        
+        if 'Retro_Tripwires' in excel_data:
+            tripwires_df = excel_data['Retro_Tripwires']
+            if not tripwires_df.empty:
+                tripwires = []
+                for _, row in tripwires_df.iterrows():
+                    tripwires.append({
+                        'id': str(row.get('id', str(uuid.uuid4()))),
+                        'trigger': str(row.get('trigger', '')) if pd.notna(row.get('trigger')) else '',
+                        'target_date': str(row.get('target_date', '')) if pd.notna(row.get('target_date')) else None,
+                        'threshold': str(row.get('threshold', '')) if pd.notna(row.get('threshold')) else '',
+                        'status': str(row.get('status', 'activo')) if pd.notna(row.get('status')) else 'activo',
+                        'triggered_date': str(row.get('triggered_date', '')) if pd.notna(row.get('triggered_date')) else None,
+                        'action_taken': str(row.get('action_taken', '')) if pd.notna(row.get('action_taken')) else ''
+                    })
+                imported_retro['tripwires'] = tripwires
+        
+        st.session_state['retro'] = imported_retro
         
         # Note: redirect_to_first_tab disabled - users prefer staying on current view
         # st.session_state["redirect_to_first_tab"] = True

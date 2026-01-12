@@ -32,13 +32,15 @@ src/
     ├── informacion.py     # KPIs, timeline, stakeholders
     ├── evaluacion.py      # MCDA scoring with radar charts
     ├── scenarios.py       # Probability distributions
-    └── resultados.py      # Executive summary dashboard
+    ├── resultados.py      # Executive summary dashboard
+    ├── risk_analysis.py   # Risk inventory, matrix, mitigation strategies
+    └── retro.py           # Retrospective: outcomes, tripwires, lessons
 ```
 
 ### Session State Pattern
 - All state stored in `st.session_state` directly (no complex abstractions)
 - Defaults initialized via `init_session_state()` using `SessionStateManager.DEFAULTS` (`utils/session_manager.py`)
-- Key structures: `alts`, `priorities`, `mcda_criteria`, `mcda_scores`, `scenarios`
+- Key structures: `alts`, `priorities`, `mcda_criteria`, `mcda_scores`, `scenarios`, `risks`, `retro`
 
 ## Key Conventions
 
@@ -79,6 +81,7 @@ Core: `streamlit>=1.28.0`, `pandas`, `numpy`, `plotly`, `seaborn`, `matplotlib`,
 
 ## JSON Schema (Import/Export)
 Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
+Optional keys (v0.3.0+): `risks`, `retro`
 
 Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lambda Pro".
 
@@ -86,7 +89,36 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lamb
 - **In-session**: `st.session_state["scenarios"]` is a dict keyed by `alt_id`
 - **Export JSON**: `scenarios` is exported as a list of rows (one per alternativa) including `alternativa`, `worst_desc`, `best_desc`, scores, probabilities, and `EV`
 
+### Risks Representation
+- **In-session**: `st.session_state["risks"]` is a dict keyed by `risk_id`
+- Each risk has: `id`, `title`, `category`, `probability`, `impact`, `linked_alt_id`, `strategies` (avoid/transfer/mitigate/contingency), `owner`, `status`
+- **Export JSON**: `risks` is a list of risk objects
+
+### Retro Representation
+- **In-session**: `st.session_state["retro"]` is a dict with:
+  - `decision_date`, `review_date`, `chosen_alternative_id`
+  - `outcomes`: list of outcome dicts (description, date, attribution, sentiment)
+  - `tripwires`: list of tripwire dicts (trigger, threshold, status, triggered_date, action_taken)
+  - `lessons_learned`, `decision_quality_score`, `outcome_quality_score`
+
 ## Extending the App
 - **New tab**: Add component in `components/`, constant in `constants.py`, render call in `app_with_routing.py`
 - **New visualization**: Add to `visualizations.py` or `violin_plots.py`
 - **Session defaults**: Update `SessionStateManager.DEFAULTS`
+
+## Post-Decision Monitoring (v0.3.0+)
+
+### Risk Analysis Tab (`TAB_RIESGOS`)
+- Linked to the recommended alternative (user can change)
+- Risk inventory with CRUD operations
+- Categories: técnico, financiero, operacional, externo, estratégico
+- Probability × Impact scoring with visual matrix
+- Four response strategies per risk: Evitar, Transferir, Mitigar, Contingencia
+- Risk status tracking: identificado → en_tratamiento → aceptado → cerrado
+
+### Retrospective Tab (`TAB_RETRO`)
+- Tracks outcomes after decision implementation
+- Attribution analysis: decisión vs azar vs mixto
+- Tripwires: trigger conditions that should cause reevaluation
+- Quality scores: decision process quality vs outcome quality
+- Lessons learned documentation

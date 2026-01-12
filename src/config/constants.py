@@ -13,6 +13,8 @@ TAB_INFO = "Información"
 TAB_EVAL = "Evaluación"
 TAB_RESULTADOS = "Resultados"
 TAB_SCENARIOS = "Escenarios"
+TAB_RIESGOS = "Riesgos"
+TAB_RETRO = "Retrospectiva"
 
 # Tab display names with emojis (for visual display only)
 TAB_DISPLAY_NAMES = {
@@ -23,14 +25,34 @@ TAB_DISPLAY_NAMES = {
     TAB_INFO: "📝 Información",
     TAB_EVAL: "⚖️ Evaluación",
     TAB_RESULTADOS: "📊 Resultados",
-    TAB_SCENARIOS: "🔮 Escenarios"
+    TAB_SCENARIOS: "🔮 Escenarios",
+    TAB_RIESGOS: "⚠️ Riesgos",
+    TAB_RETRO: "🔄 Retrospectiva"
 }
 
-# Tab flow configuration
+# Tab flow configuration - Analysis phase only
 ALL_SECTIONS = [
     TAB_DIMENSIONADO, TAB_INFO, TAB_ALTERNATIVAS, TAB_OBJETIVO, TAB_PRIORIDADES,
     TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS
 ]
+
+# Monitoring phase tabs (separate view)
+MONITORING_SECTIONS = [TAB_RIESGOS, TAB_RETRO]
+
+# Risk categories for risk analysis
+RISK_CATEGORIES = ["técnico", "financiero", "operacional", "externo", "estratégico"]
+RISK_PROBABILITY = ["bajo", "medio", "alto"]
+RISK_IMPACT = ["bajo", "medio", "alto", "crítico"]
+RISK_STATUS = ["identificado", "en_tratamiento", "aceptado", "cerrado"]
+
+# Risk score mapping (probability × impact)
+RISK_PROB_MAP = {"bajo": 1, "medio": 2, "alto": 3}
+RISK_IMPACT_MAP = {"bajo": 1, "medio": 2, "alto": 3, "crítico": 4}
+
+# Outcome attribution options for retrospective
+OUTCOME_ATTRIBUTION = ["decisión", "azar", "mixto"]
+OUTCOME_SENTIMENT = ["positivo", "neutral", "negativo"]
+TRIPWIRE_STATUS = ["activo", "disparado", "descartado"]
 
 # Impact assessment
 IMPACT_OPTS = ["bajo", "medio", "alto", "crítico"]
@@ -49,7 +71,7 @@ DEFAULT_MCDA_CRITERIA = [
 
 # App metadata
 APP_NAME = "Focal Path Pro"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 APP_ICON = "⚡"
 
 # Scoring configuration
