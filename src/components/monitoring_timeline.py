@@ -238,6 +238,7 @@ def render_monitoring_timeline():
     show_risk_evolution = False
     if risks:
         show_risk_evolution = st.checkbox("📈 Mostrar evolución de riesgos", value=False, 
+                                          key="show_risk_evolution_toggle",
                                           help="Muestra la evolución del score de riesgo superpuesta en la línea temporal")
     
     # Create timeline visualization with interactive legend
