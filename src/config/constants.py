@@ -71,7 +71,7 @@ DEFAULT_MCDA_CRITERIA = [
 
 # App metadata
 APP_NAME = "Focal Path Pro"
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.3.1"
 APP_ICON = "⚡"
 
 # Scoring configuration

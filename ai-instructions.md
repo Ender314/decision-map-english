@@ -81,9 +81,14 @@ Core: `streamlit>=1.28.0`, `pandas`, `numpy`, `plotly`, `seaborn`, `matplotlib`,
 
 ## JSON Schema (Import/Export)
 Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
-Optional keys (v0.3.0+): `risks`, `retro`
+Optional keys (v0.3.0+): `risks`, `retro`, `estrategia_corporativa`
 
 Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lambda Pro".
+
+### Export Version History
+- **v0.3.1**: Added `assessments` array to risks, `notes` field, Excel sheet `Riesgos_Evaluaciones`
+- **v0.3.0**: Added `risks` and `retro` top-level keys
+- **v0.2.0**: Base schema with MCDA and scenarios
 
 ### Scenarios Representation
 - **In-session**: `st.session_state["scenarios"]` is a dict keyed by `alt_id`
@@ -91,8 +96,9 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lamb
 
 ### Risks Representation
 - **In-session**: `st.session_state["risks"]` is a dict keyed by `risk_id`
-- Each risk has: `id`, `title`, `category`, `probability`, `impact`, `linked_alt_id`, `strategies` (avoid/transfer/mitigate/contingency), `owner`, `status`
-- **Export JSON**: `risks` is a list of risk objects
+- Each risk has: `id`, `title`, `probability`, `impact`, `linked_alt_id`, `strategies` (avoid/transfer/mitigate/contingency), `notes`, `status`, `created_at`, `assessments`
+- **Export JSON**: `risks` is a list of risk objects with full `assessments` array (time-series evaluations)
+- **Excel Export**: Two sheets — `Riesgos` (main data) + `Riesgos_Evaluaciones` (time-series assessments)
 
 ### Retro Representation
 - **In-session**: `st.session_state["retro"]` is a dict with:
@@ -109,12 +115,59 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lamb
 ## Post-Decision Monitoring (v0.3.0+)
 
 ### Risk Analysis Tab (`TAB_RIESGOS`)
-- Linked to the recommended alternative (user can change)
-- Risk inventory with CRUD operations
-- Categories: técnico, financiero, operacional, externo, estratégico
-- Probability × Impact scoring with visual matrix
-- Four response strategies per risk: Evitar, Transferir, Mitigar, Contingencia
-- Risk status tracking: identificado → en_tratamiento → aceptado → cerrado
+**Entry point**: `components/risk_analysis.py` → `render_risk_analysis_tab()`
+
+#### Data Structure (`st.session_state["risks"]`)
+Dict keyed by `risk_id`, each risk contains:
+```python
+{
+    "id": str,                    # UUID
+    "title": str,                 # Risk description
+    "probability": str,           # "bajo" | "medio" | "alto"
+    "impact": str,                # "bajo" | "medio" | "alto" | "crítico"
+    "linked_alt_id": str,         # Links risk to specific alternative
+    "strategies": {
+        "avoid": str,             # Elimination strategy
+        "transfer": str,          # Insurance/outsourcing
+        "mitigate": str,          # Reduce probability/impact
+        "contingency": str        # Plan B if risk materializes
+    },
+    "notes": str,
+    "status": str,                # "identificado" | "en_tratamiento" | "aceptado" | "cerrado"
+    "created_at": str,            # ISO date
+    "assessments": [              # Time-series risk evolution
+        {"date": str, "probability": str, "impact": str}
+    ]
+}
+```
+
+#### Key Functions
+| Function | Purpose |
+|----------|---------|
+| `get_recommended_alternative()` | Composite ranking: 50% MCDA score + 50% scenario EV |
+| `calculate_risk_score(prob, impact)` | Returns `RISK_PROB_MAP[prob] × RISK_IMPACT_MAP[impact]` (1-12 scale) |
+| `get_risk_color(score)` | Maps score to hex color (green→yellow→orange→red) |
+| `count_active_risks()` | Counts non-closed risks for selected alternative |
+
+#### Constants (`config/constants.py`)
+- `RISK_CATEGORIES`: técnico, financiero, operacional, externo, estratégico
+- `RISK_PROBABILITY`: bajo (1), medio (2), alto (3)
+- `RISK_IMPACT`: bajo (1), medio (2), alto (3), crítico (4)
+- `RISK_STATUS`: identificado → en_tratamiento → aceptado → cerrado
+- `RISK_PROB_MAP` / `RISK_IMPACT_MAP`: Numeric mappings for score calculation
+
+#### Visualizations
+- **Risk Matrix**: Plotly scatter with colored zones (green/yellow/orange/red)
+- **Bubble size** = risk score; **Position** = (impact, probability)
+- **Ranking Table**: DataFrame sorted by score descending
+
+#### UI Flow
+1. User selects alternative (defaults to recommended)
+2. Metrics row: total risks, high-impact count, treatment progress
+3. Expandable form to add new risks
+4. Risk inventory: sorted expanders with inline editing
+5. Per-risk: probability/impact/status selectors, 4-tab strategy editor, assessment history
+6. Risk matrix visualization + ranking table
 
 ### Retrospective Tab (`TAB_RETRO`)
 - Tracks outcomes after decision implementation

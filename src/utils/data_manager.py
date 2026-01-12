@@ -207,7 +207,7 @@ def create_export_data() -> Dict[str, Any]:
         "meta": {
             "exported_at": datetime.now().isoformat(),
             "app": APP_NAME,
-            "version": "0.2.0",
+            "version": "0.3.1",
         },
         "decision": st.session_state.get("decision", "").strip(),
         "estrategia_corporativa": st.session_state.get("estrategia_corporativa", "").strip(),
@@ -625,10 +625,28 @@ def create_excel_export() -> BytesIO:
                     'strategy_avoid': strategies.get('avoid', ''),
                     'strategy_transfer': strategies.get('transfer', ''),
                     'strategy_mitigate': strategies.get('mitigate', ''),
-                    'strategy_contingency': strategies.get('contingency', '')
+                    'strategy_contingency': strategies.get('contingency', ''),
+                    'notes': risk.get('notes', '')
                 })
             risks_df = pd.DataFrame(risks_flat)
             risks_df.to_excel(writer, sheet_name='Riesgos', index=False)
+            
+            # Risk Assessments sheet (time-series evaluations)
+            assessments_flat = []
+            for risk in risks:
+                risk_id = risk.get('id', '')
+                risk_title = risk.get('title', '')
+                for assessment in risk.get('assessments', []):
+                    assessments_flat.append({
+                        'risk_id': risk_id,
+                        'risk_title': risk_title,
+                        'date': assessment.get('date', ''),
+                        'probability': assessment.get('probability', ''),
+                        'impact': assessment.get('impact', '')
+                    })
+            if assessments_flat:
+                assessments_df = pd.DataFrame(assessments_flat)
+                assessments_df.to_excel(writer, sheet_name='Riesgos_Evaluaciones', index=False)
         
         # Retro sheet
         retro = export_data.get('retro', {})
@@ -930,10 +948,33 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                                 'transfer': str(row.get('strategy_transfer', '')) if pd.notna(row.get('strategy_transfer')) else '',
                                 'mitigate': str(row.get('strategy_mitigate', '')) if pd.notna(row.get('strategy_mitigate')) else '',
                                 'contingency': str(row.get('strategy_contingency', '')) if pd.notna(row.get('strategy_contingency')) else ''
-                            }
+                            },
+                            'notes': str(row.get('notes', '')) if pd.notna(row.get('notes')) else '',
+                            'assessments': []  # Will be populated from Riesgos_Evaluaciones sheet
                         }
+                # Import Risk Assessments (time-series evaluations)
+                if 'Riesgos_Evaluaciones' in excel_data:
+                    assessments_df = excel_data['Riesgos_Evaluaciones']
+                    if not assessments_df.empty:
+                        for _, row in assessments_df.iterrows():
+                            risk_id = str(row.get('risk_id', ''))
+                            if risk_id and risk_id in imported_risks:
+                                assessment = {
+                                    'date': str(row.get('date', '')) if pd.notna(row.get('date')) else '',
+                                    'probability': str(row.get('probability', 'medio')) if pd.notna(row.get('probability')) else 'medio',
+                                    'impact': str(row.get('impact', 'medio')) if pd.notna(row.get('impact')) else 'medio'
+                                }
+                                if 'assessments' not in imported_risks[risk_id]:
+                                    imported_risks[risk_id]['assessments'] = []
+                                imported_risks[risk_id]['assessments'].append(assessment)
+                
                 if imported_risks:
                     st.session_state['risks'] = imported_risks
+        
+        # Also check for assessments sheet even if Riesgos sheet wasn't present
+        elif 'Riesgos_Evaluaciones' in excel_data:
+            # Assessments without main risks sheet - skip (need risk definitions first)
+            pass
         
         # Import Retro
         imported_retro = {
