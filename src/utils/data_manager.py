@@ -309,8 +309,12 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     """
     
     # Clear existing session state (preserve Streamlit internal keys and routing)
-    keys_to_preserve = [k for k in st.session_state.keys() 
-                        if k.startswith('FormSubmitter:') or k.startswith('_')]
+    # NOTE: Do NOT preserve FormSubmitter:* keys. Streamlit forbids programmatically
+    # setting submit-button widget values via st.session_state.
+    keys_to_preserve = [
+        k for k in st.session_state.keys()
+        if k.startswith('_') or k in ['current_page', 'show_sidebar']
+    ]
     current_state = {k: st.session_state[k] for k in keys_to_preserve}
     st.session_state.clear()
     st.session_state.update(current_state)

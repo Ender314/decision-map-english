@@ -211,7 +211,8 @@ def render_monitoring_timeline():
             "date": decision_date,
             "type": "decision",
             "title": "Decisión tomada",
-            "description": st.session_state.get("decision", "")[:50] + "...",
+            # "description": st.session_state.get("decision", "")[:50] + "...",
+            "description": st.session_state.get("decision", "")[:5],
             "color": "#2196f3",
             "symbol": "diamond",
             "legend_group": "Decisión"
@@ -226,7 +227,8 @@ def render_monitoring_timeline():
             events.append({
                 "date": outcome_date,
                 "type": "outcome",
-                "title": outcome.get("description", "")[:30] + "...",
+                # "title": outcome.get("description", "")[:80] + "...",
+                "title": outcome.get("description", "")[:] ,
                 "description": f"Atribución: {outcome.get('attribution', 'mixto')}",
                 "color": color,
                 "symbol": "circle",
@@ -252,7 +254,8 @@ def render_monitoring_timeline():
             events.append({
                 "date": tripwire_date,
                 "type": "tripwire",
-                "title": tripwire.get("trigger", "")[:30] + "...",
+                # "title": tripwire.get("trigger", "")[:50] + "...",
+                "title": tripwire.get("trigger", "")[:],
                 "description": tripwire.get("threshold", "") or f"Estado: {status}",
                 "color": color,
                 "symbol": symbol,
@@ -265,7 +268,8 @@ def render_monitoring_timeline():
         risk_date = parse_date(risk.get("created_at"))
         if risk_date:
             risk_title = (risk.get("title", "") or "").strip()
-            risk_title_display = risk_title[:39] + "..." if len(risk_title) > 39 else risk_title
+            # risk_title_display = risk_title[:50] + "..." if len(risk_title) > 39 else risk_title
+            risk_title_display = risk_title
             events.append({
                 "date": risk_date,
                 "type": "risk",
@@ -630,6 +634,8 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         title = risk.get("title", "Riesgo")[:33]
         if len(risk.get("title", "")) > 33:
             title += "..."
+        # Get risk title
+        # title = risk.get("title", "Riesgo")
         
         color = colors[i % len(colors)]
         
