@@ -11,6 +11,71 @@ import plotly.graph_objects as go
 from config.constants import RISK_PROB_MAP, RISK_IMPACT_MAP
 
 
+def get_recommended_alternative():
+    """Get the recommended alternative from scenarios/MCDA analysis.
+    
+    Calculates a composite score: 50% MCDA + 50% scenario EV.
+    Falls back to first alternative if no analysis data available.
+    
+    Returns:
+        Tuple of (alt_id, alt_name) or (None, None)
+    """
+    from utils.calculations import mcda_totals_and_ranking
+    
+    scenarios = st.session_state.get("scenarios", {})
+    mcda_scores_df = st.session_state.get("mcda_scores_df")
+    mcda_criteria = st.session_state.get("mcda_criteria", [])
+    alts = st.session_state.get("alts", [])
+    
+    if not alts:
+        return None, None
+    
+    # Build composite ranking if we have both MCDA and scenarios
+    if scenarios and mcda_scores_df is not None and not mcda_scores_df.empty:
+        _, mcda_ranking = mcda_totals_and_ranking(mcda_scores_df.copy(), mcda_criteria)
+        
+        combined_data = []
+        for alt in alts:
+            alt_id = alt["id"]
+            alt_name = alt["text"].strip()
+            if not alt_name:
+                continue
+                
+            scenario_data = scenarios.get(alt_id, {})
+            ev = scenario_data.get("ev", 5.0)
+            ev_scaled = ev / 2.0
+            
+            mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
+            
+            if mcda_score is not None:
+                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                combined_data.append({
+                    "id": alt_id,
+                    "name": alt_name,
+                    "composite": composite
+                })
+        
+        if combined_data:
+            winner = max(combined_data, key=lambda x: x["composite"])
+            return winner["id"], winner["name"]
+    
+    # Fallback: first alternative
+    first_alt = next((a for a in alts if a["text"].strip()), None)
+    if first_alt:
+        return first_alt["id"], first_alt["text"].strip()
+    
+    return None, None
+
+
+def render_recommended_alternative_banner():
+    rec_id, rec_name = get_recommended_alternative()
+    if not rec_name:
+        return
+    
+    st.caption("Alternativa recomendada")
+    st.markdown(f"**{rec_name}**")
+
+
 # Extended probability/impact maps including "ninguno" for resolved risks
 EXTENDED_PROB_MAP = {"ninguno": 0, **RISK_PROB_MAP}
 EXTENDED_IMPACT_MAP = {"ninguno": 0, **RISK_IMPACT_MAP}
@@ -127,6 +192,8 @@ def parse_date(date_val):
 
 def render_monitoring_timeline():
     """Render the monitoring timeline overview."""
+    render_recommended_alternative_banner()
+    st.markdown("---")
     st.markdown("### 📅 Línea Temporal de Seguimiento")
     
     retro = st.session_state.get("retro", {})
@@ -197,10 +264,12 @@ def render_monitoring_timeline():
     for risk_id, risk in risks.items():
         risk_date = parse_date(risk.get("created_at"))
         if risk_date:
+            risk_title = (risk.get("title", "") or "").strip()
+            risk_title_display = risk_title[:39] + "..." if len(risk_title) > 39 else risk_title
             events.append({
                 "date": risk_date,
                 "type": "risk",
-                "title": risk.get("title", "")[:30] + "...",
+                "title": risk_title_display,
                 "description": f"Cat: {risk.get('category', '')} | {risk.get('probability', '')}/{risk.get('impact', '')}",
                 "color": "#9c27b0",  # Purple for risks
                 "symbol": "triangle-right",
@@ -315,10 +384,10 @@ def render_monitoring_timeline():
             customdata=hovers_risk
         ))
     
-    # Add emoji markers for tripwires (⚡ active, 💥 triggered, ⏸️ dismissed)
+    # Add emoji markers for tripwires (⚡ active, 💥 triggered, 🏁 surpassed)
     tripwire_events = [e for e in events if e["type"] == "tripwire"]
     if tripwire_events:
-        tripwire_emoji_map = {"activo": "⚡", "disparado": "💥", "descartado": "⏸️"}
+        tripwire_emoji_map = {"activo": "⚡", "disparado": "💥", "superado": "🏁"}
         x_trip = [e["date"] for e in tripwire_events]
         y_trip = [e.get("y_direction", 1) * (0.2 + e["stack_index"] * y_spacing) for e in tripwire_events]
         text_trip = [tripwire_emoji_map.get(e.get("status", "activo"), "⚡") for e in tripwire_events]
@@ -390,7 +459,7 @@ def render_monitoring_timeline():
     
     # Layout with interactive legend
     fig.update_layout(
-        height=220 + (max(max_above, max_below) * 25),  # Dynamic height based on stacking
+        height=int((220 + (max(max_above, max_below) * 25)) * 1.2),  # Dynamic height based on stacking
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -426,7 +495,7 @@ def render_monitoring_timeline():
     st.caption("💡 Haz clic en la leyenda para mostrar/ocultar categorías. Doble clic para aislar una categoría.")
     
     # Summary metrics
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 1, 1, 1, 1])
     
     with col1:
         st.metric("Resultados", len(outcomes))
@@ -448,6 +517,10 @@ def render_monitoring_timeline():
     with col5:
         st.metric("Riesgos", len(risks))
     
+    with col6:
+        st.markdown("")
+        st.button("🔄 Refresh data", key="refresh_monitoring_timeline_chart")
+    
     # Upcoming tripwires warning
     upcoming = []
     for t in tripwires:
@@ -463,11 +536,11 @@ def render_monitoring_timeline():
         st.warning(f"⚠️ **{len(upcoming)} tripwire(s) próximo(s) en los siguientes 30 días:**")
         for days, t in upcoming[:3]:
             if days == 0:
-                st.markdown(f"  - **HOY**: {t.get('trigger', '')[:50]}")
+                st.markdown(f"  - **HOY**: {t.get('trigger', '')[:100]}")
             elif days == 1:
-                st.markdown(f"  - **Mañana**: {t.get('trigger', '')[:50]}")
+                st.markdown(f"  - **Mañana**: {t.get('trigger', '')[:100]}")
             else:
-                st.markdown(f"  - **En {days} días**: {t.get('trigger', '')[:50]}")
+                st.markdown(f"  - **En {days} días**: {t.get('trigger', '')[:100]}")
 
 
 def get_risk_assessments_with_creation(risk: dict) -> list:
@@ -554,8 +627,8 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         all_scores.append(scores)  # Store unscaled for average calculation
         
         # Get risk title (truncated)
-        title = risk.get("title", "Riesgo")[:25]
-        if len(risk.get("title", "")) > 25:
+        title = risk.get("title", "Riesgo")[:33]
+        if len(risk.get("title", "")) > 33:
             title += "..."
         
         color = colors[i % len(colors)]

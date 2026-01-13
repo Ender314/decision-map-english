@@ -114,8 +114,20 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lamb
 
 ## Post-Decision Monitoring (v0.3.0+)
 
+### Monitoring Phase Shared UI
+**Entry point**: `components/monitoring_timeline.py` → `render_recommended_alternative_banner()`
+
+The monitoring phase (Seguimiento tab) shows the **recommended alternative** at the top as a read-only reference (not a selector).
+
+Both Riesgos and Retrospectiva are intentionally **decoupled from alternatives** in the UI.
+
+Legacy fields (kept for import/export compatibility):
+- `risk.linked_alt_id`
+- `retro.chosen_alternative_id`
+
 ### Risk Analysis Tab (`TAB_RIESGOS`)
 **Entry point**: `components/risk_analysis.py` → `render_risk_analysis_tab()`
+**Alternative selection**: Not used (global risks view)
 
 #### Data Structure (`st.session_state["risks"]`)
 Dict keyed by `risk_id`, each risk contains:
@@ -125,7 +137,7 @@ Dict keyed by `risk_id`, each risk contains:
     "title": str,                 # Risk description
     "probability": str,           # "bajo" | "medio" | "alto"
     "impact": str,                # "bajo" | "medio" | "alto" | "crítico"
-    "linked_alt_id": str,         # Links risk to specific alternative
+    "linked_alt_id": str,         # Legacy: may be null/ignored in UI
     "strategies": {
         "avoid": str,             # Elimination strategy
         "transfer": str,          # Insurance/outsourcing
@@ -147,7 +159,7 @@ Dict keyed by `risk_id`, each risk contains:
 | `get_recommended_alternative()` | Composite ranking: 50% MCDA score + 50% scenario EV |
 | `calculate_risk_score(prob, impact)` | Returns `RISK_PROB_MAP[prob] × RISK_IMPACT_MAP[impact]` (1-12 scale) |
 | `get_risk_color(score)` | Maps score to hex color (green→yellow→orange→red) |
-| `count_active_risks()` | Counts non-closed risks for selected alternative |
+| `count_active_risks()` | Counts non-closed risks |
 
 #### Constants (`config/constants.py`)
 - `RISK_CATEGORIES`: técnico, financiero, operacional, externo, estratégico
@@ -162,12 +174,11 @@ Dict keyed by `risk_id`, each risk contains:
 - **Ranking Table**: DataFrame sorted by score descending
 
 #### UI Flow
-1. User selects alternative (defaults to recommended)
-2. Metrics row: total risks, high-impact count, treatment progress
-3. Expandable form to add new risks
-4. Risk inventory: sorted expanders with inline editing
-5. Per-risk: probability/impact/status selectors, 4-tab strategy editor, assessment history
-6. Risk matrix visualization + ranking table
+1. Metrics row: total risks, high-impact count, treatment progress
+2. Expandable form to add new risks
+3. Risk inventory: sorted expanders with inline editing
+4. Per-risk: probability/impact/status selectors, 4-tab strategy editor, assessment history
+5. Risk matrix visualization + ranking table
 
 ### Retrospective Tab (`TAB_RETRO`)
 - Tracks outcomes after decision implementation

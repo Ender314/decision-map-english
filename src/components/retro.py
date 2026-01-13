@@ -12,53 +12,6 @@ import plotly.graph_objects as go
 from config.constants import OUTCOME_ATTRIBUTION, OUTCOME_SENTIMENT, TRIPWIRE_STATUS
 
 
-def get_recommended_alternative():
-    """Get the recommended alternative from scenarios/MCDA analysis."""
-    from utils.calculations import mcda_totals_and_ranking
-    
-    scenarios = st.session_state.get("scenarios", {})
-    mcda_scores_df = st.session_state.get("mcda_scores_df")
-    mcda_criteria = st.session_state.get("mcda_criteria", [])
-    alts = st.session_state.get("alts", [])
-    
-    if not alts:
-        return None, None
-    
-    if scenarios and mcda_scores_df is not None and not mcda_scores_df.empty:
-        _, mcda_ranking = mcda_totals_and_ranking(mcda_scores_df.copy(), mcda_criteria)
-        
-        combined_data = []
-        for alt in alts:
-            alt_id = alt["id"]
-            alt_name = alt["text"].strip()
-            if not alt_name:
-                continue
-                
-            scenario_data = scenarios.get(alt_id, {})
-            ev = scenario_data.get("ev", 5.0)
-            ev_scaled = ev / 2.0
-            
-            mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
-            
-            if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
-                combined_data.append({
-                    "id": alt_id,
-                    "name": alt_name,
-                    "composite": composite
-                })
-        
-        if combined_data:
-            winner = max(combined_data, key=lambda x: x["composite"])
-            return winner["id"], winner["name"]
-    
-    first_alt = next((a for a in alts if a["text"].strip()), None)
-    if first_alt:
-        return first_alt["id"], first_alt["text"].strip()
-    
-    return None, None
-
-
 def count_active_tripwires() -> int:
     """Count tripwires that are active."""
     retro = st.session_state.get("retro", {})
@@ -74,14 +27,11 @@ def count_triggered_tripwires() -> int:
 
 
 def render_retro_tab():
-    """Render the Retrospective tab."""
-    st.subheader("🔄 Retrospectiva")
+    """Render the Retrospective tab.
     
-    # Get alternatives
-    alts = [a for a in st.session_state.get("alts", []) if a["text"].strip()]
-    if not alts:
-        st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para hacer seguimiento.")
-        return
+    Note: This view is intentionally decoupled from alternatives.
+    """
+    st.subheader("🔄 Retrospectiva")
     
     # Initialize retro if needed
     if "retro" not in st.session_state:
@@ -97,42 +47,6 @@ def render_retro_tab():
         }
     
     retro = st.session_state.retro
-    
-    # Get recommended alternative
-    rec_id, rec_name = get_recommended_alternative()
-    
-    # Initialize chosen alternative if not set
-    if retro.get("chosen_alternative_id") is None and rec_id:
-        retro["chosen_alternative_id"] = rec_id
-    
-    # Alternative selector
-    alt_options = {a["id"]: a["text"].strip() for a in alts}
-    alt_ids = list(alt_options.keys())
-    alt_names = list(alt_options.values())
-    
-    current_idx = 0
-    if retro.get("chosen_alternative_id") in alt_ids:
-        current_idx = alt_ids.index(retro["chosen_alternative_id"])
-    
-    st.markdown("### 📌 Decisión Tomada")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        selected_name = st.selectbox(
-            "Alternativa elegida",
-            options=alt_names,
-            index=current_idx,
-            key="retro_alt_selector",
-            help="¿Qué alternativa decidiste implementar?"
-        )
-        selected_idx = alt_names.index(selected_name)
-        retro["chosen_alternative_id"] = alt_ids[selected_idx]
-    
-    with col2:
-        if rec_name and selected_name == rec_name:
-            st.success("✓ Era la recomendada")
-        elif rec_name:
-            st.warning("≠ Recomendada")
     
     # Decision date
     col1, col2 = st.columns(2)
@@ -209,7 +123,6 @@ def render_retro_tab():
                             "sentiment": o_sent
                         }
                         retro["outcomes"].append(new_outcome)
-                        st.rerun()
                     else:
                         st.warning("Describe el resultado observado")
         
@@ -242,7 +155,6 @@ def render_retro_tab():
                     
                     if st.button("🗑️ Eliminar", key=f"del_outcome_{outcome['id']}"):
                         retro["outcomes"] = [o for o in retro["outcomes"] if o["id"] != outcome["id"]]
-                        st.rerun()
             
             # Attribution summary chart
             st.markdown("---")
@@ -359,7 +271,6 @@ def render_retro_tab():
                             "action_taken": ""
                         }
                         retro["tripwires"].append(new_tripwire)
-                        st.rerun()
                     else:
                         st.warning("Define el evento disparador")
         
@@ -373,7 +284,7 @@ def render_retro_tab():
             
             for tripwire in sorted_tripwires:
                 status = tripwire.get("status", "activo")
-                status_icon = {"activo": "🟢", "disparado": "🔴", "descartado": "⚫"}.get(status, "🟢")
+                status_icon = {"activo": "🟢", "disparado": "🔴", "superado": "🏁"}.get(status, "🟢")
                 target_date_str = tripwire.get("target_date", "Sin fecha")
                 
                 with st.expander(f"{status_icon} [{target_date_str}] {tripwire['trigger'][:40]}..."):
@@ -429,7 +340,6 @@ def render_retro_tab():
                     
                     if st.button("🗑️ Eliminar", key=f"del_tw_{tripwire['id']}"):
                         retro["tripwires"] = [t for t in retro["tripwires"] if t["id"] != tripwire["id"]]
-                        st.rerun()
             
             # Summary metrics
             st.markdown("---")

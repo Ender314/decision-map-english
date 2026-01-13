@@ -49,7 +49,6 @@ class SessionStateManager:
         
         # Risk Analysis
         "risks": {},  # {risk_id: risk_data}
-        "selected_alternative_id": None,  # Alternative being analyzed for risks/retro
         
         # Retrospective
         "retro": {
@@ -174,7 +173,7 @@ class SessionStateManager:
                            "quantitative_notes", "qualitative_notes"],
             "mcda": ["mcda_criteria", "mcda_scores", "mcda_scores_df"],
             "scenarios": ["scenarios"],
-            "risks": ["risks", "selected_alternative_id"],
+            "risks": ["risks"],
             "retro": ["retro"]
         }
         

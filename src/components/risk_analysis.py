@@ -7,62 +7,13 @@ Inspired by project management theory (avoid, transfer, mitigate, contingency).
 import streamlit as st
 import pandas as pd
 import uuid
-from datetime import date
+from datetime import date, datetime
+from datetime import timedelta
 import plotly.graph_objects as go
 from config.constants import (
     RISK_CATEGORIES, RISK_PROBABILITY, RISK_IMPACT, RISK_STATUS,
     RISK_PROB_MAP, RISK_IMPACT_MAP
 )
-
-
-def get_recommended_alternative():
-    """Get the recommended alternative from scenarios/MCDA analysis."""
-    from utils.calculations import mcda_totals_and_ranking
-    
-    # Try to get from scenarios composite ranking first
-    scenarios = st.session_state.get("scenarios", {})
-    mcda_scores_df = st.session_state.get("mcda_scores_df")
-    mcda_criteria = st.session_state.get("mcda_criteria", [])
-    alts = st.session_state.get("alts", [])
-    
-    if not alts:
-        return None, None
-    
-    # Build composite ranking if we have both MCDA and scenarios
-    if scenarios and mcda_scores_df is not None and not mcda_scores_df.empty:
-        _, mcda_ranking = mcda_totals_and_ranking(mcda_scores_df.copy(), mcda_criteria)
-        
-        combined_data = []
-        for alt in alts:
-            alt_id = alt["id"]
-            alt_name = alt["text"].strip()
-            if not alt_name:
-                continue
-                
-            scenario_data = scenarios.get(alt_id, {})
-            ev = scenario_data.get("ev", 5.0)
-            ev_scaled = ev / 2.0
-            
-            mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
-            
-            if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
-                combined_data.append({
-                    "id": alt_id,
-                    "name": alt_name,
-                    "composite": composite
-                })
-        
-        if combined_data:
-            winner = max(combined_data, key=lambda x: x["composite"])
-            return winner["id"], winner["name"]
-    
-    # Fallback: first alternative
-    first_alt = next((a for a in alts if a["text"].strip()), None)
-    if first_alt:
-        return first_alt["id"], first_alt["text"].strip()
-    
-    return None, None
 
 
 def calculate_risk_score(probability: str, impact: str) -> int:
@@ -86,73 +37,64 @@ def get_risk_color(score: int) -> str:
         return "#f44336"  # Red - high/critical
 
 
+def parse_date(date_val):
+    if date_val is None:
+        return None
+    if isinstance(date_val, date):
+        return date_val
+    if isinstance(date_val, datetime):
+        return date_val.date()
+    if isinstance(date_val, str) and date_val.strip():
+        try:
+            return datetime.fromisoformat(date_val).date()
+        except:
+            return None
+    return None
+
+
+def get_risk_assessment_as_of(risk: dict, as_of_date: date):
+    assessments = risk.get("assessments", [])
+    created_at = parse_date(risk.get("created_at"))
+    if not assessments and created_at:
+        assessments = [{
+            "date": created_at.isoformat(),
+            "probability": risk.get("probability", "medio"),
+            "impact": risk.get("impact", "medio")
+        }]
+
+    best = None
+    best_date = None
+    for a in assessments:
+        a_date = parse_date(a.get("date"))
+        if not a_date:
+            continue
+        if a_date > as_of_date:
+            continue
+        if best_date is None or a_date > best_date:
+            best = a
+            best_date = a_date
+    return best
+
+
 def count_active_risks() -> int:
     """Count risks that are not closed."""
     risks = st.session_state.get("risks", {})
-    selected_alt = st.session_state.get("selected_alternative_id")
-    if not selected_alt:
-        return 0
-    return sum(1 for r in risks.values() 
-               if r.get("linked_alt_id") == selected_alt 
-               and r.get("status") != "cerrado")
+    return sum(1 for r in risks.values() if r.get("status") != "cerrado")
 
 
 def render_risk_analysis_tab():
-    """Render the Risk Analysis tab."""
-    st.subheader("⚠️ Análisis de Riesgos")
+    """Render the Risk Analysis tab.
     
-    # Get alternatives
-    alts = [a for a in st.session_state.get("alts", []) if a["text"].strip()]
-    if not alts:
-        st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para analizar riesgos.")
-        return
+    Note: This view is intentionally decoupled from alternatives.
+    """
+    st.subheader("⚠️ Análisis de Riesgos")
     
     # Initialize risks dict if needed
     if "risks" not in st.session_state:
         st.session_state.risks = {}
     
-    # Get recommended alternative
-    rec_id, rec_name = get_recommended_alternative()
-    
-    # Initialize selected alternative if not set
-    if st.session_state.get("selected_alternative_id") is None and rec_id:
-        st.session_state.selected_alternative_id = rec_id
-    
-    # Alternative selector
-    alt_options = {a["id"]: a["text"].strip() for a in alts}
-    alt_ids = list(alt_options.keys())
-    alt_names = list(alt_options.values())
-    
-    current_idx = 0
-    if st.session_state.get("selected_alternative_id") in alt_ids:
-        current_idx = alt_ids.index(st.session_state.selected_alternative_id)
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        selected_name = st.selectbox(
-            "Alternativa a analizar",
-            options=alt_names,
-            index=current_idx,
-            key="risk_alt_selector",
-            help="Selecciona la alternativa para la que quieres gestionar riesgos"
-        )
-        # Update selected alternative ID
-        selected_idx = alt_names.index(selected_name)
-        st.session_state.selected_alternative_id = alt_ids[selected_idx]
-    
-    with col2:
-        if rec_name and selected_name == rec_name:
-            st.success("✓ Recomendada")
-        elif rec_name:
-            st.caption(f"Recomendada: {rec_name[:20]}...")
-    
-    selected_alt_id = st.session_state.selected_alternative_id
-    
-    st.markdown("---")
-    
-    # Filter risks for selected alternative
-    alt_risks = {k: v for k, v in st.session_state.risks.items() 
-                 if v.get("linked_alt_id") == selected_alt_id}
+    # Work with all risks (legacy `linked_alt_id` is ignored)
+    alt_risks = dict(st.session_state.risks)
     
     # Risk summary metrics
     if alt_risks:
@@ -170,7 +112,9 @@ def render_risk_analysis_tab():
         with st.form("add_risk_form", clear_on_submit=True):
             r_title = st.text_input("Descripción del riesgo", placeholder="¿Qué podría salir mal?")
             
-            c1, c2 = st.columns(2)
+            c0, c1, c2 = st.columns(3)
+            with c0:
+                r_date = st.date_input("Fecha", value=date.today(), key="new_risk_date")
             with c1:
                 r_prob = st.selectbox("Probabilidad", RISK_PROBABILITY, index=1)
             with c2:
@@ -179,13 +123,13 @@ def render_risk_analysis_tab():
             if st.form_submit_button("Añadir riesgo", type="primary"):
                 if r_title.strip():
                     risk_id = str(uuid.uuid4())
-                    today_iso = date.today().isoformat()
+                    created_iso = (r_date or date.today()).isoformat()
                     st.session_state.risks[risk_id] = {
                         "id": risk_id,
                         "title": r_title.strip(),
                         "probability": r_prob,
                         "impact": r_impact,
-                        "linked_alt_id": selected_alt_id,
+                        "linked_alt_id": None,
                         "strategies": {
                             "avoid": "",
                             "transfer": "",
@@ -194,16 +138,16 @@ def render_risk_analysis_tab():
                         },
                         "notes": "",
                         "status": "identificado",
-                        "created_at": today_iso,
+                        "created_at": created_iso,
                         "assessments": [
                             {
-                                "date": today_iso,
+                                "date": created_iso,
                                 "probability": r_prob,
                                 "impact": r_impact
                             }
                         ]
                     }
-                    st.rerun()
+                    alt_risks[risk_id] = st.session_state.risks[risk_id]
                 else:
                     st.warning("Introduce una descripción del riesgo")
     
@@ -330,32 +274,6 @@ def render_risk_analysis_tab():
                 
                 assessments = risk.get("assessments", [])
                 
-                # Show existing assessments
-                if assessments:
-                    for i, assessment in enumerate(sorted(assessments, key=lambda x: x.get("date", ""))):
-                        a_date = assessment.get("date", "")
-                        a_prob = assessment.get("probability", "medio")
-                        a_impact = assessment.get("impact", "medio")
-                        a_score = calculate_risk_score(a_prob, a_impact)
-                        resolved = a_prob == "ninguno" and a_impact == "ninguno"
-                        
-                        col_d, col_p, col_i, col_s, col_del = st.columns([2, 1.5, 1.5, 1, 0.5])
-                        with col_d:
-                            st.text(f"📅 {a_date}")
-                        with col_p:
-                            st.text(f"P: {a_prob}")
-                        with col_i:
-                            st.text(f"I: {a_impact}")
-                        with col_s:
-                            if resolved:
-                                st.text("✅ Resuelto")
-                            else:
-                                st.text(f"Score: {a_score}")
-                        with col_del:
-                            if len(assessments) > 1 and st.button("✕", key=f"del_assess_{risk_id}_{i}", help="Eliminar evaluación"):
-                                st.session_state.risks[risk_id]["assessments"].pop(i)
-                                st.rerun()
-                
                 # Add new assessment
                 with st.form(key=f"add_assessment_{risk_id}", clear_on_submit=True):
                     st.markdown("**Añadir nueva evaluación**")
@@ -380,24 +298,89 @@ def render_risk_analysis_tab():
                         if "assessments" not in st.session_state.risks[risk_id]:
                             st.session_state.risks[risk_id]["assessments"] = []
                         st.session_state.risks[risk_id]["assessments"].append(new_assessment)
-                        st.rerun()
+
+                # Show existing assessments
+                if assessments:
+                    sorted_assessments = sorted(
+                        list(enumerate(assessments)),
+                        key=lambda x: x[1].get("date", "")
+                    )
+                    for display_idx, (orig_idx, assessment) in enumerate(sorted_assessments):
+                        a_date = assessment.get("date", "")
+                        a_prob = assessment.get("probability", "medio")
+                        a_impact = assessment.get("impact", "medio")
+                        a_score = calculate_risk_score(a_prob, a_impact)
+                        resolved = a_prob == "ninguno" and a_impact == "ninguno"
+                        
+                        col_d, col_p, col_i, col_s, col_del = st.columns([2, 1.5, 1.5, 1, 0.5])
+                        with col_d:
+                            st.text(f"📅 {a_date}")
+                        with col_p:
+                            st.text(f"P: {a_prob}")
+                        with col_i:
+                            st.text(f"I: {a_impact}")
+                        with col_s:
+                            if resolved:
+                                st.text("✅ Resuelto")
+                            else:
+                                st.text(f"Score: {a_score}")
+                        with col_del:
+                            if len(assessments) > 1 and st.button("✕", key=f"del_assess_{risk_id}_{display_idx}", help="Eliminar evaluación"):
+                                st.session_state.risks[risk_id]["assessments"].pop(orig_idx)
+                                
                 
                 # Delete button
                 st.markdown("")
                 if st.button("🗑️ Eliminar riesgo", key=f"del_{risk_id}", type="secondary"):
                     del st.session_state.risks[risk_id]
-                    st.rerun()
+                    
         
         st.markdown("---")
         
         # Risk Matrix Visualization
         st.markdown("### 📊 Matriz de Riesgos")
+
+        all_dates = []
+        for r in alt_risks.values():
+            c_date = parse_date(r.get("created_at"))
+            if c_date:
+                all_dates.append(c_date)
+            for a in r.get("assessments", []) or []:
+                a_date = parse_date(a.get("date"))
+                if a_date:
+                    all_dates.append(a_date)
+
+        matrix_as_of = None
+        if all_dates:
+            min_d = min(all_dates)
+            max_d = max(max(all_dates), date.today())
+            default_d = date.today()
+            if default_d < min_d:
+                default_d = min_d
+            if default_d > max_d:
+                default_d = max_d
+
+            if min_d == max_d:
+                matrix_as_of = min_d
+            else:
+                matrix_as_of = st.slider("Fecha", min_value=min_d, max_value=max_d, value=default_d, key="risk_matrix_date")
         
         # Build data for scatter plot
         matrix_data = []
         for risk_id, risk in alt_risks.items():
-            prob_val = RISK_PROB_MAP.get(risk.get("probability", "bajo"), 1)
-            impact_val = RISK_IMPACT_MAP.get(risk.get("impact", "bajo"), 1)
+            if matrix_as_of is None:
+                assessment = None
+            else:
+                assessment = get_risk_assessment_as_of(risk, matrix_as_of)
+            if assessment is None:
+                continue
+
+            a_prob = assessment.get("probability", risk.get("probability", "bajo"))
+            a_impact = assessment.get("impact", risk.get("impact", "bajo"))
+            prob_val = RISK_PROB_MAP.get(a_prob)
+            impact_val = RISK_IMPACT_MAP.get(a_impact)
+            if prob_val is None or impact_val is None:
+                continue
             score = prob_val * impact_val
             matrix_data.append({
                 "title": risk["title"][:30] + "..." if len(risk["title"]) > 30 else risk["title"],
@@ -504,5 +487,4 @@ def render_risk_analysis_tab():
                 st.dataframe(pd.DataFrame(ranking_data), use_container_width=True)
     
     else:
-        st.info("No hay riesgos identificados para esta alternativa. Añade el primer riesgo arriba.")
-
+        st.info("No hay riesgos identificados. Añade el primer riesgo arriba.")

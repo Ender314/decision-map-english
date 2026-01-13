@@ -52,7 +52,7 @@ RISK_IMPACT_MAP = {"bajo": 1, "medio": 2, "alto": 3, "crítico": 4}
 # Outcome attribution options for retrospective
 OUTCOME_ATTRIBUTION = ["decisión", "azar", "mixto"]
 OUTCOME_SENTIMENT = ["positivo", "neutral", "negativo"]
-TRIPWIRE_STATUS = ["activo", "disparado", "descartado"]
+TRIPWIRE_STATUS = ["activo", "disparado", "superado"]
 
 # Impact assessment
 IMPACT_OPTS = ["bajo", "medio", "alto", "crítico"]
