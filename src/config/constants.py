@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Constants and configuration for Lambda Pro application.
+Constants and configuration for Decider Pro application.
 Centralized source of truth for all application constants.
 """
 
@@ -70,9 +70,21 @@ DEFAULT_MCDA_CRITERIA = [
 ]
 
 # App metadata
-APP_NAME = "Focal Path Pro"
-APP_VERSION = "0.3.1"
-APP_ICON = "⚡"
+APP_NAME = "Decider Pro"
+APP_VERSION = "1.0.0"
+APP_ICON = "🧭"
+
+# Legacy app names (for import compatibility)
+LEGACY_APP_NAMES = ["Focal Path Pro", "Lambda Pro"]
+
+# Brand colors
+COLOR_PRIMARY = "#1a365d"      # Deep navy - trust, authority
+COLOR_ACCENT = "#f6ad55"       # Warm amber - confidence, action
+COLOR_SUCCESS = "#38a169"      # Green - positive, high confidence
+COLOR_WARNING = "#dd6b20"      # Orange - caution, medium confidence  
+COLOR_ERROR = "#e53e3e"        # Red - risk, low confidence
+COLOR_INFO = "#3182ce"         # Blue - information
+COLOR_NEUTRAL = "#718096"      # Gray - neutral, disabled
 
 # Scoring configuration
 SCORE_STEPS = [x / 2 for x in range(0, 11)]  # 0, 0.5, 1.0, ..., 5.0

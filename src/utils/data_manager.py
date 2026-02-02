@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Data management utilities for Lambda Pro.
+Data management utilities for Decider Pro.
 Handles session state, export/import, and data validation.
 """
 
@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
 from io import BytesIO
 
-from config.constants import DEFAULT_MCDA_CRITERIA, APP_NAME
+from config.constants import DEFAULT_MCDA_CRITERIA, APP_NAME, APP_VERSION, LEGACY_APP_NAMES
 
 
 def json_safe_convert(obj: Any) -> Any:
@@ -99,8 +99,8 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     if not isinstance(data.get("meta"), dict):
         return False, "Estructura 'meta' inválida"
     
-    # Accept both current app name and legacy "Lambda Pro" for backward compatibility
-    valid_app_names = {APP_NAME, "Lambda Pro"}
+    # Accept current app name and all legacy names for backward compatibility
+    valid_app_names = {APP_NAME} | set(LEGACY_APP_NAMES)
     if data["meta"].get("app") not in valid_app_names:
         return False, f"Este JSON no es de {APP_NAME} (app: {data['meta'].get('app')})"
     
@@ -207,7 +207,7 @@ def create_export_data() -> Dict[str, Any]:
         "meta": {
             "exported_at": datetime.now().isoformat(),
             "app": APP_NAME,
-            "version": "0.3.1",
+            "version": APP_VERSION,
         },
         "decision": st.session_state.get("decision", "").strip(),
         "estrategia_corporativa": st.session_state.get("estrategia_corporativa", "").strip(),

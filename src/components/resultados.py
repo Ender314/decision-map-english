@@ -473,8 +473,26 @@ def render_resultados_tab():
                             st.markdown(f"- **{name}**")
     
     # ===========================================
-    # FOOTER
+    # EXPORT CTA
     # ===========================================
     
     st.markdown("---")
-    st.success("✅ **Análisis completado** — Exporta los datos desde la barra lateral para compartir o archivar.")
+    
+    # Prominent export call-to-action
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); 
+                padding: 1.5rem; border-radius: 12px; text-align: center; margin: 1rem 0;">
+        <p style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 600;">
+            📥 ¿Listo para compartir tu análisis?
+        </p>
+        <p style="color: #bee3f8; margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+            Exporta en JSON o Excel desde el menú ⚙️ para guardar o presentar a tu equipo
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("⚙️ Abrir opciones de exportación", use_container_width=True, type="primary"):
+            st.session_state["show_sidebar"] = True
+            st.rerun()

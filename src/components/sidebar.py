@@ -7,8 +7,9 @@ Clean export/import functionality without over-engineering.
 import streamlit as st
 import json
 from datetime import datetime
-from config.constants import APP_NAME, APP_ICON
+from config.constants import APP_NAME, APP_ICON, APP_VERSION
 from utils.data_manager import create_export_data, validate_json_structure, parse_date_string, create_excel_export, import_excel_data
+from components.templates import render_template_button_in_sidebar
 
 
 def render_sidebar():
@@ -130,12 +131,16 @@ def render_sidebar():
         
         st.markdown("---")
         
+        # Templates section
+        st.markdown("### 📋 Plantillas")
+        render_template_button_in_sidebar()
+        
+        st.markdown("---")
+        
         # App information
         st.markdown("### ℹ️ Información")
-        st.markdown(f"**{APP_NAME}** v1.6 (Excel Support)")
-        st.markdown("✅ Arquitectura modular simplificada")
-        st.markdown("✅ Todas las funcionalidades principales")
-        st.markdown("⚡ Optimizado para rendimiento")
+        st.markdown(f"**{APP_ICON} {APP_NAME}** v{APP_VERSION}")
+        st.markdown("Tu asistente para decisiones estratégicas")
         
         # Simple progress indicator
         components = [

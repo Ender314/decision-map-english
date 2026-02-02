@@ -6,6 +6,7 @@ Clean component without over-engineering.
 
 import streamlit as st
 import uuid
+from utils.ui_helpers import help_tip, get_tooltip
 
 
 def add_alternative(text: str = ""):
@@ -22,11 +23,11 @@ def remove_alternative(alt_id: str):
 
 
 def render_alternativas_tab():
-    """Render the Alternativas (Alternatives) tab - exact original functionality."""
-    st.subheader("🧭 Alternativas posibles")
+    """Render the Alternativas (Alternatives) tab."""
+    st.markdown(f"### 🧭 Alternativas posibles {help_tip(get_tooltip('alternativas'))}", unsafe_allow_html=True)
 
     if not st.session_state.alts:
-        st.info("No hay alternativas todavía. Pulsa **Añadir** para crear la primera.")
+        st.info("💡 **Tip:** Empieza con 2-4 alternativas. Incluye siempre **'mantener status quo'** o **'no hacer nada'** como referencia para comparar.")
     else:
         updated_alts = []
         for i, alt in enumerate(st.session_state.alts, start=1):

@@ -12,16 +12,17 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from config.constants import PROBABILITY_STEPS
 from utils.calculations import scenario_expected_value
+from utils.ui_helpers import help_tip, get_tooltip
 
 
 def render_scenarios_tab():
     """Render the Scenarios (Scenario Planning) tab."""
-    st.subheader("🔮 Planificación de Escenarios")
+    st.markdown(f"### 🔮 Planificación de Escenarios", unsafe_allow_html=True)
 
     # Need alternativas
     alts = [a for a in st.session_state.alts if a["text"].strip()]
     if not alts:
-        st.info("Añade al menos una **Alternativa** en la pestaña *Alternativas* para proyectar escenarios.")
+        st.info("🔮 Los escenarios te ayudan a pensar en el mejor y peor caso de cada alternativa. Primero define tus **Alternativas** en la pestaña correspondiente.")
         return
 
     # Initialize scenarios if needed
@@ -392,5 +393,20 @@ def render_scenarios_tab():
             st.caption("Compuesto = 50% MCDA + 50% EV. Escala 0–5.")
     
     st.markdown("---")
+    
+    # Contextual help - placed after content where confusion might arise
+    with st.expander("*\"¿Por qué hago esto si ya puntué todo en la evaluación?\"*", expanded=False):
+        st.markdown("""
+        **La evaluación MCDA asume que sabes exactamente qué va a pasar.** Pero la realidad es incierta.
+        
+        Los escenarios te ayudan a responder:
+        - *"¿Qué pasa si sale mal?"* → Define el peor caso
+        - *"¿Qué pasa si sale bien?"* → Define el mejor caso  
+        - *"¿Qué tan probable es cada uno?"* → Estima la probabilidad
+        
+        **Resultado:** Un **Valor Esperado** que combina tu puntuación MCDA con la incertidumbre real de cada alternativa.
+        
+        *Ejemplo: Una alternativa puede puntuar alto en MCDA pero tener mucha incertidumbre (alto riesgo). Otra puede puntuar menos pero ser más predecible (bajo riesgo).*
+        """)
 
 

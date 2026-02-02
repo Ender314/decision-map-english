@@ -10,17 +10,18 @@ from config.constants import IMPACT_OPTS, IMPACT_MAP, PLAZO_ORDER, YMAX
 from utils.calculations import calculate_relevance_percentage, calculate_recommended_time
 from utils.visualizations import create_impact_chart
 from utils.performance import monitor_performance
+from utils.ui_helpers import help_tip, get_tooltip
 
 
 @monitor_performance("render_dimensionado_tab")
 def render_dimensionado_tab():
-    """Render the Dimensionado (Impact Assessment) tab - exact original functionality."""
-    st.markdown('#####')
+    """Render the Dimensionado (Impact Assessment) tab."""
+    st.markdown("### 📐 ¿Cómo de importante es esta decisión?")
     st.markdown(
-        """
+        f"""
         <span style="font-weight:600;">
-          Estima su impacto en los diferentes plazos temporales
-          <span style="cursor:help;" title="Impacto = Diferencia entre mejor escenario y peor escenario">ⓘ</span>
+          Estima su impacto en cada plazo temporal
+          {help_tip(get_tooltip('impacto'))}
         </span>
         """,
         unsafe_allow_html=True,
@@ -71,7 +72,7 @@ def render_dimensionado_tab():
     )
 
     st.write('##')
-    st.markdown('¿Cuánto tiempo crees que deberías dedicarle <u>toda tu atención</u> a esta decisión?', unsafe_allow_html=True)
+    st.markdown(f'¿Cuánto tiempo crees que deberías dedicarle <u>toda tu atención</u> a esta decisión? {help_tip(get_tooltip("tiempo"))}', unsafe_allow_html=True)
 
     # Calculate recommended tiempo based on relevancia (uses shared calculation)
     recommended_tiempo = calculate_recommended_time(relevancia_pct)
@@ -104,5 +105,17 @@ def render_dimensionado_tab():
     # Show recommendation hint if user has overridden (exact original)
     if st.session_state.get("tiempo_user_override", False) and st.session_state.get("tiempo") != recommended_tiempo:
         st.info(f"💡 En base a la relevancia estimada ({int(relevancia_pct)}), se recomienda: **{recommended_tiempo}**")
+    
+    # Contextual help - placed after content where confusion might arise
+    st.markdown("")
+    with st.expander("*\"¿Qué estoy midiendo aquí? ¿Impacto de qué?\"*", expanded=False):
+        st.markdown("""
+        **El impacto determina cuánto análisis necesitas.**
+        
+        - **Decisión de bajo impacto** → Análisis rápido (menos pestañas, menos tiempo)
+        - **Decisión de alto impacto** → Análisis profundo (más herramientas, más rigor)
+        
+        *Ejemplo: Contratar a alguien tiene impacto medio a corto plazo (onboarding), alto a medio plazo (productividad), y potencialmente crítico a largo plazo (cultura, liderazgo).*
+        """)
     
     return relevancia_pct

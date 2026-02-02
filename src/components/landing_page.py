@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Landing Page Component for Focal Path Pro
+Landing Page Component for Decider Pro
 Integrated landing page with navigation to main app functionality.
 """
 
@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import numpy as np
+
+from config.constants import APP_NAME, APP_ICON, APP_VERSION
 
 
 def render_landing_page():
@@ -130,22 +132,22 @@ def render_landing_page():
             st.query_params["page"] = "offer"  # Update URL
             st.rerun()
     with col4:
-        if st.button("🚀 Demo", key="nav_to_app", help="Probar la aplicación Focal Path Pro"):
+        if st.button("🚀 Probar Gratis", key="nav_to_app", help=f"Probar la aplicación {APP_NAME}"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"  # Update URL
             st.rerun()
 
     # Hero Section
-    st.markdown('<h1 class="main-header">⚡ Focal Path Pro</h1>', unsafe_allow_html=True)
+    st.markdown(f'<h1 class="main-header">{APP_ICON} {APP_NAME}</h1>', unsafe_allow_html=True)
     # st.markdown('<p class="subtitle">Transforma Decisiones Corporativas Complejas en Éxito Basado en Datos</p>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle">Convierte la paralisis por análisis en claridad <br> Convierte la claridad en progreso</p>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("""
+        st.markdown(f"""
         <div style="text-align: center; font-size: 1.1rem; line-height: 1.6; margin: 2rem 0;">
-            <strong>Deja de tomar decisiones críticas de negocio basándote en la intuición.</strong><br>
-            Focal Path Pro proporciona un marco analítico estructurado que transforma decisiones 
+            <strong>Deja de tomar decisiones críticas de negocio basándote solo en la intuición.</strong><br>
+            {APP_NAME} proporciona un marco analítico estructurado que transforma decisiones 
             corporativas de alto riesgo en elecciones confiables respaldadas por datos.
         </div>
         """, unsafe_allow_html=True)
@@ -157,24 +159,24 @@ def render_landing_page():
     with col1:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">40%</h2>
-            <p style="margin: 0;">Mejores Decisiones</p>
+            <h2 style="margin: 0; color: white;">⏱️</h2>
+            <p style="margin: 0;">De días de deliberación<br>a horas de claridad</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">60%</h2>
-            <p style="margin: 0;">Más Rápidas</p>
+            <h2 style="margin: 0; color: white;">🎯</h2>
+            <p style="margin: 0;">Decisiones más claras<br>en menos tiempo</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">5</h2>
-            <p style="margin: 0;">Visualizaciones de Riesgos</p>
+            <h2 style="margin: 0; color: white;">5+</h2>
+            <p style="margin: 0;">Visualizaciones<br>para entender tu decisión</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -218,7 +220,7 @@ def render_landing_page():
             r=lambda_pro,
             theta=categories,
             fill='toself',
-            name='Focal Path Pro',
+            name='Decider Pro',
             line_color='#2ecc71',
             fillcolor='rgba(46, 204, 113, 0.3)'
         ))
@@ -238,7 +240,7 @@ def render_landing_page():
 
     # Solution Overview
     st.markdown("---")
-    st.markdown("## 🚀 La Solución Focal Path Pro")
+    st.markdown(f"## 🚀 La Solución {APP_NAME}")
 
     # Feature showcase with demo visualizations
     col1, col2 = st.columns([1, 1])
@@ -391,7 +393,7 @@ def render_landing_page():
 
     # Workflow Section
     st.markdown("---")
-    with st.expander("📋 Cómo Funciona", expanded=False):
+    with st.expander("📋 Cómo Funciona", expanded=True):
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -545,8 +547,8 @@ def render_landing_page():
 
     # Footer
     st.markdown("---")
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align: center; color: #666; padding: 2rem;">
-        <p><strong>Focal Path Pro v1.5</strong> • Construido con Streamlit • Optimizado para Toma de Decisiones Ejecutivas</p>
+        <p><strong>{APP_ICON} {APP_NAME} v{APP_VERSION}</strong> • Tu asistente para decisiones estratégicas</p>
     </div>
     """, unsafe_allow_html=True)

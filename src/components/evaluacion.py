@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from utils.calculations import normalize_weights, mcda_totals_and_ranking
 from utils.visualizations import create_mcda_radar_chart
-
+from utils.ui_helpers import help_tip, get_tooltip
 
 def get_position_based_weights(n: int) -> list:
     """Calculate default weights based on position: 1st=1, 2nd=0.5, ..., nth=1/n"""
@@ -162,6 +162,25 @@ def render_evaluacion_tab():
     # Create DataFrame for calculations
     scores_df = pd.DataFrame(scores_data).set_index("Alternativa")
     st.session_state.mcda_scores_df = scores_df
+    
+    # Contextual help - placed after scoring matrix where confusion might arise
+    with st.expander("*\"¿Qué significa un 3? ¿Cómo comparo de forma justa?\"*", expanded=False):
+        st.markdown("""
+        **Escala de puntuación (0-5):**
+        
+        | Puntuación | Significado |
+        |------------|-------------|
+        | **0** | Muy malo — La alternativa falla completamente en este criterio |
+        | **1-2** | Malo/Débil — Por debajo de lo aceptable |
+        | **2.5** | Neutro — Ni bueno ni malo, cumple lo mínimo |
+        | **3-4** | Bueno/Fuerte — Por encima de lo esperado |
+        | **5** | Excelente — La alternativa destaca en este criterio |
+        
+        **Consejos:**
+        - Puntúa **comparando alternativas entre sí**, no en abstracto
+        - Sé consistente: si A es mejor que B en un criterio, A debe tener mayor puntuación
+        - No te preocupes por ser exacto — la diferencia entre 3 y 3.5 rara vez cambia el resultado
+        """)
     
     st.markdown("---")
     

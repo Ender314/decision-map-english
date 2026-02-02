@@ -3,8 +3,8 @@
 # streamlit run "src\app_with_routing.py" --port 8501
 # python -m streamlit run "src\app_with_routing.py"
 """
-Lambda Pro - Integrated Version with Landing Page Routing
-Includes both landing page and main application with seamless navigation.
+Decider Pro - Strategic Decision Analysis Tool
+Includes landing page, offer page, and main application with seamless navigation.
 """
 
 import streamlit as st
@@ -81,15 +81,24 @@ if st.session_state.get("_pending_import", False):
 
 
 def render_main_app():
-    """Render the main Lambda Pro application."""
+    """Render the main Decider Pro application."""
+    from components.templates import render_template_selector, get_template_list
+    
     # Initialize app mode if not set
     if "app_mode" not in st.session_state:
         st.session_state["app_mode"] = "analysis"  # "analysis" or "monitoring"
     
+    # Check if this is a fresh session (no data yet) and show welcome
+    has_data = (
+        st.session_state.get("decision", "").strip() or 
+        len([a for a in st.session_state.get("alts", []) if a.get("text", "").strip()]) > 0
+    )
+    show_welcome = not has_data and not st.session_state.get("_skip_welcome", False)
+    
     # Navigation bar for app pages
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("← 🏠", key="nav_to_landing", help="Return to landing page"):
+        if st.button("← 🏠", key="nav_to_landing", help="Volver a la página principal"):
             st.session_state["current_page"] = "landing"
             st.query_params.clear()  # Remove URL parameters
             st.rerun()
@@ -99,19 +108,139 @@ def render_main_app():
     
     with col3:
         # Sidebar toggle button
-        if st.button("⚙️", key="toggle_sidebar", help="Show/hide export/import options", type="secondary"):
+        if st.button("⚙️", key="toggle_sidebar", help="Mostrar/ocultar opciones de exportar/importar", type="secondary"):
             st.session_state["show_sidebar"] = not st.session_state.get("show_sidebar", False)
     
     st.markdown("---")
+    
+    # Show template loaded message
+    if st.session_state.get("_template_loaded", False):
+        template_name = st.session_state.get("_loaded_template_name", "")
+        st.success(f"✅ Plantilla cargada: **{template_name}**. Explora las pestañas para ver los datos de ejemplo.")
+        st.session_state["_template_loaded"] = False
+        st.session_state["_loaded_template_name"] = ""
+    
+    # Show welcome/template selector for new users
+    if show_welcome and not st.session_state.get("show_template_selector", False):
+        st.markdown("### 👋 ¡Bienvenido a Decider Pro!")
+        st.markdown("*Tu asistente para tomar decisiones estratégicas con claridad y confianza.*")
+        st.markdown("")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("📝 Empezar desde cero", use_container_width=True, help="Crear un nuevo análisis vacío"):
+                st.session_state["_skip_welcome"] = True
+                st.rerun()
+        with col_b:
+            if st.button("📋 Ver plantillas de ejemplo", use_container_width=True, type="primary", help="Cargar una plantilla para entender cómo funciona"):
+                st.session_state["show_template_selector"] = True
+                st.rerun()
+        
+        st.markdown("---")
+    
+    # Show template selector if requested
+    if st.session_state.get("show_template_selector", False):
+        render_template_selector()
+        st.markdown("")
+        if st.button("← Volver", key="back_from_templates"):
+            st.session_state["show_template_selector"] = False
+            st.rerun()
+        st.markdown("---")
+
+    # Time mode badge
+    tiempo = st.session_state.get("tiempo", "Menos de media hora")
+    tiempo_badges = {
+        "Menos de media hora": ("⚡ Análisis rápido", "#38a169"),
+        "Un par de horas": ("⏱️ Análisis estándar", "#3182ce"),
+        "Una mañana": ("📊 Análisis detallado", "#805ad5"),
+        "Un par de días": ("🔬 Análisis profundo", "#c53030")
+    }
+    badge_text, badge_color = tiempo_badges.get(tiempo, ("⏱️ Análisis", "#718096"))
+    
+    # Calculate essential path progress (4 steps: Describe → Alternativas → Prioridades → Evaluación)
+    has_description = bool(st.session_state.get("decision", "").strip())
+    has_alts = len([a for a in st.session_state.get("alts", []) if a.get("text", "").strip()]) >= 2
+    has_priorities = len([p for p in st.session_state.get("priorities", []) if p.get("text", "").strip()]) >= 2
+    has_scores = st.session_state.get("mcda_scores") and any(
+        scores for scores in st.session_state.get("mcda_scores", {}).values() if scores
+    )
+    
+    # Step status: done (✓), current (→), pending (○)
+    def step_icon(done, is_next):
+        if done:
+            return "✓"
+        elif is_next:
+            return "→"
+        return "○"
+    
+    # Determine current step (1=Describe, 2=Alternativas, 3=Prioridades, 4=Evaluación)
+    if not has_description:
+        current_step = 1
+    elif not has_alts:
+        current_step = 2
+    elif not has_priorities:
+        current_step = 3
+    elif not has_scores:
+        current_step = 4
+    else:
+        current_step = 5  # All done
+    
+    # Build visual path icons
+    step1_icon = step_icon(has_description, current_step == 1)
+    step2_icon = step_icon(has_alts, current_step == 2)
+    step3_icon = step_icon(has_priorities, current_step == 3)
+    step4_icon = step_icon(has_scores, current_step == 4)
+    
+    # Colors for steps
+    def step_style(done, is_current):
+        if done:
+            return "color: #38a169; font-weight: 600;"
+        elif is_current:
+            return "color: #3182ce; font-weight: 600;"
+        return "color: #a0aec0;"
+    
+    # Display time badge and essential path
+    col_badge, col_path = st.columns([1, 2])
+    with col_badge:
+        st.markdown(f"""
+        <div style="display: inline-block; background: {badge_color}; color: white; padding: 0.3rem 0.8rem; 
+                    border-radius: 15px; font-size: 0.85rem; font-weight: 500;">
+            {badge_text}
+        </div>
+        """, unsafe_allow_html=True)
+    with col_path:
+        st.markdown(f"""
+        <div style="text-align: right; font-size: 0.85rem; font-family: monospace;">
+            <span style="{step_style(has_description, current_step == 1)}">{step1_icon} Describe</span>
+            <span style="color: #cbd5e0;"> → </span>
+            <span style="{step_style(has_alts, current_step == 2)}">{step2_icon} Alternativas</span>
+            <span style="color: #cbd5e0;"> → </span>
+            <span style="{step_style(has_priorities, current_step == 3)}">{step3_icon} Prioridades</span>
+            <span style="color: #cbd5e0;"> → </span>
+            <span style="{step_style(has_scores, current_step == 4)}">{step4_icon} Evaluación</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("")
 
     # Header section - Decision description (shown in both modes)
-    st.markdown('')
     st.text_area(
         "Descripción de la decisión",
         key="decision",
         placeholder="Describe y sintetiza la decisión a analizar",
         label_visibility="collapsed",
     )
+    
+    # Contextual help for navigation - placed after decision description
+    with st.expander("*\"¿Tengo que rellenar todo en orden? ¿Puedo saltar pestañas?\"*", expanded=False):
+        st.markdown("""
+        **Solo 3 pestañas son obligatorias:** Alternativas → Prioridades → Evaluación
+        
+        - Las demás pestañas son **opcionales** y aparecen según el impacto de tu decisión
+        - Puedes saltar entre pestañas, pero los **Resultados** solo aparecen cuando completas la Evaluación
+        - Si cambias alternativas o prioridades después, la evaluación se actualiza automáticamente
+        """)
+    
     st.markdown('#')
 
     # Handle redirect after import

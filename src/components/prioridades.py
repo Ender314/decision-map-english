@@ -6,6 +6,7 @@ Clean component with reordering functionality.
 
 import streamlit as st
 import uuid
+from utils.ui_helpers import help_tip, get_tooltip
 
 
 def add_priority(text: str = ""):
@@ -45,7 +46,7 @@ def render_prioridades_tab():
         st.markdown(f"🎯 *{objetivo_text}*")
         st.markdown("---")
     
-    st.subheader("⭐ Prioridades")
+    st.markdown(f"### ⭐ Prioridades {help_tip(get_tooltip('prioridades'))}", unsafe_allow_html=True)
     
     # Show existing priorities with reordering
     if st.session_state.priorities:
