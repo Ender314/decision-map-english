@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Session state management utilities for Lambda Pro.
+Session state management utilities for Decider Pro.
 Provides efficient session state initialization, cleanup, and optimization.
 """
 
@@ -11,7 +11,7 @@ from config.constants import DEFAULT_MCDA_CRITERIA
 
 class SessionStateManager:
     """
-    Centralized session state management for Lambda Pro.
+    Centralized session state management for Decider Pro.
     Provides lazy initialization, cleanup, and optimization utilities.
     """
     

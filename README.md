@@ -1,4 +1,4 @@
-# Focal Path Pro - Clean Modular Version (v1.7)
+# Decider Pro - Clean Modular Version (v1.7)
 
 ## 🎯 The Perfect Balance
 
@@ -66,7 +66,8 @@ src/
     │   ├── session_manager.py     # Session defaults + lightweight integrity checks
     │   ├── performance.py         # Debug/performance helpers (debug mode)
     │   ├── visualizations.py      # Chart generation
-    │   └── violin_plots.py       # Scenario distribution visualizations
+    │   ├── violin_plots.py        # Scenario distribution visualizations
+    │   └── ui_helpers.py          # UI utility functions
     └── components/
         ├── landing_page.py        # Marketing landing page
         ├── offer_page.py          # Product offer page
@@ -80,14 +81,18 @@ src/
         ├── resultados.py          # Executive summary
         ├── risk_analysis.py       # Risk inventory & mitigation
         ├── retro.py               # Retrospective & tripwires
+        ├── monitoring_timeline.py # Monitoring phase timeline & recommended alternative
+        ├── templates.py           # Template selector for onboarding examples
         └── sidebar.py             # Export/import
 ```
 
-**Total: ~1,500 lines** (includes new post-decision monitoring features)
+**Total: ~4,500 lines** (includes post-decision monitoring and template features)
 
 ## 🏷️ Versioning Note
 
-This repo uses a **marketing/release label** in this README (e.g. **v1.6**) while the app code also contains an internal `APP_VERSION` (and the export `meta.version`) used for schema compatibility. If you change export structure, update the internal version accordingly.
+This repo uses a **marketing/release label** in this README (e.g. **v1.7**) while the app code contains an internal `APP_VERSION` (currently `1.0.0` in `config/constants.py`) used for schema compatibility. If you change export structure, update the internal version accordingly.
+
+**Note**: The app was renamed from "Focal Path Pro" to "Decider Pro". Legacy names are accepted during JSON import for backward compatibility.
 
 ## 🎯 Design Philosophy
 

@@ -1,7 +1,7 @@
-# AI Instructions — Focal Path Pro
+# AI Instructions — Decider Pro
 
 ## Overview
-**Focal Path Pro** is a Streamlit-based decision analysis application (Spanish UI). It implements Multi-Criteria Decision Analysis (MCDA) with scenario planning, impact assessment, and visualization tools.
+**Decider Pro** (formerly Focal Path Pro) is a Streamlit-based decision analysis application (Spanish UI). It implements Multi-Criteria Decision Analysis (MCDA) with scenario planning, impact assessment, and visualization tools.
 
 ## Architecture
 
@@ -20,6 +20,7 @@ src/
 │   ├── session_manager.py # Session state initialization & cleanup
 │   ├── visualizations.py  # Plotly chart generation
 │   ├── violin_plots.py    # Scenario distribution visualizations
+│   ├── ui_helpers.py      # UI utility functions
 │   └── performance.py     # Debug mode performance tools
 └── components/
     ├── landing_page.py    # Marketing landing page
@@ -34,7 +35,9 @@ src/
     ├── scenarios.py       # Probability distributions
     ├── resultados.py      # Executive summary dashboard
     ├── risk_analysis.py   # Risk inventory, matrix, mitigation strategies
-    └── retro.py           # Retrospective: outcomes, tripwires, lessons
+    ├── retro.py           # Retrospective: outcomes, tripwires, lessons
+    ├── monitoring_timeline.py  # Monitoring phase timeline & recommended alternative
+    └── templates.py       # Template selector for onboarding examples
 ```
 
 ### Session State Pattern
@@ -83,7 +86,7 @@ Core: `streamlit>=1.28.0`, `pandas`, `numpy`, `plotly`, `seaborn`, `matplotlib`,
 Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
 Optional keys (v0.3.0+): `risks`, `retro`, `estrategia_corporativa`
 
-Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lambda Pro".
+Validation in `validate_json_structure()` — accepts `APP_NAME` ("Decider Pro") or legacy names ("Focal Path Pro", "Lambda Pro").
 
 ### Export Version History
 - **v0.3.1**: Added `assessments` array to risks, `notes` field, Excel sheet `Riesgos_Evaluaciones`
@@ -115,7 +118,7 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` or legacy "Lamb
 ## Post-Decision Monitoring (v0.3.0+)
 
 ### Monitoring Phase Shared UI
-**Entry point**: `components/monitoring_timeline.py` → `render_recommended_alternative_banner()`
+**Entry point**: `components/monitoring_timeline.py` → `render_monitoring_timeline()` and `render_recommended_alternative_banner()`
 
 The monitoring phase (Seguimiento tab) shows the **recommended alternative** at the top as a read-only reference (not a selector).
 
@@ -156,7 +159,7 @@ Dict keyed by `risk_id`, each risk contains:
 #### Key Functions
 | Function | Purpose |
 |----------|---------|
-| `get_recommended_alternative()` | Composite ranking: 50% MCDA score + 50% scenario EV |
+| `get_recommended_alternative()` | Composite ranking: 50% MCDA score + 50% scenario EV (in `monitoring_timeline.py`) |
 | `calculate_risk_score(prob, impact)` | Returns `RISK_PROB_MAP[prob] × RISK_IMPACT_MAP[impact]` (1-12 scale) |
 | `get_risk_color(score)` | Maps score to hex color (green→yellow→orange→red) |
 | `count_active_risks()` | Counts non-closed risks |
