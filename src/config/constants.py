@@ -15,6 +15,7 @@ TAB_RESULTADOS = "Resultados"
 TAB_SCENARIOS = "Escenarios"
 TAB_RIESGOS = "Riesgos"
 TAB_RETRO = "Retrospectiva"
+TAB_INFORME = "Informe"
 
 # Tab display names with emojis (for visual display only)
 TAB_DISPLAY_NAMES = {
@@ -27,12 +28,13 @@ TAB_DISPLAY_NAMES = {
     TAB_RESULTADOS: "📊 Resultados",
     TAB_SCENARIOS: "🔮 Escenarios",
     TAB_RIESGOS: "⚠️ Riesgos",
-    TAB_RETRO: "🔄 Retrospectiva"
+    TAB_RETRO: "🔄 Retrospectiva",
+    TAB_INFORME: "📋 Informe"
 }
 
 # Tab flow configuration - Analysis phase only
 ALL_SECTIONS = [
-    TAB_DIMENSIONADO, TAB_INFO, TAB_ALTERNATIVAS, TAB_OBJETIVO, TAB_PRIORIDADES,
+    TAB_DIMENSIONADO, TAB_ALTERNATIVAS, TAB_INFO, TAB_OBJETIVO, TAB_PRIORIDADES,
     TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS
 ]
 

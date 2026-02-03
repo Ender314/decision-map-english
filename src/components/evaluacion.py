@@ -7,7 +7,7 @@ Clean MCDA implementation without over-engineering.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from utils.calculations import normalize_weights, mcda_totals_and_ranking
+from utils.calculations import normalize_weights, mcda_totals_and_ranking, get_disqualified_alternatives, is_alternative_disqualified
 from utils.visualizations import create_mcda_radar_chart
 from utils.ui_helpers import help_tip, get_tooltip
 
@@ -103,47 +103,95 @@ def render_evaluacion_tab():
             if stored_score is not None and slider_key not in st.session_state:
                 st.session_state[slider_key] = float(stored_score)
     
-    # Create scoring matrix
+    # ===========================================
+    # COMBINED EVALUATION TABLE (Priorities + No Negociables)
+    # ===========================================
+    
+    # Get no negociables
+    no_negociables = st.session_state.get("no_negociables", [])
+    valid_no_negociables = [c for c in no_negociables if c.get("text", "").strip()]
+    
+    # Initialize no_negociables_scores if needed
+    if "no_negociables_scores" not in st.session_state:
+        st.session_state.no_negociables_scores = {}
+    
+    # Clean up orphaned checkbox states when alternatives/constraints change
+    current_checkbox_keys = set()
+    for alt in st.session_state.alts:
+        for constraint in valid_no_negociables:
+            if alt["text"].strip():
+                key = f"no_neg_check_{alt['id']}_{constraint['id']}"
+                current_checkbox_keys.add(key)
+    
+    orphaned_checkbox_keys = [k for k in st.session_state.keys() if k.startswith("no_neg_check_") and k not in current_checkbox_keys]
+    for key in orphaned_checkbox_keys:
+        del st.session_state[key]
+    
+    # Sync imported no_neg scores to widget states
+    for alt in st.session_state.alts:
+        alt_id = alt["id"]
+        if alt_id in st.session_state.no_negociables_scores:
+            for constraint in valid_no_negociables:
+                constraint_id = constraint["id"]
+                checkbox_key = f"no_neg_check_{alt_id}_{constraint_id}"
+                stored_value = st.session_state.no_negociables_scores[alt_id].get(constraint_id)
+                if stored_value is not None and checkbox_key not in st.session_state:
+                    st.session_state[checkbox_key] = stored_value
+    
+    # Calculate total columns: priorities (sliders) + no negociables (checkboxes)
+    total_columns = len(prioridad_names) + len(valid_no_negociables)
+    
+    # Create scoring matrix data
     scores_data = []
     
-    # Add header row with alternative column + criterion names
-    header_cols = st.columns([2] + [1] * len(prioridad_names))
+    # Add header row: Alternative + Priorities + No Negociables
+    header_cols = st.columns([2] + [1] * total_columns)
     with header_cols[0]:
         pass
-        # st.markdown("**Alternativa**")
+    
+    # Priority headers
     for i, criterion in enumerate(prioridad_names):
         with header_cols[i + 1]:
             st.markdown(f"**{criterion}**")
     
+    # No Negociables headers (after priorities)
+    for i, constraint in enumerate(valid_no_negociables):
+        col_idx = len(prioridad_names) + i + 1
+        with header_cols[col_idx]:
+            display_name = constraint["text"][:15] + "..." if len(constraint["text"]) > 15 else constraint["text"]
+            st.markdown(f"**🚫 {display_name}**")
+    
     st.markdown("")
     
+    # Data rows for each alternative
     for alt_name in alt_names:
         if alt_name not in st.session_state.mcda_scores:
             st.session_state.mcda_scores[alt_name] = {}
         
-        # Create table-like row with alternative name + sliders
-        row_cols = st.columns([2] + [1] * len(prioridad_names))
+        alt_id = next((a["id"] for a in st.session_state.alts if a["text"].strip() == alt_name), alt_name)
         
-        # Alternative name in first column
-        with row_cols[0]:
-            st.markdown(f"**{alt_name}**")
+        # Ensure this alt has a no_neg scores dict
+        if alt_id not in st.session_state.no_negociables_scores:
+            st.session_state.no_negociables_scores[alt_id] = {}
+        
+        # Create row with all columns
+        row_cols = st.columns([2] + [1] * total_columns)
+        
+        # We'll use a placeholder for the alternative name - update after checkboxes
+        alt_name_placeholder = row_cols[0].empty()
         
         row_data = {"Alternativa": alt_name}
         
-        # Sliders in subsequent columns
+        # Priority sliders
         for i, criterion in enumerate(prioridad_names):
             with row_cols[i + 1]:
-                # Create stable key using alternative and criterion indices
-                alt_id = next((a["id"] for a in st.session_state.alts if a["text"].strip() == alt_name), alt_name)
                 criterion_id = next((p["id"] for p in st.session_state.priorities if p["text"].strip() == criterion), criterion)
                 slider_key = f"mcda_score_{alt_id}_{criterion_id}"
                 
-                # Initialize slider state if not exists, using our stored value as default
                 if slider_key not in st.session_state:
                     default_score = st.session_state.mcda_scores[alt_name].get(criterion, 2.5)
                     st.session_state[slider_key] = float(default_score)
                 
-                # Use slider with widget state as single source of truth
                 score = st.slider(
                     criterion,
                     min_value=0.0,
@@ -153,15 +201,56 @@ def render_evaluacion_tab():
                     label_visibility="collapsed"
                 )
                 
-                # Sync widget state back to our data structure
                 st.session_state.mcda_scores[alt_name][criterion] = score
                 row_data[criterion] = score
+        
+        # No Negociables checkboxes (after priorities)
+        for i, constraint in enumerate(valid_no_negociables):
+            col_idx = len(prioridad_names) + i + 1
+            with row_cols[col_idx]:
+                constraint_id = constraint["id"]
+                checkbox_key = f"no_neg_check_{alt_id}_{constraint_id}"
+                
+                if checkbox_key not in st.session_state:
+                    default_value = st.session_state.no_negociables_scores[alt_id].get(constraint_id, True)
+                    st.session_state[checkbox_key] = default_value
+                
+                checked = st.checkbox(
+                    constraint["text"],
+                    key=checkbox_key,
+                    label_visibility="collapsed"
+                )
+                
+                # Immediately sync to data structure
+                st.session_state.no_negociables_scores[alt_id][constraint_id] = checked
+        
+        # Check if disqualified using CURRENT checkbox values
+        is_disqualified, _ = is_alternative_disqualified(alt_id)
+        
+        # Update the placeholder with the alternative name (with disqualification indicator)
+        with alt_name_placeholder:
+            if is_disqualified and valid_no_negociables:
+                st.markdown(f"~~{alt_name}~~ ❌")
+            else:
+                st.markdown(f"**{alt_name}**")
         
         scores_data.append(row_data)
     
     # Create DataFrame for calculations
     scores_df = pd.DataFrame(scores_data).set_index("Alternativa")
     st.session_state.mcda_scores_df = scores_df
+    
+    # Get disqualified alternatives AFTER all checkboxes have been rendered and synced
+    disqualified_alts = get_disqualified_alternatives()
+    
+    # Show warning if any alternatives are disqualified
+    if disqualified_alts and valid_no_negociables:
+        num_disqualified = len(disqualified_alts)
+        num_total = len([a for a in st.session_state.alts if a["text"].strip()])
+        if num_disqualified == num_total:
+            st.error(f"⚠️ **Todas las alternativas están descalificadas**. Revisa los No Negociables o añade alternativas que los cumplan.")
+        else:
+            st.warning(f"⚠️ **{num_disqualified} alternativa(s) descalificada(s)** por no cumplir todos los No Negociables.")
     
     # Contextual help - placed after scoring matrix where confusion might arise
     with st.expander("*\"¿Qué significa un 3? ¿Cómo comparo de forma justa?\"*", expanded=False):
@@ -194,7 +283,15 @@ def render_evaluacion_tab():
     
     # Calculate totals and ranking using current mcda_criteria weights
     weight_map = normalize_weights(st.session_state.mcda_criteria)
-    totals, ranking_list = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+    totals, ranking_list_all = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+    
+    # Filter out disqualified alternatives from the ranking
+    disqualified_names = set()
+    for alt in st.session_state.alts:
+        if alt["id"] in disqualified_alts:
+            disqualified_names.add(alt["text"].strip())
+    
+    ranking_list = [item for item in ranking_list_all if item["alternativa"] not in disqualified_names]
     
     if ranking_list:
         # Visual Analysis first
@@ -284,7 +381,10 @@ def render_evaluacion_tab():
                 key="show_ranking_breakdown"
             )
     else:
-        st.info("💡 Completa la evaluación para ver los resultados")
+        if disqualified_alts and len(disqualified_alts) == len([a for a in st.session_state.alts if a["text"].strip()]):
+            st.info("💡 Todas las alternativas están descalificadas. Revisa los No Negociables para ver resultados.")
+        else:
+            st.info("💡 Completa la evaluación para ver los resultados")
     
     st.markdown("---")
     

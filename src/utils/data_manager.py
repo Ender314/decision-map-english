@@ -244,11 +244,23 @@ def create_export_data() -> Dict[str, Any]:
             "weights_user_override": st.session_state.get("weights_user_override", False),
         },
         "scenarios": scenario_rows,
+        "no_negociables": _export_no_negociables(),
         "risks": _export_risks(),
         "retro": _export_retro(),
     }
     
     return export_data
+
+
+def _export_no_negociables() -> Dict[str, Any]:
+    """Export no negociables (hard constraints) data for JSON."""
+    no_negociables = st.session_state.get("no_negociables", [])
+    no_neg_scores = st.session_state.get("no_negociables_scores", {})
+    
+    return {
+        "constraints": [{"id": c["id"], "text": c["text"]} for c in no_negociables],
+        "scores": no_neg_scores  # {alt_id: {constraint_id: True/False}}
+    }
 
 
 def _export_risks() -> List[Dict[str, Any]]:
@@ -468,11 +480,30 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         }
     st.session_state["risks"] = imported_risks
     
+    # Import no_negociables (if present)
+    no_neg_data = data.get("no_negociables", {})
+    if isinstance(no_neg_data, dict):
+        # New format with constraints and scores
+        imported_no_negociables = []
+        for constraint in no_neg_data.get("constraints", []):
+            imported_no_negociables.append({
+                "id": constraint.get("id", str(uuid.uuid4())),
+                "text": constraint.get("text", "")
+            })
+        st.session_state["no_negociables"] = imported_no_negociables
+        st.session_state["no_negociables_scores"] = no_neg_data.get("scores", {})
+    else:
+        # Default empty state for backward compatibility
+        st.session_state["no_negociables"] = []
+        st.session_state["no_negociables_scores"] = {}
+    
     # Import retro (if present)
     retro_data = data.get("retro", {})
+    parsed_decision_date = parse_date_string(retro_data.get("decision_date"))
+    parsed_review_date = parse_date_string(retro_data.get("review_date"))
     imported_retro = {
-        "decision_date": parse_date_string(retro_data.get("decision_date")),
-        "review_date": parse_date_string(retro_data.get("review_date")),
+        "decision_date": parsed_decision_date,
+        "review_date": parsed_review_date,
         "chosen_alternative_id": retro_data.get("chosen_alternative_id"),
         "outcomes": retro_data.get("outcomes", []),
         "tripwires": retro_data.get("tripwires", []),
@@ -481,6 +512,12 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         "outcome_quality_score": retro_data.get("outcome_quality_score", 3)
     }
     st.session_state["retro"] = imported_retro
+    
+    # Sync widget keys for retro dates (Streamlit widgets with keys read from session_state)
+    if parsed_decision_date:
+        st.session_state["retro_decision_date"] = parsed_decision_date
+    if parsed_review_date:
+        st.session_state["retro_review_date"] = parsed_review_date
     
     # Handle routing if requested (for use from app_with_routing.py)
     # Note: redirect_to_first_tab disabled - users prefer staying on current view
@@ -608,6 +645,34 @@ def create_excel_export() -> BytesIO:
         if scenarios:
             scenarios_df = pd.DataFrame(scenarios)
             scenarios_df.to_excel(writer, sheet_name='Escenarios', index=False)
+        
+        # No Negociables sheet
+        no_neg = export_data.get('no_negociables', {})
+        no_neg_constraints = no_neg.get('constraints', [])
+        if no_neg_constraints:
+            no_neg_df = pd.DataFrame(no_neg_constraints)
+            no_neg_df.to_excel(writer, sheet_name='No_Negociables', index=False)
+            
+            # No Negociables Scores sheet (which alternatives meet which constraints)
+            no_neg_scores = no_neg.get('scores', {})
+            if no_neg_scores:
+                scores_flat = []
+                alts = export_data.get('alternativas', [])
+                alt_id_to_name = {a['id']: a['text'] for a in alts}
+                constraint_id_to_text = {c['id']: c['text'] for c in no_neg_constraints}
+                
+                for alt_id, constraint_scores in no_neg_scores.items():
+                    alt_name = alt_id_to_name.get(alt_id, alt_id)
+                    for constraint_id, meets in constraint_scores.items():
+                        constraint_text = constraint_id_to_text.get(constraint_id, constraint_id)
+                        scores_flat.append({
+                            'alternativa': alt_name,
+                            'constraint': constraint_text,
+                            'cumple': 'Sí' if meets else 'No'
+                        })
+                if scores_flat:
+                    scores_df = pd.DataFrame(scores_flat)
+                    scores_df.to_excel(writer, sheet_name='No_Negociables_Eval', index=False)
         
         # Risks sheet
         risks = export_data.get('risks', [])

@@ -463,7 +463,7 @@ def render_monitoring_timeline():
     
     # Layout with interactive legend
     fig.update_layout(
-        height=int((220 + (max(max_above, max_below) * 25)) * 1.2),  # Dynamic height based on stacking
+        height=int((220 + (max(max_above, max_below) * 25)) * 1.6),  # Dynamic height based on stacking
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -685,38 +685,4 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
                     )
                 ))
     
-    # Add average line (always shown, can be hidden via legend)
-    # Only include risks that existed on each day (non-None values)
-    if all_scores:
-        avg_scores_scaled = []
-        avg_scores_unscaled = []
-        for day_idx in range(len(date_range)):
-            # Filter out None values - only include risks that existed on this day
-            day_scores = [scores[day_idx] for scores in all_scores 
-                         if day_idx < len(scores) and scores[day_idx] is not None]
-            if day_scores:
-                avg_unscaled = sum(day_scores) / len(day_scores)
-                avg_scaled = avg_unscaled * scale_factor
-                avg_scores_scaled.append(avg_scaled)
-                avg_scores_unscaled.append(avg_unscaled)
-            else:
-                # No risks existed on this day
-                avg_scores_scaled.append(None)
-                avg_scores_unscaled.append(None)
-        
-        fig.add_trace(go.Scatter(
-            x=date_range,
-            y=avg_scores_scaled,
-            mode="lines",
-            name="📊 Promedio Riesgo",
-            legendgroup="risk_avg",
-            line=dict(color="#ff5722", width=3, dash="dash", shape="spline"),
-            hovertemplate=(
-                "<b>Promedio Riesgo</b><br>"
-                "Fecha: %{x}<br>"
-                "Score: %{customdata:.1f}<br>"
-                "<extra></extra>"
-            ),
-            customdata=avg_scores_unscaled
-        ))
 

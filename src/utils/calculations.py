@@ -154,6 +154,67 @@ def generate_violin_data(worst: float, best: float, expected_value: float, n_sam
     return np.clip(samples, worst, best)
 
 
+def get_disqualified_alternatives() -> Dict[str, List[str]]:
+    """
+    Get alternatives that are disqualified due to failing no negociables.
+    
+    Returns:
+        Dict mapping alt_id to list of failed constraint names
+    """
+    no_negociables = st.session_state.get("no_negociables", [])
+    no_neg_scores = st.session_state.get("no_negociables_scores", {})
+    alts = st.session_state.get("alts", [])
+    
+    # Build constraint id -> text mapping
+    constraint_names = {c["id"]: c["text"] for c in no_negociables if c.get("text", "").strip()}
+    
+    disqualified = {}
+    
+    for alt in alts:
+        alt_id = alt["id"]
+        alt_scores = no_neg_scores.get(alt_id, {})
+        failed_constraints = []
+        
+        for constraint_id, constraint_text in constraint_names.items():
+            # If not checked (False or missing), it's a failure
+            if not alt_scores.get(constraint_id, False):
+                failed_constraints.append(constraint_text)
+        
+        if failed_constraints:
+            disqualified[alt_id] = failed_constraints
+    
+    return disqualified
+
+
+def is_alternative_disqualified(alt_id: str) -> Tuple[bool, List[str]]:
+    """
+    Check if a specific alternative is disqualified.
+    
+    Args:
+        alt_id: The alternative ID to check
+        
+    Returns:
+        Tuple of (is_disqualified, list_of_failed_constraint_names)
+    """
+    disqualified = get_disqualified_alternatives()
+    if alt_id in disqualified:
+        return True, disqualified[alt_id]
+    return False, []
+
+
+def get_qualified_alternatives() -> List[Dict[str, Any]]:
+    """
+    Get list of alternatives that pass all no negociables.
+    
+    Returns:
+        List of alternative dicts that are qualified
+    """
+    alts = st.session_state.get("alts", [])
+    disqualified = get_disqualified_alternatives()
+    
+    return [alt for alt in alts if alt["id"] not in disqualified]
+
+
 def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[str]:
     """
     Get visible sections based on time allocation.
@@ -168,6 +229,6 @@ def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[st
     if tiempo_value == "Menos de media hora":
         return ["Dimensionado", "Alternativas", "Prioridades", "Evaluación"]
     elif tiempo_value == "Un par de horas":
-        return ["Dimensionado", "Información", "Alternativas", "Prioridades", "Evaluación", "Resultados"]
+        return ["Dimensionado", "Alternativas", "Información", "Prioridades", "Evaluación", "Resultados"]
     else:
         return all_sections[:]

@@ -83,6 +83,7 @@ src/
         ├── retro.py               # Retrospective & tripwires
         ├── monitoring_timeline.py # Monitoring phase timeline & recommended alternative
         ├── templates.py           # Template selector for onboarding examples
+        ├── informe.py             # Full lifecycle report (Data Story format)
         └── sidebar.py             # Export/import
 ```
 

@@ -12,7 +12,8 @@ from utils.calculations import (
     calculate_relevance_percentage, 
     mcda_totals_and_ranking, 
     normalize_weights,
-    scenario_expected_value
+    scenario_expected_value,
+    get_disqualified_alternatives
 )
 from utils.visualizations import create_mcda_radar_chart, create_impact_chart
 
@@ -131,20 +132,31 @@ def render_resultados_tab():
         st.info("💡 **Resumen ejecutivo disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
         return
     
+    # Get disqualified alternatives (due to No Negociables)
+    disqualified_alts = get_disqualified_alternatives()
+    disqualified_names = set()
+    for alt in st.session_state.alts:
+        if alt["id"] in disqualified_alts:
+            disqualified_names.add(alt["text"].strip())
+    
     # Get MCDA data
     crit = st.session_state.get("mcda_criteria", [])
     scores_df = st.session_state.get("mcda_scores_df", pd.DataFrame())
     ranking_list = []
+    ranking_list_all = []  # Keep all for display purposes
     
     if not scores_df.empty and len(crit) > 0:
-        _, ranking_list = mcda_totals_and_ranking(scores_df.copy(), crit)
+        _, ranking_list_all = mcda_totals_and_ranking(scores_df.copy(), crit)
+        # Filter out disqualified alternatives for the main ranking
+        ranking_list = [item for item in ranking_list_all if item["alternativa"] not in disqualified_names]
     
     # Get scenarios data
     scenarios_state = st.session_state.get("scenarios", {})
     
-    # Build combined data for Decision Matrix
+    # Build combined data for Decision Matrix (excluding disqualified)
     combined_data = []
-    if ranking_list and scenarios_state:
+    combined_data_all = []  # Keep all for display purposes
+    if ranking_list_all and scenarios_state:
         for alt_id, scenario in scenarios_state.items():
             alt_name = scenario.get("name", "")
             ev = scenario_expected_value(
@@ -155,21 +167,46 @@ def render_resultados_tab():
             ev_scaled = ev / 2.0
             uncertainty = scenario.get("best_score", 0) - scenario.get("worst_score", 0)
             
-            mcda_score = next((item["score"] for item in ranking_list if item["alternativa"] == alt_name), None)
+            mcda_score = next((item["score"] for item in ranking_list_all if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
                 composite = 0.5 * mcda_score + 0.5 * ev_scaled
-                combined_data.append({
+                item_data = {
                     "name": alt_name,
+                    "alt_id": alt_id,
                     "mcda": mcda_score,
                     "ev": ev,
                     "ev_scaled": ev_scaled,
                     "uncertainty": uncertainty,
-                    "composite": composite
-                })
+                    "composite": composite,
+                    "disqualified": alt_name in disqualified_names
+                }
+                combined_data_all.append(item_data)
+                if alt_name not in disqualified_names:
+                    combined_data.append(item_data)
     
     # Sort combined data by composite
     combined_sorted = sorted(combined_data, key=lambda x: x["composite"], reverse=True) if combined_data else []
+    combined_sorted_all = sorted(combined_data_all, key=lambda x: x["composite"], reverse=True) if combined_data_all else []
+    
+    # Show disqualification warning if any alternatives are disqualified
+    if disqualified_alts:
+        num_disqualified = len(disqualified_alts)
+        num_qualified = len(alt_names) - num_disqualified
+        if num_qualified == 0:
+            st.error("⚠️ **Todas las alternativas están descalificadas** por no cumplir los No Negociables. No hay recomendación disponible.")
+            # Show which alternatives are disqualified and why
+            with st.expander("Ver alternativas descalificadas"):
+                for alt_name, failed_constraints in disqualified_alts.items():
+                    alt_text = next((a["text"] for a in st.session_state.alts if a["id"] == alt_name), alt_name)
+                    st.markdown(f"- **{alt_text}**: No cumple *{', '.join(failed_constraints)}*")
+            return
+        else:
+            st.warning(f"⚠️ **{num_disqualified} alternativa(s) descalificada(s)** por No Negociables. Solo se consideran {num_qualified} alternativa(s) en el ranking.")
+            with st.expander("Ver alternativas descalificadas"):
+                for alt_id, failed_constraints in disqualified_alts.items():
+                    alt_text = next((a["text"] for a in st.session_state.alts if a["id"] == alt_id), alt_id)
+                    st.markdown(f"- ~~{alt_text}~~: No cumple *{', '.join(failed_constraints)}*")
     
     # ===========================================
     # HERO SECTION - Winner Announcement

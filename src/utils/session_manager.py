@@ -47,6 +47,10 @@ class SessionStateManager:
         # Scenarios
         "scenarios": {},
         
+        # No Negociables (hard constraints)
+        "no_negociables": [],  # list of {"id": uuid, "text": constraint_description}
+        "no_negociables_scores": {},  # {alt_id: {constraint_id: True/False}}
+        
         # Risk Analysis
         "risks": {},  # {risk_id: risk_data}
         
@@ -173,6 +177,7 @@ class SessionStateManager:
                            "quantitative_notes", "qualitative_notes"],
             "mcda": ["mcda_criteria", "mcda_scores", "mcda_scores_df"],
             "scenarios": ["scenarios"],
+            "no_negociables": ["no_negociables", "no_negociables_scores"],
             "risks": ["risks"],
             "retro": ["retro"]
         }

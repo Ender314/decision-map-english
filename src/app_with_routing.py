@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config.constants import (
     APP_NAME, APP_ICON, TAB_DIMENSIONADO, TAB_ALTERNATIVAS, TAB_OBJETIVO, 
     TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS, 
-    TAB_RIESGOS, TAB_RETRO, ALL_SECTIONS, MONITORING_SECTIONS, TAB_DISPLAY_NAMES
+    TAB_RIESGOS, TAB_RETRO, TAB_INFORME, ALL_SECTIONS, MONITORING_SECTIONS, TAB_DISPLAY_NAMES
 )
 from utils.calculations import get_sections_for_time
 from utils.session_manager import init_session_state
@@ -33,6 +33,7 @@ from components.scenarios import render_scenarios_tab
 from components.resultados import render_resultados_tab
 from components.risk_analysis import render_risk_analysis_tab, count_active_risks
 from components.retro import render_retro_tab, count_triggered_tripwires
+from components.informe import render_informe_tab
 from components.sidebar import render_sidebar
 from components.landing_page import render_landing_page
 from components.offer_page import render_offer_page
@@ -258,13 +259,16 @@ def render_main_app():
     if "_monitoring_tab_idx" not in st.session_state:
         st.session_state["_monitoring_tab_idx"] = 0
     
-    parent_tabs = st.tabs(["🎛️ Análisis", monitoring_label])
+    parent_tabs = st.tabs(["🎛️ Análisis", monitoring_label, "📋 Informe"])
     
     with parent_tabs[0]:
         render_analysis_view()
     
     with parent_tabs[1]:
         render_monitoring_view()
+    
+    with parent_tabs[2]:
+        render_informe_tab()
     
     # Render sidebar if visible (works in both modes)
     if st.session_state.get("show_sidebar", False):
