@@ -189,24 +189,16 @@ def render_resultados_tab():
     combined_sorted = sorted(combined_data, key=lambda x: x["composite"], reverse=True) if combined_data else []
     combined_sorted_all = sorted(combined_data_all, key=lambda x: x["composite"], reverse=True) if combined_data_all else []
     
-    # Show disqualification warning if any alternatives are disqualified
+    # Show error only if ALL alternatives are disqualified
     if disqualified_alts:
-        num_disqualified = len(disqualified_alts)
-        num_qualified = len(alt_names) - num_disqualified
+        num_qualified = len(alt_names) - len(disqualified_alts)
         if num_qualified == 0:
             st.error("⚠️ **Todas las alternativas están descalificadas** por no cumplir los No Negociables. No hay recomendación disponible.")
-            # Show which alternatives are disqualified and why
             with st.expander("Ver alternativas descalificadas"):
                 for alt_name, failed_constraints in disqualified_alts.items():
                     alt_text = next((a["text"] for a in st.session_state.alts if a["id"] == alt_name), alt_name)
                     st.markdown(f"- **{alt_text}**: No cumple *{', '.join(failed_constraints)}*")
             return
-        else:
-            st.warning(f"⚠️ **{num_disqualified} alternativa(s) descalificada(s)** por No Negociables. Solo se consideran {num_qualified} alternativa(s) en el ranking.")
-            with st.expander("Ver alternativas descalificadas"):
-                for alt_id, failed_constraints in disqualified_alts.items():
-                    alt_text = next((a["text"] for a in st.session_state.alts if a["id"] == alt_id), alt_id)
-                    st.markdown(f"- ~~{alt_text}~~: No cumple *{', '.join(failed_constraints)}*")
     
     # ===========================================
     # HERO SECTION - Winner Announcement

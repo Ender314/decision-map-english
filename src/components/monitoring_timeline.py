@@ -15,17 +15,25 @@ def get_recommended_alternative():
     """Get the recommended alternative from scenarios/MCDA analysis.
     
     Calculates a composite score: 50% MCDA + 50% scenario EV.
-    Falls back to first alternative if no analysis data available.
+    Falls back to first qualified alternative if no analysis data available.
+    Only considers alternatives that pass all No Negociables.
     
     Returns:
         Tuple of (alt_id, alt_name) or (None, None)
     """
-    from utils.calculations import mcda_totals_and_ranking
+    from utils.calculations import mcda_totals_and_ranking, get_disqualified_alternatives
     
     scenarios = st.session_state.get("scenarios", {})
     mcda_scores_df = st.session_state.get("mcda_scores_df")
     mcda_criteria = st.session_state.get("mcda_criteria", [])
-    alts = st.session_state.get("alts", [])
+    all_alts = st.session_state.get("alts", [])
+    
+    if not all_alts:
+        return None, None
+    
+    # Filter out disqualified alternatives
+    disqualified_alts = get_disqualified_alternatives()
+    alts = [a for a in all_alts if a["id"] not in disqualified_alts]
     
     if not alts:
         return None, None
@@ -59,7 +67,7 @@ def get_recommended_alternative():
             winner = max(combined_data, key=lambda x: x["composite"])
             return winner["id"], winner["name"]
     
-    # Fallback: first alternative
+    # Fallback: first qualified alternative
     first_alt = next((a for a in alts if a["text"].strip()), None)
     if first_alt:
         return first_alt["id"], first_alt["text"].strip()

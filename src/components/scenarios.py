@@ -11,7 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from config.constants import PROBABILITY_STEPS
-from utils.calculations import scenario_expected_value
+from utils.calculations import scenario_expected_value, get_disqualified_alternatives
 from utils.ui_helpers import help_tip, get_tooltip
 
 
@@ -20,9 +20,22 @@ def render_scenarios_tab():
     st.markdown(f"### 🔮 Planificación de Escenarios", unsafe_allow_html=True)
 
     # Need alternativas
-    alts = [a for a in st.session_state.alts if a["text"].strip()]
-    if not alts:
+    all_alts = [a for a in st.session_state.alts if a["text"].strip()]
+    if not all_alts:
         st.info("🔮 Los escenarios te ayudan a pensar en el mejor y peor caso de cada alternativa. Primero define tus **Alternativas** en la pestaña correspondiente.")
+        return
+    
+    # Filter out disqualified alternatives (failed No Negociables)
+    disqualified_alts = get_disqualified_alternatives()
+    alts = [a for a in all_alts if a["id"] not in disqualified_alts]
+    
+    # Show error only if ALL alternatives are disqualified
+    if disqualified_alts and len(alts) == 0:
+        st.error(f"⚠️ **Todas las alternativas están descalificadas** por no cumplir los No Negociables. No hay escenarios disponibles.")
+        with st.expander("Ver alternativas descalificadas"):
+            for alt_id, failed_constraints in disqualified_alts.items():
+                alt_text = next((a["text"] for a in all_alts if a["id"] == alt_id), alt_id)
+                st.markdown(f"- ~~{alt_text}~~: No cumple *{', '.join(failed_constraints)}*")
         return
 
     # Initialize scenarios if needed
@@ -169,16 +182,18 @@ def render_scenarios_tab():
             )
             scenario_data["ev"] = ev
     
-    # Create summary data for visualization
+    # Create summary data for visualization (only qualified alternatives)
+    qualified_alt_ids = {a["id"] for a in alts}
     summary_rows = []
-    for scenario_data in st.session_state.scenarios.values():
-        summary_rows.append({
-            "Alternativa": scenario_data["name"],
-            "Worst": int(scenario_data["worst_score"]),
-            "Best": int(scenario_data["best_score"]),
-            "EV": scenario_data["ev"],
-            "Range": scenario_data["best_score"] - scenario_data["worst_score"],
-        })
+    for alt_id, scenario_data in st.session_state.scenarios.items():
+        if alt_id in qualified_alt_ids:
+            summary_rows.append({
+                "Alternativa": scenario_data["name"],
+                "Worst": int(scenario_data["worst_score"]),
+                "Best": int(scenario_data["best_score"]),
+                "EV": scenario_data["ev"],
+                "Range": scenario_data["best_score"] - scenario_data["worst_score"],
+            })
     
     if not summary_rows:
         return
@@ -216,7 +231,7 @@ def render_scenarios_tab():
     # Risk-Adjusted Decision Matrix
     st.markdown("### 🎯 Matriz de Decisión")
     
-    # Get MCDA scores if available
+    # Get MCDA scores if available (filtered by qualified alternatives)
     mcda_ranking = []
     if "mcda_scores" in st.session_state and st.session_state.mcda_scores:
         from utils.calculations import normalize_weights, mcda_totals_and_ranking
@@ -224,7 +239,10 @@ def render_scenarios_tab():
         # Get scores DataFrame
         if "mcda_scores_df" in st.session_state and "mcda_criteria" in st.session_state:
             scores_df = st.session_state.mcda_scores_df
-            _, mcda_ranking = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+            _, mcda_ranking_all = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+            # Filter out disqualified alternatives
+            qualified_names = {a["text"].strip() for a in alts}
+            mcda_ranking = [item for item in mcda_ranking_all if item["alternativa"] in qualified_names]
     
     if not mcda_ranking:
         st.info("💡 Completa la **Evaluación** para ver la Matriz de Decisión combinada.")

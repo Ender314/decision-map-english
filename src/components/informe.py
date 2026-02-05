@@ -18,7 +18,8 @@ from utils.calculations import (
     calculate_relevance_percentage,
     mcda_totals_and_ranking,
     normalize_weights,
-    scenario_expected_value
+    scenario_expected_value,
+    get_disqualified_alternatives
 )
 
 
@@ -29,8 +30,13 @@ def get_report_data() -> Dict[str, Any]:
     decision = st.session_state.get("decision", "").strip()
     objetivo = st.session_state.get("objetivo", "").strip()
     
-    # Alternatives and priorities
-    alts = st.session_state.get("alts", [])
+    # Alternatives and priorities (filter out disqualified)
+    all_alts = st.session_state.get("alts", [])
+    disqualified_alts = get_disqualified_alternatives()
+    disqualified_ids = set(disqualified_alts.keys())
+    
+    # Only include qualified alternatives
+    alts = [a for a in all_alts if a["id"] not in disqualified_ids]
     alt_names = [a["text"].strip() for a in alts if a.get("text", "").strip()]
     priorities = st.session_state.get("priorities", [])
     priority_names = [p["text"].strip() for p in priorities if p.get("text", "").strip()]
@@ -43,20 +49,28 @@ def get_report_data() -> Dict[str, Any]:
         IMPACT_MAP
     )
     
-    # MCDA data
+    # MCDA data (filtered by qualified alternatives)
     crit = st.session_state.get("mcda_criteria", [])
     scores_df = st.session_state.get("mcda_scores_df")
     ranking_list = []
     if scores_df is not None and not scores_df.empty and len(crit) > 0:
-        _, ranking_list = mcda_totals_and_ranking(scores_df.copy(), crit)
+        _, ranking_list_all = mcda_totals_and_ranking(scores_df.copy(), crit)
+        # Filter out disqualified alternatives
+        qualified_names = set(alt_names)
+        ranking_list = [item for item in ranking_list_all if item["alternativa"] in qualified_names]
     
     # Scenarios
     scenarios = st.session_state.get("scenarios", {})
     
-    # Build combined data (MCDA + Scenarios)
+    # Build combined data (MCDA + Scenarios) - only qualified alternatives
+    qualified_alt_ids = {a["id"] for a in alts}
     combined_data = []
     if ranking_list and scenarios:
         for alt_id, scenario in scenarios.items():
+            # Skip disqualified alternatives
+            if alt_id not in qualified_alt_ids:
+                continue
+            
             alt_name = scenario.get("name", "")
             ev = scenario_expected_value(
                 scenario.get("p_best", 0.5),
