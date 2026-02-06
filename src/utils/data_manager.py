@@ -1045,6 +1045,46 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
             # Assessments without main risks sheet - skip (need risk definitions first)
             pass
         
+        # Import No Negociables
+        if 'No_Negociables' in excel_data:
+            no_neg_df = excel_data['No_Negociables']
+            if not no_neg_df.empty:
+                imported_no_negociables = []
+                for _, row in no_neg_df.iterrows():
+                    constraint_id = row.get('id', str(uuid.uuid4()))
+                    text = row.get('text', '')
+                    if pd.notna(text) and str(text).strip():
+                        imported_no_negociables.append({
+                            'id': str(constraint_id),
+                            'text': str(text).strip()
+                        })
+                st.session_state['no_negociables'] = imported_no_negociables
+                
+                # Import No Negociables scores (evaluation)
+                if 'No_Negociables_Eval' in excel_data and imported_no_negociables:
+                    eval_df = excel_data['No_Negociables_Eval']
+                    if not eval_df.empty:
+                        # Build reverse mappings: name -> id
+                        current_alts = st.session_state.get('alts', [])
+                        alt_name_to_id = {alt['text'].strip(): alt['id'] for alt in current_alts if alt['text'].strip()}
+                        constraint_text_to_id = {c['text'].strip(): c['id'] for c in imported_no_negociables if c['text'].strip()}
+                        
+                        no_neg_scores = {}
+                        for _, row in eval_df.iterrows():
+                            alt_name = str(row.get('alternativa', '')).strip() if pd.notna(row.get('alternativa')) else ''
+                            constraint_text = str(row.get('constraint', '')).strip() if pd.notna(row.get('constraint')) else ''
+                            cumple_val = str(row.get('cumple', 'No')).strip() if pd.notna(row.get('cumple')) else 'No'
+                            
+                            alt_id = alt_name_to_id.get(alt_name)
+                            constraint_id = constraint_text_to_id.get(constraint_text)
+                            
+                            if alt_id and constraint_id:
+                                if alt_id not in no_neg_scores:
+                                    no_neg_scores[alt_id] = {}
+                                no_neg_scores[alt_id][constraint_id] = cumple_val.lower() in ['sí', 'si', 'yes', 'true', '1']
+                        
+                        st.session_state['no_negociables_scores'] = no_neg_scores
+        
         # Import Retro
         imported_retro = {
             'decision_date': None,
@@ -1108,6 +1148,12 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                 imported_retro['tripwires'] = tripwires
         
         st.session_state['retro'] = imported_retro
+        
+        # Sync widget keys for retro dates (same fix as JSON import)
+        if imported_retro.get('decision_date'):
+            st.session_state['retro_decision_date'] = imported_retro['decision_date']
+        if imported_retro.get('review_date'):
+            st.session_state['retro_review_date'] = imported_retro['review_date']
         
         # Note: redirect_to_first_tab disabled - users prefer staying on current view
         # st.session_state["redirect_to_first_tab"] = True
