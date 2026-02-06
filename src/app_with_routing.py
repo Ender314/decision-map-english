@@ -79,6 +79,11 @@ if st.session_state.get("_pending_import", False):
         # Clear import flags
         st.session_state["_pending_import"] = False
         st.session_state["_import_data"] = {}
+        
+        # Force a fresh render so widgets initialize from imported session state
+        # Without this, Streamlit's widget state reconciliation may use stale
+        # values from the previous run, overriding the imported data.
+        st.rerun()
 
 
 def render_main_app():
