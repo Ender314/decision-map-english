@@ -81,7 +81,33 @@ def create_decision_matrix_chart(combined_data: list) -> go.Figure:
 
 def render_resultados_tab():
     """Render the Resultados (Results) tab - Executive Summary."""
-    
+
+    # Print-friendly CSS: hide Streamlit chrome when printing
+    st.markdown("""
+    <style>
+    @media print {
+        /* Hide Streamlit UI chrome */
+        header[data-testid="stHeader"],
+        [data-testid="stSidebar"],
+        [data-testid="stToolbar"],
+        .stDeployButton,
+        [data-testid="stStatusWidget"],
+        footer,
+        #MainMenu,
+        .stActionButton,
+        button,
+        .no-print { display: none !important; }
+
+        /* Full-width content */
+        .main .block-container { max-width: 100% !important; padding: 0 1rem !important; }
+        section[data-testid="stMain"] { padding: 0 !important; }
+
+        /* Avoid page breaks inside charts and tables */
+        .stPlotlyChart, .stDataFrame, .stMarkdown { break-inside: avoid; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     # Check if we have data
     alt_names = [a["text"].strip() for a in st.session_state.alts if a["text"].strip()]
     prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
@@ -458,10 +484,104 @@ def render_resultados_tab():
     else:
         st.info("💡 Completa más secciones para generar insights automatizados")
     
-    st.markdown("---")
-    
     # ===========================================
-    # RANKING TABLES (last section before additional info)
+    # CONTEXTO DE LA DECISIÓN (merged reference section)
+    # ===========================================
+
+    objetivo = st.session_state.get("objetivo", "").strip()
+    estrategia = st.session_state.get("estrategia_corporativa", "").strip()
+    past_decisions = [d for d in st.session_state.get("past_decisions", []) if d.get("decision", "").strip()]
+    kpis = st.session_state.get("kpis", [])
+    valid_kpis = [k for k in kpis if k.get("name", "").strip()]
+    stakeholders = st.session_state.get("stakeholders", [])
+    valid_stakeholders = [s for s in stakeholders if s.get("name", "").strip()]
+    timeline_items = [t for t in st.session_state.get("timeline_items", []) if t.get("event", "").strip()]
+    quant_notes = st.session_state.get("quantitative_notes", "").strip()
+    qual_notes = st.session_state.get("qualitative_notes", "").strip()
+
+    has_context = any([objetivo, estrategia, past_decisions, valid_kpis,
+                       valid_stakeholders, timeline_items, quant_notes, qual_notes])
+
+    if has_context:
+        # st.markdown("---")
+        with st.expander("📋 Contexto de la Decisión", expanded=False):
+            # Row 1: Objetivo + Estrategia
+            if objetivo or estrategia:
+                ctx_cols = st.columns(2 if (objetivo and estrategia) else 1)
+                col_idx = 0
+                if objetivo:
+                    with ctx_cols[col_idx]:
+                        st.markdown("**🎯 Objetivo**")
+                        st.markdown(objetivo)
+                    col_idx += 1
+                if estrategia:
+                    with ctx_cols[col_idx]:
+                        st.markdown("**🏢 Estrategia**")
+                        st.markdown(estrategia)
+
+            # Row 2: Past Decisions
+            if past_decisions:
+                st.markdown("---")
+                st.markdown("**📚 Decisiones Similares Pasadas**")
+                for d in past_decisions[:3]:
+                    st.markdown(f"- **{d['decision']}**")
+                    details = []
+                    if d.get("results", "").strip():
+                        details.append(f"Resultado: {d['results'].strip()}")
+                    if d.get("lessons", "").strip():
+                        details.append(f"Lección: {d['lessons'].strip()}")
+                    if details:
+                        st.caption(" · ".join(details))
+
+            # Row 3: KPIs + Stakeholders
+            if valid_kpis or valid_stakeholders:
+                st.markdown("---")
+                kpi_stake_cols = st.columns(2)
+                with kpi_stake_cols[0]:
+                    if valid_kpis:
+                        st.markdown("**📊 KPIs Relevantes**")
+                        for kpi in valid_kpis[:5]:
+                            value_str = str(kpi.get("value", "N/A"))
+                            unit_str = f" {kpi.get('unit', '')}" if kpi.get("unit", "").strip() else ""
+                            st.markdown(f"- **{kpi.get('name', '')}:** {value_str}{unit_str}")
+                with kpi_stake_cols[1]:
+                    if valid_stakeholders:
+                        st.markdown("**👥 Stakeholders**")
+                        for sh in valid_stakeholders[:5]:
+                            name = sh.get("name", "")
+                            opinion = sh.get("opinion", "")
+                            if opinion:
+                                st.markdown(f"- **{name}:** {opinion}")
+                            else:
+                                st.markdown(f"- **{name}**")
+
+            # Row 4: Timeline
+            if timeline_items:
+                st.markdown("---")
+                st.markdown("**📅 Timeline Clave**")
+                for t in timeline_items[:5]:
+                    date_str = t["date"].strftime("%d/%m/%Y") if t.get("date") else ""
+                    st.markdown(f"- **{t['event']}** {f'— {date_str}' if date_str else ''}")
+
+            # Row 5: Notes
+            if quant_notes or qual_notes:
+                st.markdown("---")
+                note_cols = st.columns(2 if (quant_notes and qual_notes) else 1)
+                col_idx = 0
+                if quant_notes:
+                    with note_cols[col_idx]:
+                        st.markdown("**📝 Notas Cuantitativas**")
+                        st.caption(quant_notes)
+                    col_idx += 1
+                if qual_notes:
+                    with note_cols[col_idx]:
+                        st.markdown("**📝 Notas Cualitativas**")
+                        st.caption(qual_notes)
+
+    st.markdown("---")
+
+    # ===========================================
+    # RANKING TABLES
     # ===========================================
     
     st.markdown("## 🏅 Rankings y Datos")
@@ -593,40 +713,6 @@ def render_resultados_tab():
             st.dataframe(no_neg_df, hide_index=True, use_container_width=True)
     
     # ===========================================
-    # KPIs & STAKEHOLDERS (collapsible)
-    # ===========================================
-    
-    kpis = st.session_state.get("kpis", [])
-    stakeholders = st.session_state.get("stakeholders", [])
-    valid_kpis = [k for k in kpis if k.get("name", "").strip()]
-    valid_stakeholders = [s for s in stakeholders if s.get("name", "").strip()]
-    
-    if valid_kpis or valid_stakeholders:
-        st.markdown("---")
-        
-        with st.expander("📋 Información Adicional", expanded=False):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if valid_kpis:
-                    st.markdown("**📊 KPIs Relevantes**")
-                    for kpi in valid_kpis[:5]:
-                        value_str = str(kpi.get("value", "N/A"))
-                        unit_str = f" {kpi.get('unit', '')}" if kpi.get("unit", "").strip() else ""
-                        st.markdown(f"- **{kpi.get('name', '')}:** {value_str}{unit_str}")
-            
-            with col2:
-                if valid_stakeholders:
-                    st.markdown("**👥 Stakeholders**")
-                    for sh in valid_stakeholders[:5]:
-                        name = sh.get("name", "")
-                        opinion = sh.get("opinion", "")
-                        if opinion:
-                            st.markdown(f"- **{name}:** {opinion}")
-                        else:
-                            st.markdown(f"- **{name}**")
-    
-    # ===========================================
     # EXPORT CTA
     # ===========================================
     
@@ -650,3 +736,41 @@ def render_resultados_tab():
         if st.button("⚙️ Abrir opciones de exportación", use_container_width=True, type="primary"):
             st.session_state["show_sidebar"] = True
             st.rerun()
+    
+    import streamlit.components.v1 as components
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        components.html("""
+        <button id="printBtn"
+                style="width:100%; padding:0.55rem 1rem; border:1px solid #ccc; border-radius:8px;
+                       background:#fafafa; cursor:pointer; font-size:0.9rem; color:#444;
+                       display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;"
+                onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#fafafa'">
+            🖨️ Imprimir / Guardar PDF
+        </button>
+        <script>
+            document.getElementById('printBtn').addEventListener('click', function() {
+                window.parent.print();
+            });
+        </script>
+        """, height=50)
+
+    # ===========================================
+    # OBSERVA TUS EMOCIONES
+    # ===========================================
+
+    st.markdown("---")
+    st.markdown("### 🪞 Observa tus emociones")
+    st.caption(
+        "Las emociones llevan información sobre valores y prioridades que a menudo son inconscientes. "
+        "Parar y observar cómo te sientes ante estos resultados puede ser muy valioso para tu decisión."
+    )
+
+    emotion_notes = st.text_area(
+        "¿Cómo te sientes al ver estos resultados?",
+        value=st.session_state.get("emotion_notes", ""),
+        placeholder="Escribe libremente lo que sientes, sin filtrar...",
+        height=120,
+        key="emotion_notes_widget",
+    )
+    st.session_state["emotion_notes"] = emotion_notes

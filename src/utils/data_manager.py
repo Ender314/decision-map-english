@@ -77,6 +77,9 @@ def initialize_session_defaults() -> None:
         
         # Escenarios
         "scenarios": {},  # {alt_id: scenario_data}
+        
+        # Emotion notes (Resultados tab)
+        "emotion_notes": "",
     }
     
     for key, value in defaults.items():
@@ -247,6 +250,7 @@ def create_export_data() -> Dict[str, Any]:
         "no_negociables": _export_no_negociables(),
         "risks": _export_risks(),
         "retro": _export_retro(),
+        "emotion_notes": st.session_state.get("emotion_notes", "").strip(),
     }
     
     return export_data
@@ -513,6 +517,9 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     }
     st.session_state["retro"] = imported_retro
     
+    # Import emotion notes
+    st.session_state["emotion_notes"] = data.get("emotion_notes", "")
+    
     # Sync widget keys for retro dates (Streamlit widgets with keys read from session_state)
     if parsed_decision_date:
         st.session_state["retro_decision_date"] = parsed_decision_date
@@ -613,10 +620,11 @@ def create_excel_export() -> BytesIO:
         
         # Notes
         notes_data = {
-            'Tipo': ['Cuantitativas', 'Cualitativas'],
+            'Tipo': ['Cuantitativas', 'Cualitativas', 'Emociones'],
             'Notas': [
                 info.get('quantitative_notes', ''),
-                info.get('qualitative_notes', '')
+                info.get('qualitative_notes', ''),
+                export_data.get('emotion_notes', '')
             ]
         }
         notes_df = pd.DataFrame(notes_data)
@@ -914,6 +922,8 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                             st.session_state['quantitative_notes'] = nota_str
                         elif 'cualitativa' in tipo_str:
                             st.session_state['qualitative_notes'] = nota_str
+                        elif 'emocion' in tipo_str:
+                            st.session_state['emotion_notes'] = nota_str
         
         # Import MCDA criteria
         if 'MCDA_Criterios' in excel_data:

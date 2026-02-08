@@ -130,28 +130,47 @@ def calculate_recommended_time(relevance_pct: float) -> str:
         return "Un par de días"
 
 
-@st.cache_data
-def generate_violin_data(worst: float, best: float, expected_value: float, n_samples: int = 1000) -> np.ndarray:
+def pert_pdf(x_values: np.ndarray, minimum: float, maximum: float, mode: float, lam: float = 4.0) -> np.ndarray:
     """
-    Generate violin plot data using normal distribution centered on expected value.
+    Compute the PERT distribution PDF at given x values.
+    PERT is a scaled Beta distribution bounded by [minimum, maximum] with peak at mode.
+    Produces smooth, deterministic curves without Monte Carlo sampling.
     
     Args:
-        worst: Worst case scenario value
-        best: Best case scenario value
-        expected_value: Expected value (center of distribution)
-        n_samples: Number of samples to generate
+        x_values: Array of x positions to evaluate
+        minimum: Lower bound (worst case)
+        maximum: Upper bound (best case)
+        mode: Most likely value (EV)
+        lam: Shape parameter (default 4, standard PERT)
         
     Returns:
-        Array of samples clipped to [worst, best] range
+        Array of PDF values
     """
-    # Calculate standard deviation (range covers ~4 std devs)
-    std_dev = (best - worst) / 4
-    
-    # Generate samples from normal distribution centered on EV
-    samples = np.random.normal(expected_value, std_dev, n_samples)
-    
-    # Clip samples to stay within worst-best range
-    return np.clip(samples, worst, best)
+    from math import gamma as _gamma
+
+    if maximum <= minimum:
+        return np.zeros_like(x_values, dtype=float)
+
+    # Clamp mode to bounds
+    mode = max(minimum, min(maximum, mode))
+
+    # Beta shape parameters
+    alpha1 = 1.0 + lam * (mode - minimum) / (maximum - minimum)
+    alpha2 = 1.0 + lam * (maximum - mode) / (maximum - minimum)
+
+    # Normalize x to [0, 1]
+    t = (x_values - minimum) / (maximum - minimum)
+
+    # Beta function B(α1, α2) = Γ(α1)·Γ(α2) / Γ(α1+α2)
+    beta_val = _gamma(alpha1) * _gamma(alpha2) / _gamma(alpha1 + alpha2)
+
+    # PDF only where 0 < t < 1
+    pdf = np.where(
+        (t > 0) & (t < 1),
+        t ** (alpha1 - 1) * (1 - t) ** (alpha2 - 1) / (beta_val * (maximum - minimum)),
+        0.0,
+    )
+    return pdf
 
 
 def get_disqualified_alternatives() -> Dict[str, List[str]]:

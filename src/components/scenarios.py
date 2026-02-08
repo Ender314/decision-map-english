@@ -7,8 +7,6 @@ Clean scenario analysis without over-engineering.
 import streamlit as st
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from config.constants import PROBABILITY_STEPS
 from utils.calculations import scenario_expected_value, get_disqualified_alternatives
@@ -81,8 +79,8 @@ def render_scenarios_tab():
             # Sync range slider
             range_key = f"impact_range_{alt_id}"
             if range_key not in st.session_state:
-                worst_score = scenario_data.get("worst_score", 3.0)
-                best_score = scenario_data.get("best_score", 7.0)
+                worst_score = scenario_data.get("worst_score", 4.0)
+                best_score = scenario_data.get("best_score", 6.0)
                 st.session_state[range_key] = (int(worst_score), int(best_score))
     
     # Process each alternative
@@ -94,9 +92,9 @@ def render_scenarios_tab():
             st.session_state.scenarios[alt_id] = {
                 "name": alt_name,
                 "best_desc": "",
-                "best_score": 7.0,
+                "best_score": 6.0,
                 "worst_desc": "",
-                "worst_score": 3.0,
+                "worst_score": 4.0,
                 "p_best": 0.5,
                 "p_best_pct": 50,
             }
@@ -162,7 +160,7 @@ def render_scenarios_tab():
             # Initialize widget state if not exists
             range_key = f"impact_range_{alt_id}"
             if range_key not in st.session_state:
-                default_range = (int(scenario_data.get("worst_score", 2)), int(scenario_data.get("best_score", 7)))
+                default_range = (int(scenario_data.get("worst_score", 4)), int(scenario_data.get("best_score", 6)))
                 st.session_state[range_key] = default_range
             
             worst_best = st.slider(
@@ -201,21 +199,18 @@ def render_scenarios_tab():
     # Sort by EV descending
     summary_df = pd.DataFrame(summary_rows).sort_values("EV", ascending=False)
     
-    # Create violin plot
+    # Create PERT distribution chart (analytical, deterministic)
     try:
-        # Import violin plot function
-        from utils.violin_plots import create_seaborn_violin_modern
+        from utils.visualizations import create_scenario_pert_chart
         
-        # Create the plot
-        fig, ax = create_seaborn_violin_modern(summary_rows)
-        st.pyplot(fig)
-        plt.close()
+        fig_pert = create_scenario_pert_chart(summary_rows)
+        st.plotly_chart(fig_pert, use_container_width=True, config={"displayModeBar": False})
         
     except Exception as e:
-        st.error(f"Error creating violin plot: {str(e)}")
+        st.error(f"Error creating distribution chart: {str(e)}")
         st.info("💡 Intenta ajustar los valores de los escenarios")
     
-    st.caption("💎 **Violin Chart**: La anchura representa la densidad de probabilidad. Los diamantes brillantes indican el valor esperado (EV).")
+    st.caption("💎 **Distribución PERT**: La anchura representa la densidad de probabilidad. Los diamantes indican el valor esperado (EV).")
 
     # Summary table
     with st.expander('Resumen escenarios'):

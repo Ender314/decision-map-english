@@ -7,10 +7,8 @@ Contains all chart generation and plotting functions.
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-import seaborn as sns
-import matplotlib.pyplot as plt
 import streamlit as st
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 
 from config.constants import PLAZO_ORDER, YMAX, get_relevance_color
 
@@ -237,109 +235,115 @@ def create_kpi_bar_chart(numeric_kpis: List[Dict[str, Any]]) -> go.Figure:
     return fig
 
 
-def create_scenario_violin_plot(scenario_data: List[Dict[str, Any]]) -> Tuple[plt.Figure, plt.Axes]:
+def create_scenario_pert_chart(scenario_data: List[Dict[str, Any]]) -> go.Figure:
     """
-    Create modern violin plot for scenario planning.
+    Create Plotly scenario distribution chart using analytical PERT distributions.
+    Produces smooth, deterministic violin-like shapes without Monte Carlo sampling.
     
     Args:
-        scenario_data: List of scenario data with EV, worst, best values
+        scenario_data: List of dicts with Alternativa, Worst, Best, EV keys
         
     Returns:
-        Tuple of (matplotlib figure, axes)
+        Plotly figure
     """
-    from .calculations import generate_violin_data
-    
-    # Prepare data for violin plot
-    violin_data = []
-    
-    for row in scenario_data:
-        samples = generate_violin_data(row["Worst"], row["Best"], row["EV"])
-        for sample in samples:
-            violin_data.append({
-                "Alternativa": row["Alternativa"],
-                "Value": sample,
-                "EV": row["EV"]
-            })
-    
-    violin_df = pd.DataFrame(violin_data)
-    
-    # Create custom color palette based on EV values
-    ev_colors = []
-    for row in scenario_data:
-        ev_normalized = row["EV"] / 10  # Normalize to 0-1
-        if ev_normalized <= 0.5:
-            # Red to Yellow
-            r = 1.0
-            g = ev_normalized * 2
-            b = 0.0
-        else:
-            # Yellow to Green
-            r = 2 * (1 - ev_normalized)
-            g = 1.0
-            b = 0.0
-        ev_colors.append((r, g, b))
-    
-    # Set modern seaborn theme and create the plot
-    sns.set_theme(style="whitegrid", palette=None)
-    fig, ax = plt.subplots(figsize=(12, max(5, len(scenario_data) * 0.9)))
-    
-    # Create modern violin plot
-    sns.violinplot(
-        data=violin_df, 
-        y="Alternativa", 
-        x="Value", 
-        order=[row["Alternativa"] for row in scenario_data],  # Maintain EV-based order
-        palette=ev_colors,
-        orient="h",
-        inner="quart",  # Show quartiles inside violins
-        fill=True,      # Modern filled violins
-        linewidth=1.5,  # Slightly thicker lines
-        saturation=0.8, # Slightly desaturated for elegance
-        ax=ax
-    )
-    
-    # Add modern EV markers (diamonds) with enhanced styling
+    from .calculations import pert_pdf
+
+    fig = go.Figure()
+    n_alts = len(scenario_data)
+
     for i, row in enumerate(scenario_data):
-        # Main EV marker
-        ax.scatter(row["EV"], i, marker='D', s=120, color='white', 
-                  edgecolor='black', linewidth=2, zorder=15, alpha=0.9)
-        ax.scatter(row["EV"], i, marker='D', s=80, color='black', 
-                  zorder=16, alpha=0.8)
-        
-        # Modern EV value annotations with better styling
-        ax.annotate(f'{row["EV"]:.1f}', 
-                   xy=(row["EV"], i), 
-                   xytext=(8, 0), 
-                   textcoords='offset points',
-                   fontsize=10, 
-                   fontweight='bold',
-                   color='black',
-                   ha='left', va='center',
-                   bbox=dict(boxstyle='round,pad=0.4', 
-                           facecolor='white', 
-                           edgecolor='gray',
-                           alpha=0.9,
-                           linewidth=0.5))
-    
-    # Modern plot customization
-    ax.set_xlabel("Impacto (0–10)", fontsize=12, fontweight='bold')
-    ax.set_ylabel("")
-    ax.set_xlim(-0.5, 10.5)
-    
-    # Enhanced title with subtitle
-    ax.set_title("Distribución de Escenarios por Alternativa", 
-                fontsize=14, fontweight='bold', pad=15)
-    ax.text(0.5, 1.02, "Densidad de probabilidad basada en distribución normal centrada en EV", 
-           transform=ax.transAxes, ha='center', fontsize=10, 
-           style='italic', alpha=0.7)
-    
-    # Remove top and right spines for cleaner look
-    sns.despine(ax=ax, top=True, right=True)
-    
-    # Adjust layout
-    plt.tight_layout()
-    
-    return fig, ax
+        worst, best, ev = float(row["Worst"]), float(row["Best"]), float(row["EV"])
+        alt_name = row["Alternativa"]
+
+        # Color based on EV (red → yellow → green)
+        ev_norm = ev / 10.0
+        if ev_norm <= 0.5:
+            r, g, b = 1.0, ev_norm * 2, 0.0
+        else:
+            r, g, b = 2 * (1 - ev_norm), 1.0, 0.0
+
+        fill_color = f"rgba({int(r*255)},{int(g*255)},{int(b*255)},0.55)"
+        line_color = f"rgb({int(r*180)},{int(g*180)},{int(b*180)})"
+
+        if best <= worst:
+            # Degenerate: single point
+            fig.add_trace(go.Scatter(
+                x=[ev], y=[i],
+                mode="markers",
+                marker=dict(size=14, color=fill_color, symbol="diamond",
+                            line=dict(color=line_color, width=2)),
+                showlegend=False,
+                hovertemplate=f"<b>{alt_name}</b><br>EV: {ev:.1f}<extra></extra>",
+            ))
+            continue
+
+        # Compute analytical PERT PDF
+        x = np.linspace(worst, best, 200)
+        pdf = pert_pdf(x, worst, best, ev)
+
+        # Normalize height to fit as violin shape (max half-height ≈ 0.35)
+        max_pdf = pdf.max()
+        pdf_norm = pdf / max_pdf * 0.35 if max_pdf > 0 else pdf
+
+        # Build closed polygon (top edge forward, bottom edge backward)
+        x_poly = np.concatenate([x, x[::-1]])
+        y_poly = np.concatenate([i + pdf_norm, (i - pdf_norm)[::-1]])
+
+        # Filled distribution shape
+        fig.add_trace(go.Scatter(
+            x=x_poly.tolist(),
+            y=y_poly.tolist(),
+            fill="toself",
+            fillcolor=fill_color,
+            line=dict(color=line_color, width=2),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
+
+        # Range endpoints
+        fig.add_trace(go.Scatter(
+            x=[worst, best], y=[i, i],
+            mode="markers+lines",
+            line=dict(color=line_color, width=2, dash="dot"),
+            marker=dict(size=7, color=line_color, opacity=0.7),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
+
+        # EV diamond marker
+        fig.add_trace(go.Scatter(
+            x=[ev], y=[i],
+            mode="markers",
+            marker=dict(size=14, color="white", symbol="diamond",
+                        line=dict(color=line_color, width=2.5)),
+            showlegend=False,
+            hovertemplate=(
+                f"<b>{alt_name}</b><br>"
+                f"EV: {ev:.1f}<br>"
+                f"Rango: {worst:.0f} – {best:.0f}<br>"
+                "<extra></extra>"
+            ),
+        ))
+
+    # Layout
+    fig.update_layout(
+        height=max(250, n_alts * 110),
+        margin=dict(l=10, r=60, t=10, b=40),
+        xaxis=dict(
+            range=[-0.5, 10.5], title="Impacto (0–10)",
+            showgrid=True, gridcolor="#eee", dtick=1,
+        ),
+        yaxis=dict(
+            tickmode="array",
+            tickvals=list(range(n_alts)),
+            ticktext=[row["Alternativa"] for row in scenario_data],
+            showgrid=False,
+        ),
+        plot_bgcolor="white",
+        hovermode="closest",
+    )
+
+    return fig
 
 
 @st.cache_data
