@@ -243,10 +243,10 @@ def render_offer_page():
     """, unsafe_allow_html=True)
     
     # Component 1
-    st.markdown("""
+    st.markdown(f"""
     <div class="component-item">
         <div>
-            <div class="component-name">⚡ Decider Pro App (Edición Pro)</div>
+            <div class="component-name">⚡ {APP_NAME} App (Edición Pro)</div>
             <div class="component-desc">Motor de toma de decisiones con verificación de sesgos, herramientas de ponderación e informes visuales</div>
         </div>
         <div class="component-value">€300</div>

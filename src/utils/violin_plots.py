@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Modern violin plot implementations for Lambda Pro scenario planning.
+Modern violin plot implementations for Decider Pro scenario planning.
 Multiple plotting libraries and styles for comparison.
 """
 

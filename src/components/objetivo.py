@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Objetivo component for Lambda Pro application.
+Objetivo component for Decider Pro application.
 Enhanced to provide strategic context from macro to micro level.
 """
 

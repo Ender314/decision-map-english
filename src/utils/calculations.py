@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Calculation utilities for Lambda Pro.
+Calculation utilities for Decider Pro.
 Contains all mathematical operations and data processing functions.
 """
 

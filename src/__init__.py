@@ -1,1 +1,1 @@
-# Lambda Pro - Corporate Decision Analysis Tool
+# Decider Pro - Corporate Decision Analysis Tool

@@ -7,9 +7,28 @@ Clean export/import functionality without over-engineering.
 import streamlit as st
 import json
 from datetime import datetime
-from config.constants import APP_NAME, APP_ICON, APP_VERSION
+from config.constants import APP_NAME, APP_ICON, APP_VERSION, APP_FILENAME_PREFIX
 from utils.data_manager import create_export_data, validate_json_structure, parse_date_string, create_excel_export, import_excel_data
 from components.templates import render_template_button_in_sidebar
+
+
+def _export_filename(ext: str) -> str:
+    """Build an export filename with date and truncated decision description."""
+    import re
+    date_str = datetime.now().strftime('%Y%m%d')
+    base = f"{APP_FILENAME_PREFIX}_decision_{date_str}"
+    
+    decision = st.session_state.get("decision", "").strip()
+    if decision:
+        # Remove characters that are invalid in filenames
+        safe = re.sub(r'[<>:"/\\|?*]', '', decision)
+        # Truncate to ~60 chars on a word boundary
+        max_len = 60
+        if len(safe) > max_len:
+            safe = safe[:max_len].rsplit(' ', 1)[0] + '…'
+        base = f"{base} - {safe}"
+    
+    return f"{base}.{ext}"
 
 
 def render_sidebar():
@@ -37,7 +56,7 @@ def render_sidebar():
                             st.download_button(
                                 "⬇️ Descargar JSON",
                                 data=json_str,
-                                file_name=f"lambda_pro_decision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                file_name=_export_filename('json'),
                                 mime="application/json",
                                 use_container_width=True
                             )
@@ -56,7 +75,7 @@ def render_sidebar():
                             st.download_button(
                                 "⬇️ Descargar Excel",
                                 data=excel_data,
-                                file_name=f"lambda_pro_decision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                                file_name=_export_filename('xlsx'),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 use_container_width=True
                             )
@@ -78,7 +97,7 @@ def render_sidebar():
         uploaded_file = st.file_uploader(
             "Selecciona archivo",
             type=['json', 'xlsx', 'xls'],
-            help="Archivos JSON o Excel exportados desde Lambda Pro",
+            help=f"Archivos JSON o Excel exportados desde {APP_NAME}",
             accept_multiple_files=False
         )
         

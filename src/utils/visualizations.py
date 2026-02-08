@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Visualization utilities for Lambda Pro.
+Visualization utilities for Decider Pro.
 Contains all chart generation and plotting functions.
 """
 

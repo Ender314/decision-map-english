@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Performance monitoring utilities for Lambda Pro.
+Performance monitoring utilities for Decider Pro.
 Simple performance tracking and optimization helpers.
 """
 
@@ -12,7 +12,7 @@ import logging
 
 
 class PerformanceMonitor:
-    """Simple performance monitoring for Lambda Pro."""
+    """Simple performance monitoring for Decider Pro."""
     
     @staticmethod
     def time_function(func_name: str = None):

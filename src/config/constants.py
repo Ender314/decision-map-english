@@ -75,6 +75,7 @@ DEFAULT_MCDA_CRITERIA = [
 APP_NAME = "Decider Pro"
 APP_VERSION = "1.0.0"
 APP_ICON = "🧭"
+APP_FILENAME_PREFIX = APP_NAME.lower().replace(" ", "_")  # "decider_pro"
 
 # Legacy app names (for import compatibility)
 LEGACY_APP_NAMES = ["Focal Path Pro", "Lambda Pro"]
