@@ -13,52 +13,10 @@ from utils.calculations import (
     mcda_totals_and_ranking, 
     normalize_weights,
     scenario_expected_value,
-    get_disqualified_alternatives
+    get_disqualified_alternatives,
+    calculate_robustness_index
 )
 from utils.visualizations import create_mcda_radar_chart, create_impact_chart
-
-
-def get_confidence_level(combined_sorted: list) -> tuple:
-    """
-    Calculate confidence level based on composite score gap and uncertainty.
-    Uses uncertainty to interpolate within confidence ranges:
-    - Lower uncertainty = higher confidence within range
-    - Higher uncertainty = lower confidence within range
-    Returns (level, percentage, description).
-    """
-    if not combined_sorted or len(combined_sorted) < 2:
-        return ("high", 100, "Única alternativa")
-    
-    best = combined_sorted[0]
-    second = combined_sorted[1]
-    
-    best_score = best["composite"]
-    second_score = second["composite"]
-    winner_uncertainty = best.get("uncertainty", 5)  # Default to mid-range
-    
-    # Calculate gap as percentage of best score
-    if best_score > 0:
-        gap_pct = ((best_score - second_score) / best_score) * 100
-    else:
-        gap_pct = 0
-    
-    # Normalize uncertainty to 0-1 (0=low uncertainty, 1=high uncertainty)
-    # Uncertainty ranges from 0 to 10
-    uncertainty_factor = min(winner_uncertainty / 10.0, 1.0)
-    
-    # Interpolate within range: low uncertainty → high end, high uncertainty → low end
-    if gap_pct >= 20:
-        # Range: 70-95%
-        confidence = 95 - (uncertainty_factor * 25)  # 95 when uncertainty=0, 70 when uncertainty=10
-        return ("high", confidence, "Ventaja clara")
-    elif gap_pct >= 10:
-        # Range: 60-70%
-        confidence = 70 - (uncertainty_factor * 10)  # 70 when uncertainty=0, 60 when uncertainty=10
-        return ("medium", confidence, "Ventaja moderada")
-    else:
-        # Range: 40-60%
-        confidence = 60 - (uncertainty_factor * 20)  # 60 when uncertainty=0, 40 when uncertainty=10
-        return ("low", confidence, "Alternativas muy reñidas")
 
 
 def create_decision_matrix_chart(combined_data: list) -> go.Figure:
@@ -201,15 +159,34 @@ def render_resultados_tab():
             return
     
     # ===========================================
+    # COMPUTE ROBUSTNESS (needed by Hero badge)
+    # ===========================================
+    
+    robustness = None
+    qualified_alt_names = [name for name in alt_names if name not in disqualified_names]
+    
+    if ranking_list and not scores_df.empty and len(crit) > 0 and len(qualified_alt_names) >= 2:
+        robustness = calculate_robustness_index(scores_df.copy(), crit, qualified_alt_names)
+    
+    # ===========================================
     # HERO SECTION - Winner Announcement
     # ===========================================
     
+    # Robustness badge helper
+    def _robustness_badge() -> str:
+        if robustness and robustness["baseline_winner"]:
+            r_label = robustness["label"].capitalize()
+            color_map = {"Robusto": "#38a169", "Moderado": "#d69e2e", "Frágil": "#e53e3e"}
+            badge_color = color_map.get(r_label, "#718096")
+            return f"""<span style="background: {badge_color}; color: white; padding: 0.3rem 0.8rem; 
+                             border-radius: 20px; font-size: 0.85rem;">
+                    {robustness['emoji']} {r_label} — Robustez {robustness['robustness_pct']}%
+                </span>"""
+        return ""
+    
     if combined_sorted:
         winner = combined_sorted[0]
-        confidence_level, confidence_pct, confidence_desc = get_confidence_level(combined_sorted)
-        
-        # Confidence color
-        conf_color = {"high": "#2e7d32", "medium": "#f57c00", "low": "#d32f2f"}.get(confidence_level, "#666")
+        badge = _robustness_badge()
         
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
@@ -219,21 +196,13 @@ def render_resultados_tab():
             <p style="color: #83c9ff; margin: 0; font-size: 1.1rem;">
                 Puntuación Compuesta: <strong>{winner['composite']:.2f}</strong> / 5.00
             </p>
-            <div style="margin-top: 1rem;">
-                <span style="background: {conf_color}; color: white; padding: 0.3rem 0.8rem; 
-                             border-radius: 20px; font-size: 0.85rem;">
-                    {confidence_desc} — Confianza {confidence_pct:.0f}%
-                </span>
-            </div>
+            <div style="margin-top: 1rem;">{badge}</div>
         </div>
         """, unsafe_allow_html=True)
         
     elif ranking_list:
-        # Fallback to MCDA winner if no scenarios - build minimal combined data for confidence
         winner = ranking_list[0]
-        fallback_combined = [{"composite": item["score"], "uncertainty": 5} for item in ranking_list]
-        confidence_level, confidence_pct, confidence_desc = get_confidence_level(fallback_combined)
-        conf_color = {"high": "#2e7d32", "medium": "#f57c00", "low": "#d32f2f"}.get(confidence_level, "#666")
+        badge = _robustness_badge()
         
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
@@ -243,12 +212,7 @@ def render_resultados_tab():
             <p style="color: #83c9ff; margin: 0; font-size: 1.1rem;">
                 Puntuación MCDA: <strong>{winner['score']:.2f}</strong> / 5.00
             </p>
-            <div style="margin-top: 1rem;">
-                <span style="background: {conf_color}; color: white; padding: 0.3rem 0.8rem; 
-                             border-radius: 20px; font-size: 0.85rem;">
-                    {confidence_desc} — Confianza {confidence_pct:.0f}%
-                </span>
-            </div>
+            <div style="margin-top: 1rem;">{badge}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -296,29 +260,29 @@ def render_resultados_tab():
     st.markdown("## 📊 Análisis Visual")
     
     if combined_data:
-        # Two-column layout: Decision Matrix + Radar Chart
+        # Two-column layout: Radar Chart + Decision Matrix
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### 🎯 Matriz de Decisión")
-            fig_matrix = create_decision_matrix_chart(combined_data)
-            st.plotly_chart(fig_matrix, use_container_width=True, config={"displayModeBar": False})
-            st.caption("Tamaño/transparencia = incertidumbre")
-        
-        with col2:
-            st.markdown("#### 📈 Perfil por Criterios")
+            st.markdown("####")
             try:
                 top_alts = [item["alternativa"] for item in ranking_list[:3]]
-                fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts)
+                fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts, showlegend=False)
                 fig_radar.update_layout(height=350, margin=dict(l=30, r=30, t=30, b=30))
                 st.plotly_chart(fig_radar, use_container_width=True, config={"displayModeBar": False})
                 st.caption("Top 3 alternativas por criterio")
             except Exception:
                 st.info("💡 Radar no disponible")
+        
+        with col2:
+            st.markdown("####")
+            fig_matrix = create_decision_matrix_chart(combined_data)
+            st.plotly_chart(fig_matrix, use_container_width=True, config={"displayModeBar": False})
+            st.caption("Tamaño/transparencia = incertidumbre")
     
     elif ranking_list:
         # Only MCDA available - show radar chart full width
-        st.markdown("#### 📈 Perfil por Criterios (Top 3)")
+        st.markdown("#####")
         try:
             top_alts = [item["alternativa"] for item in ranking_list[:3]]
             fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts)
@@ -328,79 +292,96 @@ def render_resultados_tab():
         
         st.info("💡 Completa los **Escenarios** para ver la Matriz de Decisión combinada")
     
-    st.markdown("---")
+    # Stacked bar chart: contribution by criterion (always breakdown mode)
+    if ranking_list and crit:
+        st.markdown("###")
+        
+        colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
+        priority_colors = {c["name"]: colors[i % len(colors)] for i, c in enumerate(crit)}
+        weight_map = normalize_weights(crit)
+        
+        fig_bar = go.Figure()
+        
+        for i, item in enumerate(reversed(ranking_list)):
+            alt_name = item['alternativa']
+            alt_scores = st.session_state.get("mcda_scores", {}).get(alt_name, {})
+            
+            for criterion in prioridad_names:
+                score = alt_scores.get(criterion, 0)
+                weight = weight_map.get(criterion, 0)
+                contribution = score * weight
+                
+                fig_bar.add_trace(go.Bar(
+                    y=[alt_name],
+                    x=[contribution],
+                    orientation='h',
+                    name=criterion,
+                    marker_color=priority_colors.get(criterion, '#999'),
+                    hovertemplate=f"<b>{criterion}</b><br>{score:.1f} × {weight:.1%} = {contribution:.2f}<extra></extra>",
+                    showlegend=False
+                ))
+        
+        fig_bar.update_layout(
+            barmode='stack',
+            height=max(200, len(ranking_list) * 50),
+            margin=dict(l=10, r=60, t=10, b=10),
+            showlegend=False,
+            xaxis=dict(range=[0, ranking_list[0]['score'] * 1.2], showgrid=True, gridcolor='#eee'),
+            yaxis=dict(showgrid=False),
+            bargap=0.3
+        )
+        st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
     
     # ===========================================
-    # RANKING TABLES
+    # ROBUSTNESS INDEX (detail section)
     # ===========================================
     
-    st.markdown("## 🏅 Rankings")
-    
-    if combined_sorted:
-        # Combined ranking (primary)
-        col1, col2 = st.columns(2)
+    if robustness and robustness["baseline_winner"]:
+        st.markdown("---")
+        st.markdown("## 🛡️ Índice de Robustez")
         
-        with col1:
-            st.markdown("#### Ranking Compuesto")
-            ranking_df = pd.DataFrame([{
-                "#": i + 1,
-                "Alternativa": d["name"],
-                "MCDA": d["mcda"],
-                "EV": d["ev_scaled"],
-                "Compuesto": d["composite"]
-            } for i, d in enumerate(combined_sorted)])
-            
-            st.dataframe(
-                ranking_df.style.format({"MCDA": "{:.2f}", "EV": "{:.2f}", "Compuesto": "{:.2f}"}),
-                hide_index=True,
-                use_container_width=True
-            )
+        r_pct = robustness["robustness_pct"]
+        r_emoji = robustness["emoji"]
+        r_label = robustness["label"].capitalize()
         
-        with col2:
-            st.markdown("#### Pesos de Criterios")
-            weight_map = normalize_weights(crit)
-            weights_df = pd.DataFrame([{
-                "Criterio": c["name"],
-                "Peso": weight_map.get(c["name"], 0)
-            } for c in crit])
-            
-            st.dataframe(
-                weights_df.style.format({"Peso": "{:.1%}"}),
-                hide_index=True,
-                use_container_width=True
-            )
-    
-    elif ranking_list:
-        # MCDA only ranking
-        col1, col2 = st.columns(2)
+        # Main score display
+        col_r1, col_r2 = st.columns([1, 2])
         
-        with col1:
-            st.markdown("#### Ranking MCDA")
-            ranking_df = pd.DataFrame([{
-                "#": i + 1,
-                "Alternativa": item["alternativa"],
-                "Puntuación": item["score"]
-            } for i, item in enumerate(ranking_list)])
+        with col_r1:
+            # Color based on label
+            color_map = {"Robusto": "#38a169", "Moderado": "#d69e2e", "Frágil": "#e53e3e"}
+            color = color_map.get(r_label, "#718096")
             
-            st.dataframe(
-                ranking_df.style.format({"Puntuación": "{:.2f}"}),
-                hide_index=True,
-                use_container_width=True
-            )
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; border: 2px solid {color}; border-radius: 12px;">
+                <div style="font-size: 2.5em; font-weight: 700; color: {color};">{r_pct}%</div>
+                <div style="font-size: 1.1em; font-weight: 600;">{r_emoji} {r_label}</div>
+                <div style="font-size: 0.8em; color: #888; margin-top: 0.3rem;">
+                    ¿Cambia el top 1 si perturbamos los datos?
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        with col2:
-            st.markdown("#### Pesos de Criterios")
-            weight_map = normalize_weights(crit)
-            weights_df = pd.DataFrame([{
-                "Criterio": c["name"],
-                "Peso": weight_map.get(c["name"], 0)
-            } for c in crit])
+        with col_r2:
+            st.markdown(f"""
+            | Test | Estabilidad |
+            |------|------------|
+            | Pesos ±20% | **{robustness['weight_stability']}%** |
+            | Puntuaciones ±1 | **{robustness['score_stability']}%** |
+            | Combinado | **{robustness['combined_stability']}%** |
+            """)
             
-            st.dataframe(
-                weights_df.style.format({"Peso": "{:.1%}"}),
-                hide_index=True,
-                use_container_width=True
-            )
+            if robustness["dominant_criterion"]:
+                if robustness["dominant_removal_flips"]:
+                    st.warning(f"⚠️ Si eliminamos el criterio dominante (**{robustness['dominant_criterion']}**), el ganador cambia a *{robustness['dominant_removal_new_winner']}*")
+                else:
+                    st.success(f"✓ Incluso sin el criterio dominante (**{robustness['dominant_criterion']}**), **{robustness['baseline_winner']}** sigue ganando")
+        
+        # Actionable guidance based on label
+        if r_label == "Frágil":
+            st.error("🔴 **La recomendación es inestable.** Antes de decidir: recopila más información, valida las puntuaciones con datos reales, o reduce la incertidumbre en los criterios clave.")
+        elif r_label == "Moderado":
+            st.info("🟡 **La recomendación es sensible a los supuestos.** Revisa si las puntuaciones y pesos reflejan bien la realidad antes de comprometerte.")
     
     # ===========================================
     # DATA-DRIVEN INSIGHTS
@@ -461,11 +442,155 @@ def render_resultados_tab():
             dominant = max(weight_map, key=weight_map.get)
             insights.append(f"📊 El criterio **{dominant}** domina el análisis ({max_weight:.0%}). Verificar si refleja las prioridades reales")
     
+    # Insight 6: Robustness
+    if robustness and robustness["baseline_winner"]:
+        r_label = robustness["label"]
+        if r_label == "frágil":
+            insights.append(f"🔴 **Resultado frágil** ({robustness['robustness_pct']}%): la recomendación de *{robustness['baseline_winner']}* cambia fácilmente al perturbar los datos. Necesitas más información o validar supuestos")
+        elif r_label == "moderado":
+            insights.append(f"🟡 **Resultado moderado** ({robustness['robustness_pct']}%): la recomendación de *{robustness['baseline_winner']}* es sensible a cambios en pesos o puntuaciones")
+        else:
+            insights.append(f"🟢 **Resultado robusto** ({robustness['robustness_pct']}%): *{robustness['baseline_winner']}* se mantiene como ganador incluso perturbando los datos")
+    
     if insights:
         for insight in insights:
             st.markdown(f"- {insight}")
     else:
         st.info("💡 Completa más secciones para generar insights automatizados")
+    
+    st.markdown("---")
+    
+    # ===========================================
+    # RANKING TABLES (last section before additional info)
+    # ===========================================
+    
+    st.markdown("## 🏅 Rankings y Datos")
+    
+    if combined_sorted:
+        # Row 1: MCDA ranking + EV ranking side by side
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Ranking MCDA")
+            mcda_df = pd.DataFrame([{
+                "#": i + 1,
+                "Alternativa": d["name"],
+                "Puntuación": d["mcda"]
+            } for i, d in enumerate(sorted(combined_sorted, key=lambda x: x["mcda"], reverse=True))])
+            
+            st.dataframe(
+                mcda_df.style.format({"Puntuación": "{:.2f}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+        
+        with col2:
+            st.markdown("#### Ranking Valor Esperado")
+            ev_df = pd.DataFrame([{
+                "#": i + 1,
+                "Alternativa": d["name"],
+                "EV": d["ev_scaled"]
+            } for i, d in enumerate(sorted(combined_sorted, key=lambda x: x["ev_scaled"], reverse=True))])
+            
+            st.dataframe(
+                ev_df.style.format({"EV": "{:.2f}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+        
+        # Row 2: Composite ranking + Weights side by side
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            st.markdown("#### Ranking Compuesto")
+            ranking_df = pd.DataFrame([{
+                "#": i + 1,
+                "Alternativa": d["name"],
+                "MCDA": d["mcda"],
+                "EV": d["ev_scaled"],
+                "Compuesto": d["composite"]
+            } for i, d in enumerate(combined_sorted)])
+            
+            st.dataframe(
+                ranking_df.style.format({"MCDA": "{:.2f}", "EV": "{:.2f}", "Compuesto": "{:.2f}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+        
+        with col4:
+            st.markdown("#### Pesos de Prioridades")
+            weight_map = normalize_weights(crit)
+            weights_df = pd.DataFrame([{
+                "Prioridad": c["name"],
+                "Peso": weight_map.get(c["name"], 0)
+            } for c in crit])
+            
+            st.dataframe(
+                weights_df.style.format({"Peso": "{:.1%}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+    
+    elif ranking_list:
+        # MCDA only ranking
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Ranking MCDA")
+            ranking_df = pd.DataFrame([{
+                "#": i + 1,
+                "Alternativa": item["alternativa"],
+                "Puntuación": item["score"]
+            } for i, item in enumerate(ranking_list)])
+            
+            st.dataframe(
+                ranking_df.style.format({"Puntuación": "{:.2f}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+        
+        with col2:
+            st.markdown("#### Pesos de Prioridades")
+            weight_map = normalize_weights(crit)
+            weights_df = pd.DataFrame([{
+                "Prioridad": c["name"],
+                "Peso": weight_map.get(c["name"], 0)
+            } for c in crit])
+            
+            st.dataframe(
+                weights_df.style.format({"Peso": "{:.1%}"}),
+                hide_index=True,
+                use_container_width=True
+            )
+    
+    # No Negociables table
+    no_negociables = st.session_state.get("no_negociables", [])
+    valid_no_neg = [c for c in no_negociables if c.get("text", "").strip()]
+    no_neg_scores = st.session_state.get("no_negociables_scores", {})
+    
+    if valid_no_neg:
+        st.markdown("#### 🚫 No Negociables")
+        
+        # Build table: rows = alternatives, columns = constraints
+        no_neg_rows = []
+        for alt in st.session_state.get("alts", []):
+            alt_name = alt["text"].strip()
+            if not alt_name:
+                continue
+            row = {"Alternativa": alt_name}
+            alt_scores_nn = no_neg_scores.get(alt["id"], {})
+            all_pass = True
+            for constraint in valid_no_neg:
+                passes = alt_scores_nn.get(constraint["id"], False)
+                row[constraint["text"]] = "✅" if passes else "❌"
+                if not passes:
+                    all_pass = False
+            row["Estado"] = "Cualificada" if all_pass else "Descalificada"
+            no_neg_rows.append(row)
+        
+        if no_neg_rows:
+            no_neg_df = pd.DataFrame(no_neg_rows)
+            st.dataframe(no_neg_df, hide_index=True, use_container_width=True)
     
     # ===========================================
     # KPIs & STAKEHOLDERS (collapsible)

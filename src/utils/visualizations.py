@@ -99,7 +99,7 @@ def create_mcda_ranking_chart(ranking: pd.Series) -> go.Figure:
     return fig
 
 
-def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], alt_names: List[str]) -> go.Figure:
+def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], alt_names: List[str], showlegend: bool = True) -> go.Figure:
     """
     Create MCDA radar chart for comparing alternatives across criteria.
     
@@ -141,7 +141,7 @@ def create_mcda_radar_chart(scores_df: pd.DataFrame, criteria_names: List[str], 
                 categoryarray=theta_labels  # Explicit order
             )
         ),
-        showlegend=True,
+        showlegend=showlegend,
         height=420,
         margin=dict(l=20, r=20, t=20, b=20),
     )

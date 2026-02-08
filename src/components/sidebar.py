@@ -121,6 +121,7 @@ def render_sidebar():
                                 # Store import data temporarily and trigger rerun
                                 st.session_state["_import_data"] = json_data
                                 st.session_state["_pending_import"] = True
+                                st.session_state["_skip_welcome"] = True
                                 st.success("✅ JSON importado")
                                 st.rerun()
                                 
@@ -138,6 +139,7 @@ def render_sidebar():
                     try:
                         success, message = import_excel_data(uploaded_file)
                         if success:
+                            st.session_state["_skip_welcome"] = True
                             st.success(f"✅ {message}")
                             st.rerun()
                         else:

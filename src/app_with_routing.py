@@ -86,6 +86,62 @@ if st.session_state.get("_pending_import", False):
         st.rerun()
 
 
+def _render_import_gate():
+    """Render the import sub-screen on the welcome gate."""
+    import json
+    from utils.data_manager import validate_json_structure, import_excel_data
+
+    st.markdown("### 📂 Importar análisis guardado")
+    st.markdown("Carga un archivo JSON o Excel exportado previamente.")
+    st.markdown("")
+
+    uploaded = st.file_uploader(
+        "Selecciona archivo",
+        type=["json", "xlsx", "xls"],
+        key="_gate_file_uploader",
+    )
+
+    if uploaded is not None:
+        ext = uploaded.name.rsplit(".", 1)[-1].lower()
+
+        if ext == "json":
+            try:
+                json_data = json.loads(uploaded.read().decode("utf-8"))
+                is_valid, error_msg = validate_json_structure(json_data)
+                if not is_valid:
+                    st.error(f"❌ JSON inválido: {error_msg}")
+                else:
+                    if st.button("🔄 Importar JSON", use_container_width=True):
+                        st.session_state["_import_data"] = json_data
+                        st.session_state["_pending_import"] = True
+                        st.session_state["_show_import_gate"] = False
+                        st.session_state["_skip_welcome"] = True
+                        st.rerun()
+            except json.JSONDecodeError:
+                st.error("❌ El archivo no contiene JSON válido")
+            except Exception as e:
+                st.error(f"❌ Error leyendo JSON: {str(e)}")
+
+        elif ext in ["xlsx", "xls"]:
+            if st.button("🔄 Importar Excel", use_container_width=True):
+                try:
+                    success, message = import_excel_data(uploaded)
+                    if success:
+                        st.session_state["_show_import_gate"] = False
+                        st.session_state["_skip_welcome"] = True
+                        st.success(f"✅ {message}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {message}")
+                except Exception as e:
+                    st.error(f"❌ Error importando Excel: {str(e)}")
+
+    st.markdown("")
+    if st.button("← Volver", key="back_from_import_gate"):
+        st.session_state["_show_import_gate"] = False
+        st.rerun()
+
+
 def render_main_app():
     """Render the main Decider Pro application."""
     from components.templates import render_template_selector, get_template_list
@@ -126,13 +182,28 @@ def render_main_app():
         st.session_state["_template_loaded"] = False
         st.session_state["_loaded_template_name"] = ""
     
-    # Show welcome/template selector for new users
-    if show_welcome and not st.session_state.get("show_template_selector", False):
-        st.markdown("### 👋 ¡Bienvenido a Decider Pro!")
+    # Show welcome gate for new users — blocks main app until user chooses
+    if show_welcome:
+        # Template selector sub-screen
+        if st.session_state.get("show_template_selector", False):
+            render_template_selector()
+            st.markdown("")
+            if st.button("← Volver", key="back_from_templates"):
+                st.session_state["show_template_selector"] = False
+                st.rerun()
+            return
+        
+        # Import sub-screen
+        if st.session_state.get("_show_import_gate", False):
+            _render_import_gate()
+            return
+        
+        # Main welcome screen
+        st.markdown(f"### 👋 ¡Bienvenido a {APP_NAME}!")
         st.markdown("*Tu asistente para tomar decisiones estratégicas con claridad y confianza.*")
         st.markdown("")
         
-        col_a, col_b = st.columns(2)
+        col_a, col_b, col_c = st.columns(3)
         with col_a:
             if st.button("📝 Empezar desde cero", use_container_width=True, help="Crear un nuevo análisis vacío"):
                 st.session_state["_skip_welcome"] = True
@@ -141,17 +212,11 @@ def render_main_app():
             if st.button("📋 Ver plantillas de ejemplo", use_container_width=True, type="primary", help="Cargar una plantilla para entender cómo funciona"):
                 st.session_state["show_template_selector"] = True
                 st.rerun()
-        
-        st.markdown("---")
-    
-    # Show template selector if requested
-    if st.session_state.get("show_template_selector", False):
-        render_template_selector()
-        st.markdown("")
-        if st.button("← Volver", key="back_from_templates"):
-            st.session_state["show_template_selector"] = False
-            st.rerun()
-        st.markdown("---")
+        with col_c:
+            if st.button("📂 Importar análisis guardado", use_container_width=True, help="Cargar un archivo JSON o Excel exportado previamente"):
+                st.session_state["_show_import_gate"] = True
+                st.rerun()
+        return
 
     # Time mode badge
     tiempo = st.session_state.get("tiempo", "Menos de media hora")
@@ -254,7 +319,13 @@ def render_main_app():
         st.session_state["redirect_to_first_tab"] = False
         st.info("✅ Datos importados. Comenzando desde el primer paso...")
 
-    # Parent tabs for Analysis vs Monitoring phases
+    # Parent tabs gated by tiempo
+    tiempo_levels = ["Menos de media hora", "Un par de horas", "Una mañana", "Un par de días"]
+    tiempo_idx = tiempo_levels.index(tiempo) if tiempo in tiempo_levels else 0
+
+    show_seguimiento = tiempo_idx >= 1  # "Un par de horas" onwards
+    show_informe = tiempo_idx >= 3      # "Un par de días" only
+
     triggered = count_triggered_tripwires()
     monitoring_label = "📈 Seguimiento" if triggered == 0 else f"📈 Seguimiento 🔴 {triggered}"
     
@@ -264,16 +335,28 @@ def render_main_app():
     if "_monitoring_tab_idx" not in st.session_state:
         st.session_state["_monitoring_tab_idx"] = 0
     
-    parent_tabs = st.tabs(["🎛️ Análisis", monitoring_label, "📋 Informe"])
+    # Build parent tab list dynamically
+    parent_tab_labels = ["🎛️ Análisis"]
+    if show_seguimiento:
+        parent_tab_labels.append(monitoring_label)
+    if show_informe:
+        parent_tab_labels.append("📋 Informe")
+
+    parent_tabs = st.tabs(parent_tab_labels)
     
-    with parent_tabs[0]:
+    tab_idx = 0
+    with parent_tabs[tab_idx]:
         render_analysis_view()
     
-    with parent_tabs[1]:
-        render_monitoring_view()
+    if show_seguimiento:
+        tab_idx += 1
+        with parent_tabs[tab_idx]:
+            render_monitoring_view()
     
-    with parent_tabs[2]:
-        render_informe_tab()
+    if show_informe:
+        tab_idx += 1
+        with parent_tabs[tab_idx]:
+            render_informe_tab()
     
     # Render sidebar if visible (works in both modes)
     if st.session_state.get("show_sidebar", False):

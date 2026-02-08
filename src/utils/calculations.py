@@ -215,6 +215,159 @@ def get_qualified_alternatives() -> List[Dict[str, Any]]:
     return [alt for alt in alts if alt["id"] not in disqualified]
 
 
+def calculate_robustness_index(
+    scores_df: pd.DataFrame,
+    criteria: List[Dict[str, Any]],
+    alt_names: List[str],
+    n_simulations: int = 500,
+    weight_perturbation: float = 0.20,
+    score_perturbation: float = 1.0,
+    score_range: Tuple[float, float] = (0.0, 5.0),
+) -> Dict[str, Any]:
+    """
+    Calculate robustness index via Monte Carlo sensitivity analysis.
+    
+    Tests whether the top-ranked alternative changes under:
+    1. Weight perturbation (±20%)
+    2. Score perturbation (±1)
+    3. Combined (both at once)
+    4. Dominant criterion removal (deterministic)
+    
+    Args:
+        scores_df: DataFrame with alternatives as rows, criteria as columns
+        criteria: List of criteria dicts with 'name' and 'weight'
+        alt_names: List of alternative names to evaluate
+        n_simulations: Number of Monte Carlo iterations
+        weight_perturbation: Fractional perturbation for weights (0.20 = ±20%)
+        score_perturbation: Absolute perturbation for scores (±1)
+        score_range: Min/max bounds for scores after perturbation
+        
+    Returns:
+        Dict with keys:
+            robustness_pct: Overall robustness percentage (0-100)
+            weight_stability: % of sims where top-1 holds under weight perturbation
+            score_stability: % of sims where top-1 holds under score perturbation
+            combined_stability: % of sims where top-1 holds under both
+            dominant_criterion: Name of dominant criterion (>40% weight) or None
+            dominant_removal_flips: Whether removing dominant criterion changes winner
+            dominant_removal_new_winner: New winner after removal (if flipped)
+            baseline_winner: Name of the baseline top-1 alternative
+            label: Qualitative label ("robusto", "moderado", "fragil")
+            emoji: Corresponding emoji
+    """
+    if scores_df is None or scores_df.empty or not criteria or not alt_names:
+        return {
+            "robustness_pct": 0, "weight_stability": 0, "score_stability": 0,
+            "combined_stability": 0, "dominant_criterion": None,
+            "dominant_removal_flips": False, "dominant_removal_new_winner": None,
+            "baseline_winner": None, "label": "sin datos", "emoji": "⚪",
+        }
+
+    criteria_names = [c["name"] for c in criteria]
+    base_weights = normalize_weights(criteria)
+
+    # Ensure all criteria exist in scores_df
+    for c in criteria_names:
+        if c not in scores_df.columns:
+            scores_df[c] = 0.0
+
+    # Baseline winner
+    base_totals = scores_df.loc[alt_names, criteria_names].apply(
+        lambda row: sum(row[c] * base_weights.get(c, 0) for c in criteria_names), axis=1
+    )
+    baseline_winner = base_totals.idxmax()
+
+    rng = np.random.default_rng(42)
+
+    def _simulate(perturb_weights: bool, perturb_scores: bool) -> int:
+        """Run n_simulations and return count where baseline_winner stays on top."""
+        wins = 0
+        for _ in range(n_simulations):
+            # Perturb weights
+            if perturb_weights:
+                w = {c: base_weights[c] * (1 + rng.uniform(-weight_perturbation, weight_perturbation))
+                     for c in criteria_names}
+                w_total = sum(w.values()) or 1.0
+                w = {c: v / w_total for c, v in w.items()}
+            else:
+                w = base_weights
+
+            # Perturb scores
+            if perturb_scores:
+                perturbed = scores_df.loc[alt_names, criteria_names].copy()
+                noise = rng.uniform(-score_perturbation, score_perturbation, perturbed.shape)
+                perturbed = perturbed + noise
+                perturbed = perturbed.clip(lower=score_range[0], upper=score_range[1])
+            else:
+                perturbed = scores_df.loc[alt_names, criteria_names]
+
+            totals = perturbed.apply(
+                lambda row: sum(row[c] * w.get(c, 0) for c in criteria_names), axis=1
+            )
+            if totals.idxmax() == baseline_winner:
+                wins += 1
+        return wins
+
+    weight_wins = _simulate(perturb_weights=True, perturb_scores=False)
+    score_wins = _simulate(perturb_weights=False, perturb_scores=True)
+    combined_wins = _simulate(perturb_weights=True, perturb_scores=True)
+
+    weight_stability = round(100 * weight_wins / n_simulations)
+    score_stability = round(100 * score_wins / n_simulations)
+    combined_stability = round(100 * combined_wins / n_simulations)
+
+    # Dominant criterion removal (deterministic)
+    dominant_criterion = None
+    dominant_removal_flips = False
+    dominant_removal_new_winner = None
+
+    if base_weights:
+        max_weight_name = max(base_weights, key=base_weights.get)
+        max_weight_val = base_weights[max_weight_name]
+        if max_weight_val > 0.40:
+            dominant_criterion = max_weight_name
+            reduced_criteria = [c for c in criteria_names if c != max_weight_name]
+            if reduced_criteria:
+                reduced_w = {c: base_weights[c] for c in reduced_criteria}
+                rw_total = sum(reduced_w.values()) or 1.0
+                reduced_w = {c: v / rw_total for c, v in reduced_w.items()}
+                reduced_totals = scores_df.loc[alt_names, reduced_criteria].apply(
+                    lambda row: sum(row[c] * reduced_w.get(c, 0) for c in reduced_criteria), axis=1
+                )
+                new_winner = reduced_totals.idxmax()
+                if new_winner != baseline_winner:
+                    dominant_removal_flips = True
+                    dominant_removal_new_winner = new_winner
+
+    # Overall robustness = weighted average (combined gets most weight)
+    robustness_pct = round(0.25 * weight_stability + 0.25 * score_stability + 0.50 * combined_stability)
+
+    # Penalize if dominant criterion removal flips the winner
+    if dominant_removal_flips:
+        robustness_pct = max(0, robustness_pct - 15)
+
+    # Qualitative label
+    if robustness_pct >= 85:
+        label, emoji = "robusto", "🟢"
+    elif robustness_pct >= 60:
+        label, emoji = "moderado", "🟡"
+    else:
+        label, emoji = "frágil", "🔴"
+
+    return {
+        "robustness_pct": robustness_pct,
+        "weight_stability": weight_stability,
+        "score_stability": score_stability,
+        "combined_stability": combined_stability,
+        "dominant_criterion": dominant_criterion,
+        "dominant_removal_flips": dominant_removal_flips,
+        "dominant_removal_new_winner": dominant_removal_new_winner,
+        "baseline_winner": baseline_winner,
+        "label": label,
+        "emoji": emoji,
+    }
+
+
 def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[str]:
     """
     Get visible sections based on time allocation.
