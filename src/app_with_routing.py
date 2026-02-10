@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Simple imports - no complex managers or generic systems
 from config.constants import (
     APP_NAME, APP_ICON, TAB_DIMENSIONADO, TAB_ALTERNATIVAS, TAB_OBJETIVO, 
-    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_SCENARIOS_ADVANCED,
+    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS,
     TAB_SCENARIOS_INTERACTIVE, TAB_RESULTADOS, TAB_RIESGOS, TAB_RETRO,
     TAB_INFORME, ALL_SECTIONS, MONITORING_SECTIONS, TAB_DISPLAY_NAMES
 )
@@ -31,7 +31,6 @@ from components.prioridades import render_prioridades_tab
 from components.informacion import render_informacion_tab
 from components.evaluacion import render_evaluacion_tab
 from components.scenarios import render_scenarios_tab
-from components.advanced_scenarios import render_advanced_scenarios_tab
 from components.advanced_scenarios_interactive import render_interactive_scenarios_tab
 from components.resultados import render_resultados_tab
 from components.risk_analysis import render_risk_analysis_tab, count_active_risks
@@ -431,10 +430,6 @@ def render_analysis_view():
     if TAB_SCENARIOS in tab_map:
         with tab_map[TAB_SCENARIOS]:
             render_scenarios_tab()
-    
-    if TAB_SCENARIOS_ADVANCED in tab_map:
-        with tab_map[TAB_SCENARIOS_ADVANCED]:
-            render_advanced_scenarios_tab()
     
     if TAB_SCENARIOS_INTERACTIVE in tab_map:
         with tab_map[TAB_SCENARIOS_INTERACTIVE]:

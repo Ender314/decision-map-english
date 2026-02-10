@@ -13,7 +13,6 @@ TAB_INFO = "Información"
 TAB_EVAL = "Evaluación"
 TAB_RESULTADOS = "Resultados"
 TAB_SCENARIOS = "Escenarios"
-TAB_SCENARIOS_ADVANCED = "Escenarios Avanzados"
 TAB_SCENARIOS_INTERACTIVE = "Escenarios Interactivos"
 TAB_RIESGOS = "Riesgos"
 TAB_RETRO = "Retrospectiva"
@@ -29,8 +28,7 @@ TAB_DISPLAY_NAMES = {
     TAB_EVAL: "⚖️ Evaluación",
     TAB_RESULTADOS: "📊 Resultados",
     TAB_SCENARIOS: "🔮 Escenarios",
-    TAB_SCENARIOS_ADVANCED: "🌳 Escenarios Avanzados",
-    TAB_SCENARIOS_INTERACTIVE: "🎮 Escenarios Interactivos",
+    TAB_SCENARIOS_INTERACTIVE: "� Escenarios Interactivos",
     TAB_RIESGOS: "⚠️ Riesgos",
     TAB_RETRO: "🔄 Retrospectiva",
     TAB_INFORME: "📋 Informe"

@@ -14,8 +14,9 @@ from config.constants import (
     COLOR_PRIMARY, COLOR_ACCENT, COLOR_SUCCESS,
     COLOR_WARNING, COLOR_ERROR, COLOR_NEUTRAL
 )
-from utils.calculations import get_disqualified_alternatives
+from utils.calculations import get_disqualified_alternatives, normalize_weights, mcda_totals_and_ranking
 from components.advanced_scenarios import _build_tree_figure
+import pandas as pd
 
 
 # ── Tree data helpers (shared logic with advanced_scenarios.py) ────
@@ -94,6 +95,62 @@ def _redistribute_and_add(parent_node, new_label, new_score):
     total = sum(c["probability"] for c in parent_node["children"])
     if total != 100:
         parent_node["children"][0]["probability"] += 100 - total
+
+
+def _collect_leaves(node, path_prob=1.0, leaves=None):
+    """Collect all leaf nodes with their effective (path) probability."""
+    if leaves is None:
+        leaves = []
+    children = node.get("children", [])
+    if not children:
+        leaves.append({"label": node["label"], "score": node["score"],
+                       "probability": node["probability"], "path_prob": path_prob})
+        return leaves
+    total_p = sum(c["probability"] for c in children)
+    if total_p == 0:
+        return leaves
+    for child in children:
+        child_path = path_prob * (child["probability"] / total_p)
+        _collect_leaves(child, child_path, leaves)
+    return leaves
+
+
+def _sync_tree_to_flat(alt_id, alt_name, tree):
+    """Sync tree data into st.session_state['scenarios'] flat format.
+    
+    This bridges the tree model to the flat format expected by
+    resultados.py, informe.py, and data_manager.py.
+    """
+    if "scenarios" not in st.session_state:
+        st.session_state.scenarios = {}
+    
+    leaves = _collect_leaves(tree)
+    if not leaves:
+        return
+    
+    ev = _calculate_ev(tree)
+    scores = [l["score"] for l in leaves]
+    worst_score = min(scores)
+    best_score = max(scores)
+    
+    # Find labels for worst/best leaves
+    worst_leaf = min(leaves, key=lambda l: l["score"])
+    best_leaf = max(leaves, key=lambda l: l["score"])
+    
+    # Approximate p_best: sum of path probabilities for leaves at best_score
+    p_best = sum(l["path_prob"] for l in leaves if l["score"] == best_score)
+    p_best = max(0.0, min(1.0, p_best))  # Clamp
+    
+    st.session_state.scenarios[alt_id] = {
+        "name": alt_name,
+        "worst_desc": worst_leaf["label"],
+        "worst_score": float(worst_score),
+        "best_desc": best_leaf["label"],
+        "best_score": float(best_score),
+        "p_best": p_best,
+        "p_best_pct": int(p_best * 100),
+        "ev": ev,
+    }
 
 
 def _validate_probabilities(node, issues=None, path=""):
@@ -365,9 +422,12 @@ def render_interactive_scenarios_tab():
             else:
                 st.info("👆 Haz clic en un nodo del árbol para editarlo.")
         
+        # Sync tree → flat scenarios for downstream (resultados, informe, export)
+        _sync_tree_to_flat(alt_id, alt_name, tree)
+        
         ev_results.append({"alt_name": alt_name, "alt_id": alt_id, "ev": _calculate_ev(tree)})
     
-    # EV comparison bar chart
+    # ── EV comparison bar chart ───────────────────────────────────
     if len(ev_results) > 1:
         st.markdown("---")
         st.markdown("### 📊 Comparación de Valores Esperados")
@@ -396,8 +456,15 @@ def render_interactive_scenarios_tab():
         
         winner = ev_sorted[0]
         st.success(f"🏆 **Mayor valor esperado**: {winner['alt_name']} (EV: {winner['ev']:.2f})")
+        st.caption("EV = Σ(probabilidad normalizada × puntuación). Se calcula recursivamente desde las hojas del árbol. Escala 0–10.")
     
-    # Global decision tree
+    # ── Decision Matrix (MCDA × EV) ───────────────────────────────
+    _render_decision_matrix(ev_results, alts)
+    
+    # ── Outcome probability distributions ─────────────────────────
+    _render_outcome_distributions(alts)
+    
+    # ── Global decision tree ──────────────────────────────────────
     if len(ev_results) >= 1:
         st.markdown("---")
         st.markdown("### 🌳 Árbol de Decisión Completo")
@@ -434,7 +501,7 @@ def render_interactive_scenarios_tab():
         st.plotly_chart(fig_global, use_container_width=True, config={"displayModeBar": False}, key="interactive_global_tree")
         st.caption("🌳 Árbol completo (solo lectura): la raíz es la decisión, el primer nivel son las alternativas.")
     
-    # Help
+    # ── Help ──────────────────────────────────────────────────────
     st.markdown("---")
     with st.expander("*\"¿Cómo funciona la versión interactiva?\"*", expanded=False):
         st.markdown(f"""
@@ -446,5 +513,311 @@ def render_interactive_scenarios_tab():
         - **Añadir ramas** adicionales (máximo {ADV_SCENARIO_MAX_BRANCHES} por nodo)
         - **Eliminar** nodos que ya no necesites
         
-        Los datos son **compartidos** con la pestaña Escenarios Avanzados — editar en una pestaña se refleja en la otra.
+        La **Matriz de Decisión** combina tus puntuaciones MCDA (criterios) con el Valor Esperado de los escenarios para una recomendación integral.
         """)
+
+
+# ── Decision Matrix section ───────────────────────────────────────
+
+def _render_decision_matrix(ev_results, alts):
+    """Render Decision Matrix: bubble chart + adjustable weight slider + ranking table."""
+    
+    # Need MCDA scores
+    mcda_ranking = []
+    if "mcda_scores" in st.session_state and st.session_state.mcda_scores:
+        if "mcda_scores_df" in st.session_state and "mcda_criteria" in st.session_state:
+            scores_df = st.session_state.mcda_scores_df
+            _, mcda_ranking_all = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+            qualified_names = {a["text"].strip() for a in alts}
+            mcda_ranking = [item for item in mcda_ranking_all if item["alternativa"] in qualified_names]
+    
+    if not mcda_ranking:
+        st.markdown("---")
+        st.info("💡 Completa la **Evaluación** para ver la Matriz de Decisión combinada (MCDA + Escenarios).")
+        return
+    
+    st.markdown("---")
+    st.markdown("### 🎯 Matriz de Decisión")
+    
+    # Adjustable weight slider
+    mcda_weight_pct = st.slider(
+        "Peso MCDA vs. Escenarios",
+        min_value=0, max_value=100, value=50, step=5,
+        format="%d%%",
+        help="Ajusta el balance entre la puntuación MCDA (criterios) y el Valor Esperado (escenarios) para el cálculo compuesto.",
+        key="composite_weight_slider"
+    )
+    w_mcda = mcda_weight_pct / 100.0
+    w_ev = 1.0 - w_mcda
+    
+    st.caption(f"MCDA: **{mcda_weight_pct}%** | Escenarios (EV): **{100 - mcda_weight_pct}%**")
+    
+    # Build combined data
+    combined_data = []
+    for row in ev_results:
+        alt_name = row["alt_name"]
+        ev = row["ev"]
+        ev_scaled = ev / 2.0  # Scale 0-10 → 0-5 to match MCDA range
+        
+        # Get tree for uncertainty
+        alt_id = row["alt_id"]
+        tree = st.session_state.advanced_scenarios.get(alt_id)
+        leaves = _collect_leaves(tree) if tree else []
+        scores = [l["score"] for l in leaves] if leaves else [0]
+        uncertainty = max(scores) - min(scores)
+        
+        mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
+        
+        if mcda_score is not None:
+            composite = w_mcda * mcda_score + w_ev * ev_scaled
+            combined_data.append({
+                "name": alt_name,
+                "alt_id": alt_id,
+                "mcda": mcda_score,
+                "ev": ev,
+                "ev_scaled": ev_scaled,
+                "uncertainty": uncertainty,
+                "composite": composite
+            })
+    
+    if not combined_data:
+        return
+    
+    # Bubble chart
+    fig = go.Figure()
+    
+    max_composite = max(d["composite"] for d in combined_data)
+    min_composite = min(d["composite"] for d in combined_data)
+    
+    for item in combined_data:
+        bubble_size = 20 + item["uncertainty"] * 16
+        max_uncertainty = 10
+        opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.85
+        
+        fig.add_trace(go.Scatter(
+            x=[item["mcda"]],
+            y=[item["ev_scaled"]],
+            mode="markers",
+            marker=dict(
+                size=bubble_size,
+                color=item["composite"],
+                colorscale="Viridis",
+                cmin=min_composite,
+                cmax=max_composite,
+                opacity=opacity,
+                line=dict(width=2, color="white")
+            ),
+            name=item["name"],
+            hovertemplate=(
+                f"<b>{item['name']}</b><br>"
+                f"MCDA: {item['mcda']:.2f}<br>"
+                f"EV: {item['ev']:.2f} (escala 0-10)<br>"
+                f"Incertidumbre: {item['uncertainty']:.0f}<br>"
+                f"Compuesto: {item['composite']:.2f}"
+                "<extra></extra>"
+            )
+        ))
+    
+    fig.add_hline(y=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
+    fig.add_vline(x=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
+    
+    fig.add_annotation(x=1.25, y=4.5, text="Alto potencial", showarrow=False, font=dict(size=10, color="#888"))
+    fig.add_annotation(x=3.75, y=4.5, text="✓ Óptimo", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
+    fig.add_annotation(x=1.25, y=0.5, text="Evitar", showarrow=False, font=dict(size=10, color="#888"))
+    fig.add_annotation(x=3.75, y=0.5, text="Seguro limitado", showarrow=False, font=dict(size=10, color="#888"))
+    
+    fig.update_layout(
+        height=400,
+        margin=dict(l=60, r=20, t=40, b=60),
+        showlegend=True,
+        legend=dict(title="Alternativas", x=1.02, y=1.0, xanchor="left", yanchor="top",
+                    bgcolor="rgba(255,255,255,0.85)", bordercolor="rgba(0,0,0,0.15)", borderwidth=1),
+        xaxis=dict(title="Puntuación MCDA (criterios)", range=[0, 5.2], showgrid=False, dtick=1),
+        yaxis=dict(title="Valor Esperado (escenarios)", range=[0, 5.2], showgrid=False, dtick=1),
+        plot_bgcolor="white"
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key="interactive_decision_matrix")
+    st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor hoja). Burbujas más grandes indican mayor variabilidad.")
+    
+    # Composite ranking table
+    st.markdown("")
+    st.markdown("**Ranking Compuesto**")
+    
+    combined_sorted = sorted(combined_data, key=lambda x: x["composite"], reverse=True)
+    
+    ranking_df = pd.DataFrame([{
+        "Alternativa": d["name"],
+        "MCDA": d["mcda"],
+        f"EV (0-5)": d["ev_scaled"],
+        "Incertidumbre": d["uncertainty"],
+        "Compuesto": d["composite"]
+    } for d in combined_sorted])
+    
+    st.dataframe(
+        ranking_df.style.format({
+            "MCDA": "{:.2f}",
+            "EV (0-5)": "{:.2f}",
+            "Incertidumbre": "{:.0f}",
+            "Compuesto": "{:.2f}"
+        }),
+        use_container_width=True
+    )
+    
+    winner = combined_sorted[0]
+    st.success(f"🏆 **Recomendación**: {winner['name']} (Compuesto: {winner['composite']:.2f})")
+    st.caption(f"Compuesto = {mcda_weight_pct}% MCDA + {100-mcda_weight_pct}% EV. Escala 0–5.")
+
+
+# ── Outcome probability distributions ─────────────────────────────
+
+def _render_outcome_distributions(alts):
+    """Render two visualizations of outcome distributions for comparison."""
+    
+    # Check we have trees with leaves
+    trees_data = []
+    for alt in alts:
+        alt_id = alt["id"]
+        alt_name = alt["text"].strip()
+        tree = st.session_state.advanced_scenarios.get(alt_id)
+        if tree:
+            leaves = _collect_leaves(tree)
+            if leaves:
+                trees_data.append({"name": alt_name, "leaves": leaves, "ev": _calculate_ev(tree)})
+    
+    if not trees_data:
+        return
+    
+    st.markdown("---")
+    st.markdown("### 📈 Distribución de Resultados")
+    st.caption("Visualiza de dónde viene el Valor Esperado de cada alternativa.")
+    
+    def _score_color(score):
+        if score >= 7:
+            return COLOR_SUCCESS
+        elif score >= 4:
+            return COLOR_ACCENT
+        else:
+            return COLOR_ERROR
+    
+    tab_bar, tab_dot = st.tabs(["📊 Barras apiladas", "🔵 Dot plot"])
+    
+    # ── Version A: Horizontal stacked bar ─────────────────────────
+    with tab_bar:
+        fig_stacked = go.Figure()
+        
+        for td in reversed(trees_data):  # Reversed so first alt is on top
+            leaves_sorted = sorted(td["leaves"], key=lambda l: l["score"])
+            for leaf in leaves_sorted:
+                contribution = leaf["path_prob"] * leaf["score"]
+                fig_stacked.add_trace(go.Bar(
+                    y=[td["name"]],
+                    x=[contribution],
+                    orientation="h",
+                    name=f"{leaf['label']} ({leaf['score']}/10, {leaf['path_prob']*100:.0f}%)",
+                    marker_color=_score_color(leaf["score"]),
+                    marker_line=dict(width=1, color="white"),
+                    hovertemplate=(
+                        f"<b>{leaf['label']}</b><br>"
+                        f"Puntuación: {leaf['score']}/10<br>"
+                        f"Probabilidad efectiva: {leaf['path_prob']*100:.1f}%<br>"
+                        f"Contribución al EV: {contribution:.2f}"
+                        "<extra></extra>"
+                    ),
+                    showlegend=False
+                ))
+        
+        fig_stacked.update_layout(
+            barmode="stack",
+            height=max(200, 80 * len(trees_data)),
+            margin=dict(l=20, r=20, t=10, b=40),
+            xaxis=dict(title="Contribución al Valor Esperado", range=[0, 10.5]),
+            yaxis=dict(title=""),
+            plot_bgcolor="white",
+            showlegend=False
+        )
+        
+        # Add EV markers
+        for td in trees_data:
+            fig_stacked.add_trace(go.Scatter(
+                x=[td["ev"]], y=[td["name"]],
+                mode="markers+text",
+                marker=dict(size=12, color=COLOR_PRIMARY, symbol="diamond", line=dict(width=1, color="white")),
+                text=[f"EV: {td['ev']:.1f}"],
+                textposition="top center",
+                textfont=dict(size=10, color=COLOR_PRIMARY),
+                hoverinfo="skip",
+                showlegend=False
+            ))
+        
+        st.plotly_chart(fig_stacked, use_container_width=True, config={"displayModeBar": False}, key="outcome_stacked_bar")
+        st.caption("Cada segmento = contribución de una hoja (probabilidad efectiva × puntuación). 💎 = EV total. Verde ≥ 7, naranja 4-6, rojo < 4.")
+    
+    # ── Version B: Dot/lollipop plot ──────────────────────────────
+    with tab_dot:
+        fig_dot = go.Figure()
+        
+        y_positions = {td["name"]: i for i, td in enumerate(trees_data)}
+        
+        for td in trees_data:
+            y_pos = y_positions[td["name"]]
+            leaves = td["leaves"]
+            
+            # Horizontal line spanning min to max score
+            scores = [l["score"] for l in leaves]
+            fig_dot.add_trace(go.Scatter(
+                x=[min(scores), max(scores)],
+                y=[y_pos, y_pos],
+                mode="lines",
+                line=dict(color="#e2e8f0", width=3),
+                hoverinfo="skip",
+                showlegend=False
+            ))
+            
+            # Each leaf as a dot, size proportional to effective probability
+            for leaf in leaves:
+                dot_size = max(8, leaf["path_prob"] * 60)
+                fig_dot.add_trace(go.Scatter(
+                    x=[leaf["score"]],
+                    y=[y_pos],
+                    mode="markers",
+                    marker=dict(
+                        size=dot_size,
+                        color=_score_color(leaf["score"]),
+                        opacity=0.8,
+                        line=dict(width=1, color="white")
+                    ),
+                    hovertemplate=(
+                        f"<b>{leaf['label']}</b><br>"
+                        f"Puntuación: {leaf['score']}/10<br>"
+                        f"Prob. efectiva: {leaf['path_prob']*100:.1f}%"
+                        "<extra></extra>"
+                    ),
+                    showlegend=False
+                ))
+            
+            # EV diamond marker
+            fig_dot.add_trace(go.Scatter(
+                x=[td["ev"]],
+                y=[y_pos],
+                mode="markers",
+                marker=dict(size=14, color=COLOR_PRIMARY, symbol="diamond", line=dict(width=2, color="white")),
+                hovertemplate=f"<b>{td['name']}</b><br>EV: {td['ev']:.2f}<extra></extra>",
+                showlegend=False
+            ))
+        
+        fig_dot.update_layout(
+            height=max(200, 100 * len(trees_data)),
+            margin=dict(l=20, r=20, t=10, b=40),
+            xaxis=dict(title="Puntuación (0-10)", range=[-0.5, 10.5], dtick=1),
+            yaxis=dict(
+                tickvals=list(y_positions.values()),
+                ticktext=list(y_positions.keys()),
+                title=""
+            ),
+            plot_bgcolor="white",
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig_dot, use_container_width=True, config={"displayModeBar": False}, key="outcome_dot_plot")
+        st.caption("Cada círculo = un resultado posible. Tamaño = probabilidad efectiva. 💎 = EV. La línea horizontal muestra el rango de resultados.")
