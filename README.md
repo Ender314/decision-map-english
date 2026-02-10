@@ -1,4 +1,4 @@
-# Decider Pro - Clean Modular Version (v1.7)
+# Decider Pro - Clean Modular Version (v1.8)
 
 ## 🎯 The Perfect Balance
 
@@ -12,9 +12,9 @@ This is the **final clean version** - a balanced approach that provides the bene
 - ✅ **Priorities Management**: Ordered list with up/down controls
 - ✅ **Information Gathering**: KPIs, timeline, stakeholders with visualizations
 - ✅ **MCDA Evaluation**: Full weighted scoring with radar charts
-- ✅ **Scenario Planning**: Probability distributions with violin plots
-- ✅ **Executive Summary**: Comprehensive results dashboard
-- ✅ **Export/Import**: Complete session persistence
+- ✅ **Scenario Planning**: PERT distribution analysis with interactive Plotly charts
+- ✅ **Executive Summary**: Comprehensive results dashboard with robustness analysis, print/PDF support, and emotional reflection
+- ✅ **Export/Import**: Complete session persistence (JSON + Excel)
 
 ### **✨ Post-Decision Monitoring** (New in v1.7)
 - ✅ **Risk Analysis**: Risk inventory, probability×impact matrix, mitigation strategies (avoid/transfer/mitigate/contingency)
@@ -27,14 +27,15 @@ This is the **final clean version** - a balanced approach that provides the bene
 - ✅ **Simple**: Direct session state usage, no abstractions
 - ✅ **Maintainable**: Easy to find and modify specific functionality
 
-### **✨ Enhanced Features** (New in v1.5)
+### **✨ Enhanced Features** (New in v1.8)
+- ✅ **PERT Distribution Charts**: Analytical Beta PDF curves (replaced Monte Carlo violin plots) — deterministic, smooth, interactive
+- ✅ **Robustness Index**: Monte Carlo sensitivity analysis replacing old confidence metric
+- ✅ **Print / Save as PDF**: Browser-native print with clean output (Streamlit chrome hidden)
+- ✅ **Contexto de la Decisión**: Merged reference section in Resultados (Objetivo, Estrategia, KPIs, Stakeholders, Timeline, Past Decisions, Notes)
+- ✅ **Observa tus emociones**: Emotional reflection journal persisted across sessions and exports
+- ✅ **No Negociables**: Hard constraints that disqualify alternatives
+- ✅ **Interactive Plotly Charts**: Hover, zoom, and detailed tooltips throughout
 - ✅ **Enhanced JSON Validation**: Comprehensive data integrity checks
-- ✅ **Multiple Violin Plot Options**: 5 different visualization styles
-- ✅ **Interactive Plotly Charts**: Hover, zoom, and detailed tooltips
-- ✅ **Modern Aesthetics**: Updated color schemes and styling
-- ✅ **Side-by-Side Comparison**: Compare different plot types
-- ✅ **Ridgeline Plots**: Stacked density curves for better comparison
-- ✅ **Statistical Annotations**: Quartiles, medians, and ranges
 
 ### **What's NOT Included** (Removed Complexity)
 - ❌ Generic CRUD components  
@@ -65,8 +66,8 @@ src/
     │   ├── data_manager.py        # Export/import utilities (JSON + Excel)
     │   ├── session_manager.py     # Session defaults + lightweight integrity checks
     │   ├── performance.py         # Debug/performance helpers (debug mode)
-    │   ├── visualizations.py      # Chart generation
-    │   ├── violin_plots.py        # Scenario distribution visualizations
+    │   ├── visualizations.py      # Plotly chart generation (incl. PERT distribution)
+    │   ├── violin_plots.py        # DEPRECATED — no longer imported
     │   └── ui_helpers.py          # UI utility functions
     └── components/
         ├── landing_page.py        # Marketing landing page
@@ -87,11 +88,11 @@ src/
         └── sidebar.py             # Export/import
 ```
 
-**Total: ~4,500 lines** (includes post-decision monitoring and template features)
+**Total: ~5,000 lines** (includes post-decision monitoring, templates, and enhanced Resultados)
 
 ## 🏷️ Versioning Note
 
-This repo uses a **marketing/release label** in this README (e.g. **v1.7**) while the app code contains an internal `APP_VERSION` (currently `1.0.0` in `config/constants.py`) used for schema compatibility. If you change export structure, update the internal version accordingly.
+This repo uses a **marketing/release label** in this README (e.g. **v1.8**) while the app code contains an internal `APP_VERSION` (currently `1.0.0` in `config/constants.py`) used for schema compatibility. If you change export structure, update the internal version accordingly.
 
 **Note**: The app was renamed from "Focal Path Pro" to "Decider Pro". Legacy names are accepted during JSON import for backward compatibility.
 
