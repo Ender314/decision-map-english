@@ -398,9 +398,17 @@ def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[st
     Returns:
         List of sections to display
     """
+    from config.constants import TAB_SCENARIOS, TAB_SCENARIOS_ADVANCED, TAB_SCENARIOS_INTERACTIVE
+    
     if tiempo_value == "Menos de media hora":
         return ["Dimensionado", "Alternativas", "Prioridades", "Evaluación"]
     elif tiempo_value == "Un par de horas":
         return ["Dimensionado", "Alternativas", "Información", "Prioridades", "Evaluación", "Resultados"]
     else:
-        return all_sections[:]
+        sections = all_sections[:]
+        # Swap basic Escenarios for Escenarios Avanzados + Interactive when "Un par de días"
+        if tiempo_value == "Un par de días" and TAB_SCENARIOS in sections:
+            idx = sections.index(TAB_SCENARIOS)
+            sections[idx] = TAB_SCENARIOS_ADVANCED
+            sections.insert(idx + 1, TAB_SCENARIOS_INTERACTIVE)
+        return sections
