@@ -501,7 +501,7 @@ def render_monitoring_timeline():
         hovermode="closest"
     )
     
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     
     # Legend help text
     st.caption("💡 Haz clic en la leyenda para mostrar/ocultar categorías. Doble clic para aislar una categoría.")

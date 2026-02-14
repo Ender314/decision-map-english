@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # streamlit run "src\app_with_routing.py"
 # streamlit run "src\app_with_routing.py" --port 8501
 # python -m streamlit run "src\app_with_routing.py"
@@ -113,7 +113,7 @@ def _render_import_gate():
                 if not is_valid:
                     st.error(f"❌ JSON inválido: {error_msg}")
                 else:
-                    if st.button("🔄 Importar JSON", use_container_width=True):
+                    if st.button("🔄 Importar JSON", width="stretch"):
                         st.session_state["_import_data"] = json_data
                         st.session_state["_pending_import"] = True
                         st.session_state["_show_import_gate"] = False
@@ -125,7 +125,7 @@ def _render_import_gate():
                 st.error(f"❌ Error leyendo JSON: {str(e)}")
 
         elif ext in ["xlsx", "xls"]:
-            if st.button("🔄 Importar Excel", use_container_width=True):
+            if st.button("🔄 Importar Excel", width="stretch"):
                 try:
                     success, message = import_excel_data(uploaded)
                     if success:
@@ -207,15 +207,15 @@ def render_main_app():
         
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            if st.button("📝 Empezar desde cero", use_container_width=True, help="Crear un nuevo análisis vacío"):
+            if st.button("📝 Empezar desde cero", width="stretch", help="Crear un nuevo análisis vacío"):
                 st.session_state["_skip_welcome"] = True
                 st.rerun()
         with col_b:
-            if st.button("📋 Ver plantillas de ejemplo", use_container_width=True, type="primary", help="Cargar una plantilla para entender cómo funciona"):
+            if st.button("📋 Ver plantillas de ejemplo", width="stretch", type="primary", help="Cargar una plantilla para entender cómo funciona"):
                 st.session_state["show_template_selector"] = True
                 st.rerun()
         with col_c:
-            if st.button("📂 Importar análisis guardado", use_container_width=True, help="Cargar un archivo JSON o Excel exportado previamente"):
+            if st.button("📂 Importar análisis guardado", width="stretch", help="Cargar un archivo JSON o Excel exportado previamente"):
                 st.session_state["_show_import_gate"] = True
                 st.rerun()
         return

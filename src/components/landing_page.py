@@ -236,7 +236,7 @@ def render_landing_page():
             height=400
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Solution Overview
     st.markdown("---")
@@ -277,7 +277,7 @@ def render_landing_page():
             showlegend=False
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         st.markdown("""
@@ -319,7 +319,7 @@ def render_landing_page():
             height=300
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Second row of features
     col1, col2 = st.columns([1, 1])
@@ -363,7 +363,7 @@ def render_landing_page():
             height=300
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
         st.markdown("""
@@ -389,7 +389,7 @@ def render_landing_page():
                                   'thickness': 0.75, 'value': 90}}))
         
         fig.update_layout(height=300)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Workflow Section
     st.markdown("---")
@@ -493,7 +493,7 @@ def render_landing_page():
         col_left, col_center, col_right = st.columns([1, 2, 1])
         with col_center:
             # Primary CTA - Offer Page
-            if st.button("🧭 Obtener Sistema de Maestría en Decisiones - €99", key="view_offer", help="Ver nuestra solución completa de toma de decisiones", type="primary", use_container_width=True):
+            if st.button("🧭 Obtener Sistema de Maestría en Decisiones - €99", key="view_offer", help="Ver nuestra solución completa de toma de decisiones", type="primary", width="stretch"):
                 st.session_state["current_page"] = "offer"
                 st.query_params["page"] = "offer"  # Update URL
                 st.rerun()
@@ -501,7 +501,7 @@ def render_landing_page():
             st.markdown("<div style='text-align: center; margin: 0.5rem 0; color: #666;'>o</div>", unsafe_allow_html=True)
             
             # Secondary CTA - Free Trial
-            if st.button("🚀 Probar Demo", key="launch_app_main", help="Iniciar tu análisis de decisiones", use_container_width=True):
+            if st.button("🚀 Probar Demo", key="launch_app_main", help="Iniciar tu análisis de decisiones", width="stretch"):
                 st.session_state["current_page"] = "app"
                 st.query_params["page"] = "app"  # Update URL
                 st.rerun()

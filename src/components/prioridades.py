@@ -111,7 +111,7 @@ def render_prioridades_tab():
         st.info("💡 **Tip**: Define las prioridades que usarás como criterios para evaluar las alternativas")
     
     # Add new priority button
-    if st.button("➕ Añadir Prioridad", use_container_width=True):
+    if st.button("➕ Añadir Prioridad", width="stretch"):
         add_priority()
         st.rerun()
     
@@ -168,6 +168,6 @@ def render_prioridades_tab():
         st.info("💡 **Tip**: Los no negociables son requisitos binarios (sí/no). Una alternativa que no cumpla **cualquier** no negociable será descartada del análisis.")
     
     # Add new no negociable button
-    if st.button("➕ Añadir No Negociable", use_container_width=True):
+    if st.button("➕ Añadir No Negociable", width="stretch"):
         add_no_negociable()
         st.rerun()

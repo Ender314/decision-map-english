@@ -187,7 +187,7 @@ def render_retro_tab():
                     margin=dict(l=20, r=20, t=40, b=20),
                     showlegend=True
                 )
-                st.plotly_chart(fig_attr, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_attr, width="stretch", config={"displayModeBar": False})
             
             with c2:
                 # Sentiment pie chart
@@ -203,7 +203,7 @@ def render_retro_tab():
                     margin=dict(l=20, r=20, t=40, b=20),
                     showlegend=True
                 )
-                st.plotly_chart(fig_sent, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_sent, width="stretch", config={"displayModeBar": False})
             
             # Insight
             decision_outcomes = attr_counts["decisión"]

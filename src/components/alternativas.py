@@ -41,7 +41,7 @@ def render_alternativas_tab():
                     label_visibility="collapsed",
                 )
             with c2:
-                if st.button("🗑️", key=f"del_{alt['id']}", help="Eliminar esta alternativa", use_container_width=True):
+                if st.button("🗑️", key=f"del_{alt['id']}", help="Eliminar esta alternativa", width="stretch"):
                     remove_alternative(alt["id"])
                     st.rerun()
             # collect (don't mutate the original item inline)
@@ -52,7 +52,7 @@ def render_alternativas_tab():
 
     cols_add = st.columns([1, 3])
     with cols_add[0]:
-        if st.button("➕ Añadir", key="add_alternative_btn", use_container_width=True):
+        if st.button("➕ Añadir", key="add_alternative_btn", width="stretch"):
             add_alternative()
             st.rerun()
     

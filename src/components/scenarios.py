@@ -204,7 +204,7 @@ def render_scenarios_tab():
         from utils.visualizations import create_scenario_pert_chart
         
         fig_pert = create_scenario_pert_chart(summary_rows)
-        st.plotly_chart(fig_pert, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_pert, width="stretch", config={"displayModeBar": False})
         
     except Exception as e:
         st.error(f"Error creating distribution chart: {str(e)}")
@@ -216,7 +216,7 @@ def render_scenarios_tab():
     with st.expander('Resumen escenarios'):
         st.dataframe(
             summary_df[["Alternativa", "Worst", "Best", "EV"]].style.format({"EV": "{:.2f}"}),
-            use_container_width=True
+            width="stretch"
         )
 
         st.caption("EV = p(best) × best + (1 − p(best)) × worst. Escala 0–10.")
@@ -372,7 +372,7 @@ def render_scenarios_tab():
                 plot_bgcolor="white"
             )
             
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
             st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor escenario). Burbujas más grandes indican mayor variabilidad.")
             
             # Composite ranking table
@@ -397,7 +397,7 @@ def render_scenarios_tab():
                     "Incertidumbre": "{:.0f}",
                     "Compuesto": "{:.2f}"
                 }),
-                use_container_width=True
+                width="stretch"
             )
             
             # Winner announcement

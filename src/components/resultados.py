@@ -295,7 +295,7 @@ def render_resultados_tab():
                 top_alts = [item["alternativa"] for item in ranking_list[:3]]
                 fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts, showlegend=False)
                 fig_radar.update_layout(height=350, margin=dict(l=30, r=30, t=30, b=30))
-                st.plotly_chart(fig_radar, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
                 st.caption("Top 3 alternativas por criterio")
             except Exception:
                 st.info("💡 Radar no disponible")
@@ -303,7 +303,7 @@ def render_resultados_tab():
         with col2:
             st.markdown("####")
             fig_matrix = create_decision_matrix_chart(combined_data)
-            st.plotly_chart(fig_matrix, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_matrix, width="stretch", config={"displayModeBar": False})
             st.caption("Tamaño/transparencia = incertidumbre")
     
     elif ranking_list:
@@ -312,7 +312,7 @@ def render_resultados_tab():
         try:
             top_alts = [item["alternativa"] for item in ranking_list[:3]]
             fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts)
-            st.plotly_chart(fig_radar, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
         except Exception:
             st.info("💡 Complete la evaluación para ver el gráfico radar")
         
@@ -356,7 +356,7 @@ def render_resultados_tab():
             yaxis=dict(showgrid=False),
             bargap=0.3
         )
-        st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_bar, width="stretch", config={'displayModeBar': False})
     
     # ===========================================
     # ROBUSTNESS INDEX (detail section)
@@ -601,7 +601,7 @@ def render_resultados_tab():
             st.dataframe(
                 mcda_df.style.format({"Puntuación": "{:.2f}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
         
         with col2:
@@ -615,7 +615,7 @@ def render_resultados_tab():
             st.dataframe(
                 ev_df.style.format({"EV": "{:.2f}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
         
         # Row 2: Composite ranking + Weights side by side
@@ -634,7 +634,7 @@ def render_resultados_tab():
             st.dataframe(
                 ranking_df.style.format({"MCDA": "{:.2f}", "EV": "{:.2f}", "Compuesto": "{:.2f}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
         
         with col4:
@@ -648,7 +648,7 @@ def render_resultados_tab():
             st.dataframe(
                 weights_df.style.format({"Peso": "{:.1%}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
     
     elif ranking_list:
@@ -666,7 +666,7 @@ def render_resultados_tab():
             st.dataframe(
                 ranking_df.style.format({"Puntuación": "{:.2f}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
         
         with col2:
@@ -680,7 +680,7 @@ def render_resultados_tab():
             st.dataframe(
                 weights_df.style.format({"Peso": "{:.1%}"}),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
     
     # No Negociables table
@@ -710,7 +710,7 @@ def render_resultados_tab():
         
         if no_neg_rows:
             no_neg_df = pd.DataFrame(no_neg_rows)
-            st.dataframe(no_neg_df, hide_index=True, use_container_width=True)
+            st.dataframe(no_neg_df, hide_index=True, width="stretch")
     
     # ===========================================
     # EXPORT CTA
@@ -733,7 +733,7 @@ def render_resultados_tab():
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("⚙️ Abrir opciones de exportación", use_container_width=True, type="primary"):
+        if st.button("⚙️ Abrir opciones de exportación", width="stretch", type="primary"):
             st.session_state["show_sidebar"] = True
             st.rerun()
     

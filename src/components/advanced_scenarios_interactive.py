@@ -452,7 +452,7 @@ def render_interactive_scenarios_tab():
             plot_bgcolor="white",
             showlegend=False
         )
-        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False}, key="interactive_ev_bar")
+        st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": False}, key="interactive_ev_bar")
         
         winner = ev_sorted[0]
         st.success(f"🏆 **Mayor valor esperado**: {winner['alt_name']} (EV: {winner['ev']:.2f})")
@@ -498,7 +498,7 @@ def render_interactive_scenarios_tab():
         
         fig_global = _build_tree_figure(decision_root, "Decisión", hide_root_prob=True)
         fig_global.update_layout(height=400 + len(alts) * 80)
-        st.plotly_chart(fig_global, use_container_width=True, config={"displayModeBar": False}, key="interactive_global_tree")
+        st.plotly_chart(fig_global, width="stretch", config={"displayModeBar": False}, key="interactive_global_tree")
         st.caption("🌳 Árbol completo (solo lectura): la raíz es la decisión, el primer nivel son las alternativas.")
     
     # ── Help ──────────────────────────────────────────────────────
@@ -637,7 +637,7 @@ def _render_decision_matrix(ev_results, alts):
         plot_bgcolor="white"
     )
     
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key="interactive_decision_matrix")
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="interactive_decision_matrix")
     st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor hoja). Burbujas más grandes indican mayor variabilidad.")
     
     # Composite ranking table
@@ -661,7 +661,7 @@ def _render_decision_matrix(ev_results, alts):
             "Incertidumbre": "{:.0f}",
             "Compuesto": "{:.2f}"
         }),
-        use_container_width=True
+        width="stretch"
     )
     
     winner = combined_sorted[0]
@@ -750,7 +750,7 @@ def _render_outcome_distributions(alts):
                 showlegend=False
             ))
         
-        st.plotly_chart(fig_stacked, use_container_width=True, config={"displayModeBar": False}, key="outcome_stacked_bar")
+        st.plotly_chart(fig_stacked, width="stretch", config={"displayModeBar": False}, key="outcome_stacked_bar")
         st.caption("Cada segmento = contribución de una hoja (probabilidad efectiva × puntuación). 💎 = EV total. Verde ≥ 7, naranja 4-6, rojo < 4.")
     
     # ── Version B: Dot/lollipop plot ──────────────────────────────
@@ -819,5 +819,5 @@ def _render_outcome_distributions(alts):
             showlegend=False
         )
         
-        st.plotly_chart(fig_dot, use_container_width=True, config={"displayModeBar": False}, key="outcome_dot_plot")
+        st.plotly_chart(fig_dot, width="stretch", config={"displayModeBar": False}, key="outcome_dot_plot")
         st.caption("Cada círculo = un resultado posible. Tamaño = probabilidad efectiva. 💎 = EV. La línea horizontal muestra el rango de resultados.")

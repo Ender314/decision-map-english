@@ -356,7 +356,7 @@ def render_template_selector():
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"Usar plantilla", key=f"load_template_{template['id']}", use_container_width=True):
+            if st.button(f"Usar plantilla", key=f"load_template_{template['id']}", width="stretch"):
                 if load_template(template['id']):
                     st.session_state["_template_loaded"] = True
                     st.session_state["_loaded_template_name"] = template['name']
@@ -366,6 +366,6 @@ def render_template_selector():
 
 def render_template_button_in_sidebar():
     """Render a button to access templates from the sidebar."""
-    if st.button("📋 Cargar Plantilla", use_container_width=True, help="Cargar una plantilla de decisión de ejemplo"):
+    if st.button("📋 Cargar Plantilla", width="stretch", help="Cargar una plantilla de decisión de ejemplo"):
         st.session_state["show_template_selector"] = True
         st.rerun()
