@@ -77,6 +77,7 @@ def initialize_session_defaults() -> None:
         
         # Escenarios
         "scenarios": {},  # {alt_id: scenario_data}
+        "advanced_scenarios": {},  # {alt_id: decision_tree}
         
         # Emotion notes (Resultados tab)
         "emotion_notes": "",
@@ -144,6 +145,10 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     scenarios = data.get("scenarios", [])
     if not isinstance(scenarios, list):
         return False, "Estructura 'scenarios' debe ser una lista"
+
+    advanced_scenarios = data.get("advanced_scenarios", {})
+    if advanced_scenarios and not isinstance(advanced_scenarios, dict):
+        return False, "Estructura 'advanced_scenarios' debe ser un objeto"
     
     return True, "Estructura válida"
 
@@ -156,6 +161,120 @@ def parse_date_string(date_str: Optional[str]) -> Optional[date]:
         return datetime.fromisoformat(date_str).date()
     except (ValueError, TypeError):
         return None
+
+
+def _calculate_tree_ev(node: Dict[str, Any]) -> float:
+    """Recursively calculate expected value from a scenario tree."""
+    children = node.get("children", [])
+    if not children:
+        return float(node.get("score", 0.0))
+
+    total_prob = sum(float(c.get("probability", 0.0)) for c in children)
+    if total_prob <= 0:
+        return 0.0
+
+    ev = 0.0
+    for child in children:
+        p = float(child.get("probability", 0.0)) / total_prob
+        ev += p * _calculate_tree_ev(child)
+    return ev
+
+
+def _collect_tree_leaves(node: Dict[str, Any], path_prob: float = 1.0, leaves: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """Collect leaves with effective path probability for tree-to-flat projection."""
+    if leaves is None:
+        leaves = []
+
+    children = node.get("children", [])
+    if not children:
+        leaves.append({
+            "label": node.get("label", ""),
+            "score": float(node.get("score", 0.0)),
+            "path_prob": float(path_prob),
+        })
+        return leaves
+
+    total_prob = sum(float(c.get("probability", 0.0)) for c in children)
+    if total_prob <= 0:
+        return leaves
+
+    for child in children:
+        child_prob = float(child.get("probability", 0.0)) / total_prob
+        _collect_tree_leaves(child, path_prob * child_prob, leaves)
+
+    return leaves
+
+
+def _create_tree_from_flat_scenario(alt_name: str, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    """Interpret legacy flat scenario data as a one-level best/worst tree."""
+    p_best_pct = scenario.get("p_best_pct")
+    if p_best_pct is None:
+        p_best = float(scenario.get("p_best", 0.5))
+        p_best_pct = int(round(max(0.0, min(1.0, p_best)) * 100))
+    else:
+        p_best_pct = int(p_best_pct)
+
+    p_best_pct = max(0, min(100, p_best_pct))
+    p_worst_pct = 100 - p_best_pct
+
+    best_desc = scenario.get("best_desc", "Mejor escenario") or "Mejor escenario"
+    worst_desc = scenario.get("worst_desc", "Peor escenario") or "Peor escenario"
+
+    return {
+        "id": str(uuid.uuid4()),
+        "label": alt_name,
+        "probability": 100,
+        "score": 0,
+        "children": [
+            {
+                "id": str(uuid.uuid4()),
+                "label": best_desc,
+                "probability": p_best_pct,
+                "score": float(scenario.get("best_score", 7.0)),
+                "children": [],
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "label": worst_desc,
+                "probability": p_worst_pct,
+                "score": float(scenario.get("worst_score", 2.0)),
+                "children": [],
+            },
+        ],
+    }
+
+
+def _flatten_tree_to_legacy_row(alt_name: str, tree: Dict[str, Any]) -> Dict[str, Any]:
+    """Project a tree into the legacy flat scenarios row format."""
+    leaves = _collect_tree_leaves(tree)
+    if not leaves:
+        return {
+            "alternativa": alt_name,
+            "worst_desc": "",
+            "best_desc": "",
+            "worst_score": 0.0,
+            "best_score": 0.0,
+            "p_best": 0.0,
+            "p_best_pct": 0,
+            "EV": 0.0,
+        }
+
+    ev = _calculate_tree_ev(tree)
+    worst_leaf = min(leaves, key=lambda l: l["score"])
+    best_leaf = max(leaves, key=lambda l: l["score"])
+    p_best = sum(float(l["path_prob"]) for l in leaves if float(l["score"]) == float(best_leaf["score"]))
+    p_best = max(0.0, min(1.0, p_best))
+
+    return {
+        "alternativa": alt_name,
+        "worst_desc": worst_leaf.get("label", ""),
+        "best_desc": best_leaf.get("label", ""),
+        "worst_score": json_safe_convert(float(worst_leaf.get("score", 0.0))),
+        "best_score": json_safe_convert(float(best_leaf.get("score", 0.0))),
+        "p_best": json_safe_convert(p_best),
+        "p_best_pct": int(round(p_best * 100)),
+        "EV": json_safe_convert(ev),
+    }
 
 
 def create_export_data() -> Dict[str, Any]:
@@ -176,23 +295,35 @@ def create_export_data() -> Dict[str, Any]:
     
     # Scenarios snapshot
     scenarios_state = st.session_state.get("scenarios", {})
+    advanced_scenarios_state = st.session_state.get("advanced_scenarios", {})
     scenario_rows = []
-    for scenario_data in scenarios_state.values():
-        ev = scenario_expected_value(
-            scenario_data.get("p_best", 0.5),
-            scenario_data.get("worst_score", 0),
-            scenario_data.get("best_score", 0)
-        )
-        scenario_rows.append({
-            "alternativa": scenario_data.get("name", ""),
-            "worst_desc": scenario_data.get("worst_desc", ""),
-            "best_desc": scenario_data.get("best_desc", ""),
-            "worst_score": json_safe_convert(scenario_data.get("worst_score")),
-            "best_score": json_safe_convert(scenario_data.get("best_score")),
-            "p_best": json_safe_convert(scenario_data.get("p_best")),
-            "p_best_pct": json_safe_convert(scenario_data.get("p_best_pct")),
-            "EV": json_safe_convert(ev),
-        })
+    if advanced_scenarios_state:
+        for alt in st.session_state.get("alts", []):
+            alt_name = alt.get("text", "").strip()
+            if not alt_name:
+                continue
+            alt_id = alt.get("id")
+            tree = advanced_scenarios_state.get(alt_id)
+            if tree:
+                scenario_rows.append(_flatten_tree_to_legacy_row(alt_name, tree))
+
+    if not scenario_rows:
+        for scenario_data in scenarios_state.values():
+            ev = scenario_expected_value(
+                scenario_data.get("p_best", 0.5),
+                scenario_data.get("worst_score", 0),
+                scenario_data.get("best_score", 0)
+            )
+            scenario_rows.append({
+                "alternativa": scenario_data.get("name", ""),
+                "worst_desc": scenario_data.get("worst_desc", ""),
+                "best_desc": scenario_data.get("best_desc", ""),
+                "worst_score": json_safe_convert(scenario_data.get("worst_score")),
+                "best_score": json_safe_convert(scenario_data.get("best_score")),
+                "p_best": json_safe_convert(scenario_data.get("p_best")),
+                "p_best_pct": json_safe_convert(scenario_data.get("p_best_pct")),
+                "EV": json_safe_convert(ev),
+            })
     
     # Calculate relevance
     from utils.calculations import calculate_relevance_percentage
@@ -247,6 +378,7 @@ def create_export_data() -> Dict[str, Any]:
             "weights_user_override": st.session_state.get("weights_user_override", False),
         },
         "scenarios": scenario_rows,
+        "advanced_scenarios": make_json_ready(advanced_scenarios_state),
         "no_negociables": _export_no_negociables(),
         "risks": _export_risks(),
         "retro": _export_retro(),
@@ -436,7 +568,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     st.session_state["mcda_scores"] = mcda.get("scores", {})
     st.session_state["weights_user_override"] = mcda.get("weights_user_override", False)
     
-    # Import scenarios (convert to proper format)
+    # Import scenarios (canonical tree + legacy flat bridge)
     scenarios_data = data.get("scenarios", [])
     imported_scenarios = {}
     for scenario in scenarios_data:
@@ -458,7 +590,51 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
                 "p_best": scenario.get("p_best", 0.5),
                 "p_best_pct": scenario.get("p_best_pct", 50)
             }
-    st.session_state["scenarios"] = imported_scenarios
+
+    advanced_raw = data.get("advanced_scenarios", {})
+    advanced_scenarios = {}
+
+    if isinstance(advanced_raw, dict) and advanced_raw:
+        for alt in imported_alts:
+            alt_id = alt["id"]
+            alt_name = alt.get("text", "")
+            tree = advanced_raw.get(alt_id) or advanced_raw.get(alt_name)
+            if isinstance(tree, dict):
+                tree_copy = json.loads(json.dumps(tree))
+                tree_copy["label"] = alt_name
+                tree_copy.setdefault("probability", 100)
+                tree_copy.setdefault("score", 0)
+                tree_copy.setdefault("children", [])
+                advanced_scenarios[alt_id] = tree_copy
+
+    # Legacy scenarios-only imports are interpreted as one-level trees
+    for alt_id, scenario in imported_scenarios.items():
+        if alt_id not in advanced_scenarios:
+            alt_name = scenario.get("name", "")
+            advanced_scenarios[alt_id] = _create_tree_from_flat_scenario(alt_name, scenario)
+
+    st.session_state["advanced_scenarios"] = advanced_scenarios
+
+    projected_scenarios = {}
+    if advanced_scenarios:
+        for alt in imported_alts:
+            alt_id = alt["id"]
+            alt_name = alt.get("text", "")
+            tree = advanced_scenarios.get(alt_id)
+            if tree:
+                row = _flatten_tree_to_legacy_row(alt_name, tree)
+                projected_scenarios[alt_id] = {
+                    "name": alt_name,
+                    "best_desc": row.get("best_desc", ""),
+                    "best_score": float(row.get("best_score", 0.0)),
+                    "worst_desc": row.get("worst_desc", ""),
+                    "worst_score": float(row.get("worst_score", 0.0)),
+                    "p_best": float(row.get("p_best", 0.0)),
+                    "p_best_pct": int(row.get("p_best_pct", 0)),
+                    "ev": float(row.get("EV", 0.0)),
+                }
+
+    st.session_state["scenarios"] = projected_scenarios or imported_scenarios
     
     # Import risks (if present)
     risks_data = data.get("risks", [])
@@ -1003,6 +1179,10 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                 
                 if imported_scenarios:
                     st.session_state['scenarios'] = imported_scenarios
+                    st.session_state['advanced_scenarios'] = {
+                        alt_id: _create_tree_from_flat_scenario(scenario['name'], scenario)
+                        for alt_id, scenario in imported_scenarios.items()
+                    }
         
         # Import Risks
         if 'Riesgos' in excel_data:

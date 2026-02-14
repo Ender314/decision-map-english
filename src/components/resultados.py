@@ -7,7 +7,7 @@ Visual-heavy dashboard with key decision insights.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from config.constants import IMPACT_MAP
+from config.constants import IMPACT_MAP, COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT
 from utils.calculations import (
     calculate_relevance_percentage, 
     mcda_totals_and_ranking, 
@@ -140,6 +140,8 @@ def render_resultados_tab():
     # Build combined data for Decision Matrix (excluding disqualified)
     combined_data = []
     combined_data_all = []  # Keep all for display purposes
+    w_mcda = COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT / 100.0
+    w_ev = 1.0 - w_mcda
     if ranking_list_all and scenarios_state:
         for alt_id, scenario in scenarios_state.items():
             alt_name = scenario.get("name", "")
@@ -154,7 +156,7 @@ def render_resultados_tab():
             mcda_score = next((item["score"] for item in ranking_list_all if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                composite = w_mcda * mcda_score + w_ev * ev_scaled
                 item_data = {
                     "name": alt_name,
                     "alt_id": alt_id,

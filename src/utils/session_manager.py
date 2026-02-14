@@ -46,6 +46,7 @@ class SessionStateManager:
         
         # Scenarios
         "scenarios": {},
+        "advanced_scenarios": {},
         
         # No Negociables (hard constraints)
         "no_negociables": [],  # list of {"id": uuid, "text": constraint_description}
@@ -176,7 +177,7 @@ class SessionStateManager:
             "informacion": ["past_decisions", "kpis", "timeline_items", "stakeholders", 
                            "quantitative_notes", "qualitative_notes"],
             "mcda": ["mcda_criteria", "mcda_scores", "mcda_scores_df"],
-            "scenarios": ["scenarios"],
+            "scenarios": ["scenarios", "advanced_scenarios"],
             "no_negociables": ["no_negociables", "no_negociables_scores"],
             "risks": ["risks"],
             "retro": ["retro"]

@@ -98,6 +98,7 @@ ADV_SCENARIO_MAX_DEPTH = 2
 # Scoring configuration
 SCORE_STEPS = [x / 2 for x in range(0, 11)]  # 0, 0.5, 1.0, ..., 5.0
 PROBABILITY_STEPS = list(range(0, 101, 5))  # 0, 5, 10, ..., 100
+COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT = 60
 
 # Color configuration for visualizations
 def get_relevance_color(relevance_pct: float) -> tuple[str, str]:

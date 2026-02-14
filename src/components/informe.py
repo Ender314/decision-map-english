@@ -12,7 +12,8 @@ from typing import Dict, List, Any, Tuple, Optional
 
 from config.constants import (
     IMPACT_MAP, RISK_PROB_MAP, RISK_IMPACT_MAP,
-    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR, COLOR_INFO
+    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR, COLOR_INFO,
+    COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT,
 )
 from utils.calculations import (
     calculate_relevance_percentage,
@@ -65,6 +66,8 @@ def get_report_data() -> Dict[str, Any]:
     # Build combined data (MCDA + Scenarios) - only qualified alternatives
     qualified_alt_ids = {a["id"] for a in alts}
     combined_data = []
+    w_mcda = COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT / 100.0
+    w_ev = 1.0 - w_mcda
     if ranking_list and scenarios:
         for alt_id, scenario in scenarios.items():
             # Skip disqualified alternatives
@@ -83,7 +86,7 @@ def get_report_data() -> Dict[str, Any]:
             mcda_score = next((item["score"] for item in ranking_list if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                composite = w_mcda * mcda_score + w_ev * ev_scaled
                 combined_data.append({
                     "name": alt_name,
                     "mcda": mcda_score,

@@ -32,7 +32,7 @@ def _calculate_ev(node):
 
 # ── Plotly tree visualization ──────────────────────────────────────
 
-def _layout_tree(node, x=0, y=0, x_spacing=1.0, depth=0):
+def _layout_tree(node, x=0, y=0, x_spacing=1.0, y_step=1.35, depth=0):
     """Compute (x, y) positions for each node using a simple recursive layout."""
     positions = {}
     positions[node["id"]] = (x, y, node, depth)
@@ -54,7 +54,7 @@ def _layout_tree(node, x=0, y=0, x_spacing=1.0, depth=0):
     for child in children:
         child_leaves = count_leaves(child)
         child_x = cursor + (child_leaves - 1) * x_spacing / 2
-        child_positions, _ = _layout_tree(child, child_x, y - 1, x_spacing, depth + 1)
+        child_positions, _ = _layout_tree(child, child_x, y - y_step, x_spacing, y_step, depth + 1)
         positions.update(child_positions)
         cursor += child_leaves * x_spacing
     
@@ -67,7 +67,7 @@ def _build_tree_figure(tree, alt_name, hide_root_prob=False):
     Args:
         hide_root_prob: If True, don't show probability labels on root→level1 edges
     """
-    positions, _ = _layout_tree(tree, x=0, y=0, x_spacing=1.8)
+    positions, _ = _layout_tree(tree, x=0, y=0, x_spacing=1.8, y_step=1.35)
     
     fig = go.Figure()
     
@@ -89,7 +89,7 @@ def _build_tree_figure(tree, alt_name, hide_root_prob=False):
                 fig.add_trace(go.Scatter(
                     x=[nx, cx], y=[ny, cy],
                     mode="lines",
-                    line=dict(color="#cbd5e0", width=line_w),
+                    line=dict(color="rgba(148, 163, 184, 0.55)", width=line_w),
                     hoverinfo="skip",
                     showlegend=False
                 ))
@@ -97,11 +97,11 @@ def _build_tree_figure(tree, alt_name, hide_root_prob=False):
                 if not (is_root_edge and hide_root_prob):
                     mid_x, mid_y = (nx + cx) / 2, (ny + cy) / 2
                     fig.add_annotation(
-                        x=mid_x, y=mid_y,
+                        x=mid_x, y=mid_y + 0.12,
                         text=f"{child['probability']}%",
                         showarrow=False,
                         font=dict(size=10, color="#718096"),
-                        bgcolor="white",
+                        bgcolor="rgba(255,255,255,0.75)",
                         borderpad=2
                     )
     
@@ -148,7 +148,7 @@ def _build_tree_figure(tree, alt_name, hide_root_prob=False):
             mode="markers+text",
             marker=dict(size=size, color=color, symbol=symbol, line=dict(width=1, color="white")),
             text=[label_short],
-            textposition="top center",
+            textposition="top center" if is_leaf else "bottom center",
             textfont=dict(size=10),
             hovertemplate=hover,
             showlegend=False,
