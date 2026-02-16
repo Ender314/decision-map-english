@@ -354,30 +354,44 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         _tree_to_agraph(child, nodes, edges, depth + 1, is_global=is_global)
 
 
-def _render_agraph_tree(tree, key_suffix, is_global=False):
+def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False):
     """Render an interactive agraph tree and return the selected node ID."""
     nodes = []
     edges = []
     _tree_to_agraph(tree, nodes, edges, is_global=is_global)
-    
+
+    physics_cfg = {
+        "enabled": bool(center_on_load),
+        "stabilization": {
+            "enabled": bool(center_on_load),
+            "fit": bool(center_on_load),
+        },
+    }
+
     config = Config(
         directed=True,
         hierarchical=True,
         height=450 + len(nodes) * 20,
         width=950,
-        physics=False,
+        physics=physics_cfg,
         groups={},
-        interaction={"hover": True},
+        interaction={"hover": True, "dragView": True, "zoomView": True},
         layout={
             "hierarchical": {
                 "enabled": True,
                 "levelSeparation": 120,
                 "nodeSpacing": 180,
                 "treeSpacing": 200,
+                "direction": "UD",
                 "sortMethod": "directed",
+                "parentCentralization": True,
+                "blockShifting": True,
+                "edgeMinimization": True,
+                "shakeTowards": "roots",
             }
         },
     )
+    config.width = "100%"
     
     selected = agraph(
         nodes=nodes,
@@ -516,7 +530,18 @@ def render_interactive_scenarios_tab():
     mcda_by_name = _build_mcda_score_lookup(alts)
     _sync_root_alternatives(decision_tree, alts, mcda_by_name)
 
-    selected = _render_agraph_tree(decision_tree, key_suffix="global", is_global=True)
+    first_center_key = "_iact_tree_centered_once"
+    should_center_on_load = not st.session_state.get(first_center_key, False)
+
+    selected = _render_agraph_tree(
+        decision_tree,
+        key_suffix="global",
+        is_global=True,
+        center_on_load=should_center_on_load,
+    )
+    if should_center_on_load:
+        st.session_state[first_center_key] = True
+
     if selected:
         st.session_state["_iact_selected_global"] = selected
 
