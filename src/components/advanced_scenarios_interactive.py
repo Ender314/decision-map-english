@@ -25,6 +25,15 @@ MAX_NODE_BRANCHES = 4
 
 # ── Tree data helpers (shared logic with advanced_scenarios.py) ────
 
+def _hex_to_rgba(hex_color, alpha):
+    """Convert #RRGGBB into rgba(r,g,b,a) string."""
+    if not isinstance(hex_color, str) or not hex_color.startswith("#") or len(hex_color) != 7:
+        return f"rgba(37,99,235,{alpha})"
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+    return f"rgba({r},{g},{b},{alpha})"
+
 def _new_node(label="", probability=50, score=5, node_type="scenario", alt_id=None):
     """Create a new tree node."""
     return {
@@ -360,20 +369,15 @@ def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False)
     edges = []
     _tree_to_agraph(tree, nodes, edges, is_global=is_global)
 
-    physics_cfg = {
-        "enabled": bool(center_on_load),
-        "stabilization": {
-            "enabled": bool(center_on_load),
-            "fit": bool(center_on_load),
-        },
-    }
-
     config = Config(
         directed=True,
         hierarchical=True,
         height=450 + len(nodes) * 20,
         width=950,
-        physics=physics_cfg,
+        # streamlit-agraph expects a boolean for `physics`; passing a dict is
+        # forwarded to vis.js as `physics.enabled = <object>`, which triggers
+        # browser console schema/type errors.
+        physics=bool(center_on_load),
         groups={},
         interaction={"hover": True, "dragView": True, "zoomView": True},
         layout={
@@ -581,11 +585,156 @@ def render_interactive_scenarios_tab():
             _sync_tree_to_flat(alt_id, alt_name, tree)
             ev_results.append({"alt_name": alt_name, "alt_id": alt_id, "ev": _calculate_ev(tree)})
     
+    # ── Merged view: MCDA × EV density (violin-like) ──────────────
+    _render_mcda_ev_density_bridge(alts)
+
     # ── Smooth mixture distribution (PERT-equivalent) ─────────────
     _render_mixture_distribution(alts)
 
     # ── Decision Matrix (MCDA × EV) ───────────────────────────────
     _render_decision_matrix(ev_results, alts)
+
+
+# ── Merged chart: MCDA × EV density ───────────────────────────────
+
+def _render_mcda_ev_density_bridge(alts):
+    """Render per-alternative EV density (tree-derived) positioned on raw MCDA x-axis."""
+    mcda_by_name = _build_mcda_score_lookup(alts)
+
+    trees_data = []
+    for alt in alts:
+        alt_id = alt["id"]
+        alt_name = alt["text"].strip()
+        tree = st.session_state.advanced_scenarios.get(alt_id)
+        mcda = mcda_by_name.get(alt_name)
+        if tree and mcda is not None:
+            leaves = _collect_leaves(tree)
+            if leaves:
+                trees_data.append({
+                    "name": alt_name,
+                    "mcda": float(mcda),
+                    "ev": float(_calculate_ev(tree)),
+                    "leaves": leaves,
+                })
+
+    if not trees_data:
+        return
+
+    trees_data = sorted(trees_data, key=lambda d: d["mcda"])
+
+    st.markdown("---")
+    st.markdown("### 🧬 MCDA × EV (densidad por alternativa)")
+    st.caption("Eje X = MCDA (0-5). Eje Y = EV (0-10). Cada violín usa las hojas del árbol y sus probabilidades efectivas.")
+
+    y_grid = np.linspace(0.0, 10.0, 300)
+    violin_half_width = 0.22
+    palette = [
+        "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
+    ]
+
+    fig = go.Figure()
+
+    for idx, td in enumerate(trees_data):
+        color = palette[idx % len(palette)]
+        density = np.zeros_like(y_grid)
+
+        for leaf in td["leaves"]:
+            score = float(leaf["score"])
+            weight = max(0.0, float(leaf["path_prob"]))
+            sigma = 0.35 + 0.9 * (1.0 - min(weight, 1.0))
+            z = (y_grid - score) / sigma
+            gaussian = np.exp(-0.5 * (z ** 2)) / (sigma * np.sqrt(2 * np.pi))
+            gaussian[np.abs(z) > 2.25] = 0.0
+            density += weight * gaussian
+
+        area = np.trapezoid(density, y_grid) if hasattr(np, "trapezoid") else np.trapz(density, y_grid)
+        if area > 0:
+            density = density / area
+
+        peak = float(np.max(density)) if len(density) else 0.0
+        if peak > 0:
+            density[density < (peak * 0.02)] = 0.0
+            area_after_trim = np.trapezoid(density, y_grid) if hasattr(np, "trapezoid") else np.trapz(density, y_grid)
+            if area_after_trim > 0:
+                density = density / area_after_trim
+
+        peak = float(np.max(density)) if len(density) else 0.0
+        if peak <= 0:
+            continue
+
+        unbranched = len(td["leaves"]) == 1
+        width_multiplier = 0.55 if unbranched else 1.0
+        width_scale = (density / peak) * violin_half_width * width_multiplier
+        support_mask = width_scale > 1e-4
+        if np.count_nonzero(support_mask) < 3:
+            continue
+
+        y_support = y_grid[support_mask]
+        width_support = width_scale[support_mask]
+        x_center = td["mcda"]
+        x_right = x_center + width_support
+        x_left = x_center - width_support
+
+        x_poly = np.concatenate([x_right, x_left[::-1]])
+        y_poly = np.concatenate([y_support, y_support[::-1]])
+
+        fig.add_trace(go.Scatter(
+            x=x_poly,
+            y=y_poly,
+            mode="lines",
+            fill="toself",
+            line=dict(color=color, width=1.2),
+            fillcolor=_hex_to_rgba(color, 0.28),
+            opacity=0.35,
+            name=td["name"],
+            hovertemplate=(
+                f"<b>{td['name']}</b><br>"
+                f"MCDA: {td['mcda']:.2f}<br>"
+                "EV (eje Y): %{y:.2f}<br>"
+                "Densidad relativa: %{customdata:.3f}<extra></extra>"
+            ),
+            customdata=np.concatenate([density[support_mask], density[support_mask][::-1]]),
+            showlegend=True,
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=[x_center],
+            y=[td["ev"]],
+            mode="markers",
+            marker=dict(size=9, color=color, symbol="diamond", line=dict(width=1, color="white")),
+            hovertemplate=(
+                f"<b>{td['name']}</b><br>"
+                f"MCDA: {td['mcda']:.2f}<br>"
+                f"EV: {td['ev']:.2f}<extra></extra>"
+            ),
+            showlegend=False,
+        ))
+
+    fig.update_layout(
+        height=430,
+        margin=dict(l=40, r=20, t=20, b=40),
+        xaxis=dict(title="Puntuación MCDA (0-5)", range=[0, 5.1], dtick=0.5, showgrid=False),
+        yaxis=dict(
+            title="Valor Esperado (EV, 0-10)",
+            range=[0, 10],
+            dtick=1,
+            showgrid=True,
+            gridcolor="rgba(100, 116, 139, 0.10)",
+            gridwidth=0.6,
+        ),
+        legend=dict(
+            title="Alternativas",
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
+        ),
+        plot_bgcolor="white",
+    )
+
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="mcda_ev_density_bridge")
+    st.caption("Comparación piloto: mantenemos también las dos vistas actuales debajo para validar lectura y utilidad.")
 
 
 # ── Decision Matrix section ───────────────────────────────────────
