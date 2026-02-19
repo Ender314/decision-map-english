@@ -35,6 +35,19 @@ def _build_alternative_color_map(alts):
     }
 
 
+def _ordered_alternative_names_by_mcda(alts):
+    """Return alternative names ordered by MCDA score (ascending) for chart consistency."""
+    mcda_by_name = _build_mcda_score_lookup(alts)
+    fallback_order = [a.get("text", "").strip() for a in alts if a.get("text", "").strip()]
+    if not mcda_by_name:
+        return fallback_order
+
+    return sorted(
+        fallback_order,
+        key=lambda name: mcda_by_name.get(name, -1.0),
+    )
+
+
 # ── Tree data helpers (shared logic with advanced_scenarios.py) ────
 
 def _hex_to_rgba(hex_color, alpha):
@@ -375,21 +388,25 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         _tree_to_agraph(child, nodes, edges, depth + 1, is_global=is_global)
 
 
-def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False):
+def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False, remount_nonce=0):
     """Render an interactive agraph tree and return the selected node ID."""
     nodes = []
     edges = []
     _tree_to_agraph(tree, nodes, edges, is_global=is_global)
 
+    # streamlit-agraph does not accept a Streamlit `key` parameter in agraph().
+    # Use a tiny deterministic config change to force a remount on recenter.
+    base_height = 450 + len(nodes) * 20
+    remount_offset = int(remount_nonce) % 2
+
     config = Config(
         directed=True,
         hierarchical=True,
-        height=450 + len(nodes) * 20,
+        height=base_height + remount_offset,
         width=950,
-        # streamlit-agraph expects a boolean for `physics`; passing a dict is
-        # forwarded to vis.js as `physics.enabled = <object>`, which triggers
-        # browser console schema/type errors.
-        physics=bool(center_on_load),
+        # Keep physics stable to avoid one extra rerun caused by config toggles
+        # after recenter. Recenter/rezoom is handled via explicit remount nonce.
+        physics=False,
         groups={},
         interaction={"hover": True, "dragView": True, "zoomView": True},
         layout={
@@ -559,17 +576,20 @@ def render_interactive_scenarios_tab():
     mcda_by_name = _build_mcda_score_lookup(alts)
     _sync_root_alternatives(decision_tree, alts, mcda_by_name)
 
-    first_center_key = "_iact_tree_centered_once"
-    should_center_on_load = not st.session_state.get(first_center_key, False)
+    tree_controls_col, _ = st.columns([1, 5])
+    with tree_controls_col:
+        recenter_requested = st.button("🎯 Centrar árbol", key="iact_center_tree_btn", help="Re-centra el árbol si se fue fuera de vista")
+
+    if recenter_requested:
+        st.session_state["_iact_tree_recenter_nonce"] = st.session_state.get("_iact_tree_recenter_nonce", 0) + 1
+    tree_render_nonce = st.session_state.get("_iact_tree_recenter_nonce", 0)
 
     selected = _render_agraph_tree(
         decision_tree,
-        key_suffix="global",
+        key_suffix=f"global_{tree_render_nonce}",
         is_global=True,
-        center_on_load=should_center_on_load,
+        remount_nonce=tree_render_nonce,
     )
-    if should_center_on_load:
-        st.session_state[first_center_key] = True
 
     if selected:
         st.session_state["_iact_selected_global"] = selected
@@ -654,7 +674,9 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
     if not trees_data:
         return
 
-    trees_data = sorted(trees_data, key=lambda d: d["mcda"])
+    preferred_order = _ordered_alternative_names_by_mcda(alts)
+    order_index = {name: idx for idx, name in enumerate(preferred_order)}
+    trees_data = sorted(trees_data, key=lambda d: order_index.get(d["name"], 10_000))
 
     if not embedded:
         st.markdown("---")
@@ -860,7 +882,11 @@ def _render_decision_matrix(ev_results, alts):
     
     color_map = _build_alternative_color_map(alts)
     
-    for item in combined_data:
+    preferred_order = _ordered_alternative_names_by_mcda(alts)
+    order_index = {name: idx for idx, name in enumerate(preferred_order)}
+    combined_for_chart = sorted(combined_data, key=lambda d: order_index.get(d["name"], 10_000))
+
+    for item in combined_for_chart:
         bubble_size = 20 + item["uncertainty"] * 16
         max_uncertainty = 10
         opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.85
