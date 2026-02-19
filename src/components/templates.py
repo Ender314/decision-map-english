@@ -9,6 +9,55 @@ import uuid
 from typing import Dict, List, Any
 
 
+def _new_template_tree_node(label: str, probability: int, score: float, node_type: str = "scenario", alt_id: str = None) -> Dict[str, Any]:
+    """Create a tree node for template-driven scenarios initialization."""
+    return {
+        "id": str(uuid.uuid4()),
+        "label": label,
+        "probability": int(probability),
+        "score": float(score),
+        "children": [],
+        "node_type": node_type,
+        "alt_id": alt_id,
+    }
+
+
+def _build_template_decision_tree(objetivo: str, alts: List[Dict[str, str]], scenarios: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Build canonical scenarios_decision_tree from template flat scenarios."""
+    root = _new_template_tree_node((objetivo or "Decisión")[:50], 100, 0.0, node_type="root", alt_id=None)
+
+    for alt in alts:
+        alt_id = alt.get("id")
+        alt_name = (alt.get("text") or "").strip()
+        if not alt_id or not alt_name:
+            continue
+
+        scenario_data = scenarios.get(alt_id, {}) if isinstance(scenarios, dict) else {}
+        p_best_pct = int(scenario_data.get("p_best_pct", 50)) if scenario_data else 50
+        p_best_pct = max(0, min(100, p_best_pct))
+        p_worst_pct = 100 - p_best_pct
+
+        best_score = float(scenario_data.get("best_score", 7.0)) if scenario_data else 7.0
+        worst_score = float(scenario_data.get("worst_score", 2.0)) if scenario_data else 2.0
+
+        alt_node = _new_template_tree_node(alt_name, 100, 5.0, node_type="alternative", alt_id=alt_id)
+        alt_node["children"] = [
+            _new_template_tree_node(
+                scenario_data.get("best_desc", "Mejor escenario") if scenario_data else "Mejor escenario",
+                p_best_pct,
+                best_score,
+            ),
+            _new_template_tree_node(
+                scenario_data.get("worst_desc", "Peor escenario") if scenario_data else "Peor escenario",
+                p_worst_pct,
+                worst_score,
+            ),
+        ]
+        root["children"].append(alt_node)
+
+    return root
+
+
 # Template definitions with humor
 DECISION_TEMPLATES = {
     "hire_vs_outsource": {
@@ -258,6 +307,8 @@ def load_template(template_id: str) -> bool:
         return False
     
     template = DECISION_TEMPLATES[template_id]
+
+    diag_marker = str(uuid.uuid4())
     
     # Clear existing data (preserve system keys)
     keys_to_preserve = [
@@ -267,12 +318,19 @@ def load_template(template_id: str) -> bool:
     current_state = {k: st.session_state[k] for k in keys_to_preserve}
     st.session_state.clear()
     st.session_state.update(current_state)
+
+    # Diagnostic breadcrumbs for post-load tab reset investigation.
+    st.session_state["_diag_last_load_source"] = "template"
+    st.session_state["_diag_last_load_marker"] = diag_marker
+    st.session_state["_diag_post_load_run_index"] = 0
     
     # Load basic data
     st.session_state["decision"] = template["decision"]
     st.session_state["objetivo"] = template["objetivo"]
     st.session_state["tiempo"] = template["tiempo"]
-    st.session_state["tiempo_user_override"] = False
+    # Keep loaded template tiempo stable until user explicitly changes it.
+    st.session_state["tiempo_user_override"] = True
+    st.session_state["tiempo_widget"] = template["tiempo"]
     
     # Load impact
     st.session_state["impacto_corto"] = template["impacto"]["corto"]
@@ -321,6 +379,20 @@ def load_template(template_id: str) -> bool:
                 "p_best_pct": scenario_data["p_best_pct"]
             }
     st.session_state["scenarios"] = scenarios
+
+    scenarios_decision_tree = _build_template_decision_tree(
+        st.session_state.get("objetivo", "Decisión"),
+        alts,
+        scenarios,
+    )
+    scenarios_tree_projection = {
+        child["alt_id"]: child
+        for child in scenarios_decision_tree.get("children", [])
+        if child.get("node_type") == "alternative" and child.get("alt_id")
+    }
+
+    st.session_state["scenarios_decision_tree"] = scenarios_decision_tree
+    st.session_state["scenarios_tree_projection"] = scenarios_tree_projection
     
     # Initialize empty collections for other data
     st.session_state["kpis"] = []
@@ -331,7 +403,16 @@ def load_template(template_id: str) -> bool:
     st.session_state["qualitative_notes"] = ""
     st.session_state["estrategia_corporativa"] = ""
     st.session_state["risks"] = {}
-    st.session_state["retro"] = {}
+    st.session_state["retro"] = {
+        "decision_date": None,
+        "review_date": None,
+        "chosen_alternative_id": None,
+        "outcomes": [],
+        "tripwires": [],
+        "lessons_learned": "",
+        "decision_quality_score": 3,
+        "outcome_quality_score": 3,
+    }
     
     return True
 

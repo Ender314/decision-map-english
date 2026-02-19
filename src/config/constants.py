@@ -75,7 +75,7 @@ DEFAULT_MCDA_CRITERIA = [
 
 # App metadata
 APP_NAME = "Decider Pro"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_ICON = "🧭"
 APP_FILENAME_PREFIX = APP_NAME.lower().replace(" ", "_")  # "decider_pro"
 
@@ -93,7 +93,7 @@ COLOR_NEUTRAL = "#718096"      # Gray - neutral, disabled
 
 # Advanced scenarios constraints
 ADV_SCENARIO_MAX_BRANCHES = 3
-ADV_SCENARIO_MAX_DEPTH = 2
+ADV_SCENARIO_MAX_DEPTH = 3
 
 # Scoring configuration
 SCORE_STEPS = [x / 2 for x in range(0, 11)]  # 0, 0.5, 1.0, ..., 5.0

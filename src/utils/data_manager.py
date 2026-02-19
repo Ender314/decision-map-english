@@ -77,7 +77,8 @@ def initialize_session_defaults() -> None:
         
         # Escenarios
         "scenarios": {},  # {alt_id: scenario_data}
-        "advanced_scenarios": {},  # {alt_id: decision_tree}
+        "scenarios_decision_tree": {},  # unified editable tree root
+        "scenarios_tree_projection": {},  # {alt_id: alternative_subtree}
         
         # Emotion notes (Resultados tab)
         "emotion_notes": "",
@@ -146,9 +147,13 @@ def validate_json_structure(data: Dict[str, Any]) -> Tuple[bool, str]:
     if not isinstance(scenarios, list):
         return False, "Estructura 'scenarios' debe ser una lista"
 
-    advanced_scenarios = data.get("advanced_scenarios", {})
-    if advanced_scenarios and not isinstance(advanced_scenarios, dict):
-        return False, "Estructura 'advanced_scenarios' debe ser un objeto"
+    scenarios_decision_tree = data.get("scenarios_decision_tree", {})
+    if scenarios_decision_tree and not isinstance(scenarios_decision_tree, dict):
+        return False, "Estructura 'scenarios_decision_tree' debe ser un objeto"
+
+    scenarios_tree_projection = data.get("scenarios_tree_projection", {})
+    if scenarios_tree_projection and not isinstance(scenarios_tree_projection, dict):
+        return False, "Estructura 'scenarios_tree_projection' debe ser un objeto"
     
     return True, "Estructura válida"
 
@@ -277,6 +282,60 @@ def _flatten_tree_to_legacy_row(alt_name: str, tree: Dict[str, Any]) -> Dict[str
     }
 
 
+def _project_unified_tree_to_per_alt(decision_tree: Dict[str, Any]) -> Dict[str, Any]:
+    """Project unified decision tree into per-alternative subtree mapping."""
+    projected: Dict[str, Any] = {}
+    for child in decision_tree.get("children", []):
+        alt_id = child.get("alt_id")
+        if child.get("node_type") == "alternative" and alt_id:
+            projected[alt_id] = child
+    return projected
+
+
+def _build_unified_tree_from_projection(
+    decision_label: str,
+    imported_alts: List[Dict[str, Any]],
+    projection: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build unified tree root from per-alternative projection map."""
+    root = {
+        "id": str(uuid.uuid4()),
+        "label": (decision_label or "Decisión")[:50],
+        "probability": 100,
+        "score": 0,
+        "children": [],
+        "node_type": "root",
+        "alt_id": None,
+    }
+
+    for alt in imported_alts:
+        alt_id = alt.get("id")
+        alt_name = (alt.get("text") or "").strip()
+        if not alt_id or not alt_name:
+            continue
+
+        tree = projection.get(alt_id) or projection.get(alt_name)
+        if isinstance(tree, dict):
+            alt_node = json.loads(json.dumps(tree))
+        else:
+            alt_node = {
+                "id": str(uuid.uuid4()),
+                "label": alt_name,
+                "probability": 100,
+                "score": 5,
+                "children": [],
+            }
+
+        alt_node["label"] = alt_name
+        alt_node["node_type"] = "alternative"
+        alt_node["alt_id"] = alt_id
+        alt_node["probability"] = 100
+        alt_node.setdefault("children", [])
+        root["children"].append(alt_node)
+
+    return root
+
+
 def create_export_data() -> Dict[str, Any]:
     """Create export data from current session state."""
     from utils.calculations import scenario_expected_value, mcda_totals_and_ranking
@@ -295,15 +354,19 @@ def create_export_data() -> Dict[str, Any]:
     
     # Scenarios snapshot
     scenarios_state = st.session_state.get("scenarios", {})
-    advanced_scenarios_state = st.session_state.get("advanced_scenarios", {})
+    scenarios_tree_projection = st.session_state.get("scenarios_tree_projection", {})
+    scenarios_decision_tree = st.session_state.get("scenarios_decision_tree", {})
+    if (not isinstance(scenarios_tree_projection, dict) or not scenarios_tree_projection) and isinstance(scenarios_decision_tree, dict) and scenarios_decision_tree:
+        scenarios_tree_projection = _project_unified_tree_to_per_alt(scenarios_decision_tree)
+
     scenario_rows = []
-    if advanced_scenarios_state:
+    if isinstance(scenarios_tree_projection, dict) and scenarios_tree_projection:
         for alt in st.session_state.get("alts", []):
             alt_name = alt.get("text", "").strip()
             if not alt_name:
                 continue
             alt_id = alt.get("id")
-            tree = advanced_scenarios_state.get(alt_id)
+            tree = scenarios_tree_projection.get(alt_id)
             if tree:
                 scenario_rows.append(_flatten_tree_to_legacy_row(alt_name, tree))
 
@@ -378,7 +441,8 @@ def create_export_data() -> Dict[str, Any]:
             "weights_user_override": st.session_state.get("weights_user_override", False),
         },
         "scenarios": scenario_rows,
-        "advanced_scenarios": make_json_ready(advanced_scenarios_state),
+        "scenarios_decision_tree": make_json_ready(scenarios_decision_tree),
+        "scenarios_tree_projection": make_json_ready(scenarios_tree_projection),
         "no_negociables": _export_no_negociables(),
         "risks": _export_risks(),
         "retro": _export_retro(),
@@ -466,6 +530,11 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     current_state = {k: st.session_state[k] for k in keys_to_preserve}
     st.session_state.clear()
     st.session_state.update(current_state)
+
+    # Diagnostic breadcrumbs for post-load tab reset investigation.
+    st.session_state["_diag_last_load_source"] = "json"
+    st.session_state["_diag_last_load_marker"] = str(uuid.uuid4())
+    st.session_state["_diag_post_load_run_index"] = 0
     
     # Import basic data
     st.session_state["decision"] = data.get("decision", "")
@@ -481,10 +550,11 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     tiempo_data = data.get("asignacion_tiempo", {})
     if isinstance(tiempo_data, str):  # Handle old format
         st.session_state["tiempo"] = tiempo_data
-        st.session_state["tiempo_user_override"] = False
+        st.session_state["tiempo_user_override"] = True
     else:
         st.session_state["tiempo"] = tiempo_data.get("tiempo", "Menos de media hora")
-        st.session_state["tiempo_user_override"] = tiempo_data.get("tiempo_user_override", False)
+        st.session_state["tiempo_user_override"] = True
+    st.session_state["tiempo_widget"] = st.session_state.get("tiempo", "Menos de media hora")
     
     # Import objetivo
     st.session_state["objetivo"] = data.get("objetivo", "")
@@ -568,7 +638,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     st.session_state["mcda_scores"] = mcda.get("scores", {})
     st.session_state["weights_user_override"] = mcda.get("weights_user_override", False)
     
-    # Import scenarios (canonical tree + legacy flat bridge)
+    # Import scenarios (canonical tree + flat bridge for downstream modules)
     scenarios_data = data.get("scenarios", [])
     imported_scenarios = {}
     for scenario in scenarios_data:
@@ -591,48 +661,50 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
                 "p_best_pct": scenario.get("p_best_pct", 50)
             }
 
-    advanced_raw = data.get("advanced_scenarios", {})
-    advanced_scenarios = {}
+    decision_label = st.session_state.get("objetivo", "Decisión")
 
-    if isinstance(advanced_raw, dict) and advanced_raw:
-        for alt in imported_alts:
-            alt_id = alt["id"]
-            alt_name = alt.get("text", "")
-            tree = advanced_raw.get(alt_id) or advanced_raw.get(alt_name)
-            if isinstance(tree, dict):
-                tree_copy = json.loads(json.dumps(tree))
-                tree_copy["label"] = alt_name
-                tree_copy.setdefault("probability", 100)
-                tree_copy.setdefault("score", 0)
-                tree_copy.setdefault("children", [])
-                advanced_scenarios[alt_id] = tree_copy
+    decision_tree_raw = data.get("scenarios_decision_tree", {})
+    projection_raw = data.get("scenarios_tree_projection", {})
 
-    # Legacy scenarios-only imports are interpreted as one-level trees
-    for alt_id, scenario in imported_scenarios.items():
-        if alt_id not in advanced_scenarios:
-            alt_name = scenario.get("name", "")
-            advanced_scenarios[alt_id] = _create_tree_from_flat_scenario(alt_name, scenario)
+    decision_tree: Dict[str, Any]
+    if isinstance(decision_tree_raw, dict) and decision_tree_raw.get("children"):
+        decision_tree = json.loads(json.dumps(decision_tree_raw))
+    elif isinstance(projection_raw, dict) and projection_raw:
+        decision_tree = _build_unified_tree_from_projection(decision_label, imported_alts, projection_raw)
+    else:
+        fallback_projection = {
+            alt_id: _create_tree_from_flat_scenario(scenario.get("name", ""), scenario)
+            for alt_id, scenario in imported_scenarios.items()
+        }
+        decision_tree = _build_unified_tree_from_projection(decision_label, imported_alts, fallback_projection)
 
-    st.session_state["advanced_scenarios"] = advanced_scenarios
+    decision_tree["label"] = (decision_label or "Decisión")[:50]
+    decision_tree["node_type"] = "root"
+    decision_tree["alt_id"] = None
+    decision_tree["probability"] = 100
+    decision_tree.setdefault("children", [])
+
+    projected_scenarios_trees = _project_unified_tree_to_per_alt(decision_tree)
+    st.session_state["scenarios_decision_tree"] = decision_tree
+    st.session_state["scenarios_tree_projection"] = projected_scenarios_trees
 
     projected_scenarios = {}
-    if advanced_scenarios:
-        for alt in imported_alts:
-            alt_id = alt["id"]
-            alt_name = alt.get("text", "")
-            tree = advanced_scenarios.get(alt_id)
-            if tree:
-                row = _flatten_tree_to_legacy_row(alt_name, tree)
-                projected_scenarios[alt_id] = {
-                    "name": alt_name,
-                    "best_desc": row.get("best_desc", ""),
-                    "best_score": float(row.get("best_score", 0.0)),
-                    "worst_desc": row.get("worst_desc", ""),
-                    "worst_score": float(row.get("worst_score", 0.0)),
-                    "p_best": float(row.get("p_best", 0.0)),
-                    "p_best_pct": int(row.get("p_best_pct", 0)),
-                    "ev": float(row.get("EV", 0.0)),
-                }
+    for alt in imported_alts:
+        alt_id = alt["id"]
+        alt_name = alt.get("text", "")
+        tree = projected_scenarios_trees.get(alt_id)
+        if tree:
+            row = _flatten_tree_to_legacy_row(alt_name, tree)
+            projected_scenarios[alt_id] = {
+                "name": alt_name,
+                "best_desc": row.get("best_desc", ""),
+                "best_score": float(row.get("best_score", 0.0)),
+                "worst_desc": row.get("worst_desc", ""),
+                "worst_score": float(row.get("worst_score", 0.0)),
+                "p_best": float(row.get("p_best", 0.0)),
+                "p_best_pct": int(row.get("p_best_pct", 0)),
+                "ev": float(row.get("EV", 0.0)),
+            }
 
     st.session_state["scenarios"] = projected_scenarios or imported_scenarios
     
@@ -946,6 +1018,11 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
         keys_to_clear = set(st.session_state.keys()) - keys_to_preserve
         for key in keys_to_clear:
             del st.session_state[key]
+
+        # Diagnostic breadcrumbs for post-load tab reset investigation.
+        st.session_state["_diag_last_load_source"] = "excel"
+        st.session_state["_diag_last_load_marker"] = str(uuid.uuid4())
+        st.session_state["_diag_post_load_run_index"] = 0
         
         # Initialize defaults
         initialize_session_defaults()
@@ -983,6 +1060,10 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         st.session_state['impacto_medio'] = str(impacto) if pd.notna(impacto) else 'medio'
                     elif plazo == 'largo':
                         st.session_state['impacto_largo'] = str(impacto) if pd.notna(impacto) else 'bajo'
+
+        # Keep loaded tiempo stable until user explicitly changes it.
+        st.session_state['tiempo_user_override'] = True
+        st.session_state['tiempo_widget'] = st.session_state.get('tiempo', 'Menos de media hora')
         
         # Import alternatives
         if 'Alternativas' in excel_data:
@@ -1179,10 +1260,17 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                 
                 if imported_scenarios:
                     st.session_state['scenarios'] = imported_scenarios
-                    st.session_state['advanced_scenarios'] = {
+                    scenarios_tree_projection = {
                         alt_id: _create_tree_from_flat_scenario(scenario['name'], scenario)
                         for alt_id, scenario in imported_scenarios.items()
                     }
+                    decision_label = st.session_state.get('objetivo', 'Decisión')
+                    st.session_state['scenarios_tree_projection'] = scenarios_tree_projection
+                    st.session_state['scenarios_decision_tree'] = _build_unified_tree_from_projection(
+                        decision_label,
+                        st.session_state.get('alts', []),
+                        scenarios_tree_projection,
+                    )
         
         # Import Risks
         if 'Riesgos' in excel_data:

@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Interactive Advanced Scenarios tab - Decision tree with clickable nodes.
+Interactive Scenarios tab - unified decision tree with clickable nodes.
 Uses streamlit-agraph (vis.js) for interactive tree visualization.
-Same data model as advanced_scenarios.py but interaction happens on the graph.
+
+Canonical runtime state:
+- st.session_state["scenarios_decision_tree"] (single editable source of truth)
+- st.session_state["scenarios_tree_projection"] (derived per-alternative bridge)
 """
 
 import streamlit as st
@@ -24,6 +27,8 @@ MAX_NODE_BRANCHES = 4
 ALT_CHART_PALETTE = [
     "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
 ]
+STATE_SCENARIOS_TREE = "scenarios_decision_tree"
+STATE_SCENARIOS_PROJECTION = "scenarios_tree_projection"
 
 
 def _build_alternative_color_map(alts):
@@ -33,6 +38,49 @@ def _build_alternative_color_map(alts):
         name: ALT_CHART_PALETTE[idx % len(ALT_CHART_PALETTE)]
         for idx, name in enumerate(alt_names)
     }
+
+
+def _bootstrap_tree_from_flat_scenarios(decision_label, alts):
+    """Create a unified decision tree from flat scenarios bridge data."""
+    root = _new_decision_tree(decision_label[:50])
+    flat_scenarios = st.session_state.get("scenarios", {})
+
+    for alt in alts:
+        alt_id = alt.get("id")
+        alt_name = (alt.get("text") or "").strip()
+        if not alt_id or not alt_name:
+            continue
+
+        scenario = flat_scenarios.get(alt_id, {}) if isinstance(flat_scenarios, dict) else {}
+        p_best_pct = int(scenario.get("p_best_pct", 50)) if scenario else 50
+        p_best_pct = max(0, min(100, p_best_pct))
+        p_worst_pct = 100 - p_best_pct
+
+        best_score = int(float(scenario.get("best_score", 7))) if scenario else 7
+        worst_score = int(float(scenario.get("worst_score", 2))) if scenario else 2
+
+        alt_node = _new_node(
+            label=alt_name,
+            probability=100,
+            score=5,
+            node_type="alternative",
+            alt_id=alt_id,
+        )
+        alt_node["children"] = [
+            _new_node(
+                label=scenario.get("best_desc", "Mejor escenario") if scenario else "Mejor escenario",
+                probability=p_best_pct,
+                score=max(0, min(10, best_score)),
+            ),
+            _new_node(
+                label=scenario.get("worst_desc", "Peor escenario") if scenario else "Peor escenario",
+                probability=p_worst_pct,
+                score=max(0, min(10, worst_score)),
+            ),
+        ]
+        root["children"].append(alt_node)
+
+    return root
 
 
 def _ordered_alternative_names_by_mcda(alts):
@@ -48,7 +96,15 @@ def _ordered_alternative_names_by_mcda(alts):
     )
 
 
-# ── Tree data helpers (shared logic with advanced_scenarios.py) ────
+def _get_projected_scenarios_trees():
+    """Return per-alternative projected trees from canonical key."""
+    projected = st.session_state.get(STATE_SCENARIOS_PROJECTION, {})
+    if isinstance(projected, dict) and projected:
+        return projected
+    return {}
+
+
+# ── Tree data helpers ────
 
 def _hex_to_rgba(hex_color, alpha):
     """Convert #RRGGBB into rgba(r,g,b,a) string."""
@@ -388,24 +444,19 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         _tree_to_agraph(child, nodes, edges, depth + 1, is_global=is_global)
 
 
-def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False, remount_nonce=0):
+def _render_agraph_tree(tree, is_global=False, center_on_load=False):
     """Render an interactive agraph tree and return the selected node ID."""
     nodes = []
     edges = []
     _tree_to_agraph(tree, nodes, edges, is_global=is_global)
 
-    # streamlit-agraph does not accept a Streamlit `key` parameter in agraph().
-    # Use a tiny deterministic config change to force a remount on recenter.
     base_height = 450 + len(nodes) * 20
-    remount_offset = int(remount_nonce) % 2
 
     config = Config(
         directed=True,
         hierarchical=True,
-        height=base_height + remount_offset,
+        height=base_height,
         width=950,
-        # Keep physics stable to avoid one extra rerun caused by config toggles
-        # after recenter. Recenter/rezoom is handled via explicit remount nonce.
         physics=False,
         groups={},
         interaction={"hover": True, "dragView": True, "zoomView": True},
@@ -424,6 +475,7 @@ def _render_agraph_tree(tree, key_suffix, is_global=False, center_on_load=False,
             }
         },
     )
+    config.fit = bool(center_on_load)
     config.width = "100%"
     
     selected = agraph(
@@ -564,10 +616,14 @@ def render_interactive_scenarios_tab():
         return
     
     decision_label = st.session_state.get("objetivo", "Decisión").strip() or "Decisión"
-    if "advanced_scenarios_decision_tree" not in st.session_state:
-        st.session_state.advanced_scenarios_decision_tree = _new_decision_tree(decision_label[:50])
+    current_tree = st.session_state.get(STATE_SCENARIOS_TREE)
+    if not isinstance(current_tree, dict) or not current_tree:
+        if st.session_state.get("scenarios"):
+            st.session_state[STATE_SCENARIOS_TREE] = _bootstrap_tree_from_flat_scenarios(decision_label, all_alts)
+        else:
+            st.session_state[STATE_SCENARIOS_TREE] = _new_decision_tree(decision_label[:50])
 
-    decision_tree = st.session_state.advanced_scenarios_decision_tree
+    decision_tree = st.session_state[STATE_SCENARIOS_TREE]
     decision_tree["label"] = decision_label[:50]
     decision_tree["node_type"] = "root"
     decision_tree["alt_id"] = None
@@ -581,14 +637,15 @@ def render_interactive_scenarios_tab():
         recenter_requested = st.button("🎯 Centrar árbol", key="iact_center_tree_btn", help="Re-centra el árbol si se fue fuera de vista")
 
     if recenter_requested:
-        st.session_state["_iact_tree_recenter_nonce"] = st.session_state.get("_iact_tree_recenter_nonce", 0) + 1
-    tree_render_nonce = st.session_state.get("_iact_tree_recenter_nonce", 0)
+        st.session_state.pop("_iact_selected_global", None)
+        st.session_state["_iact_center_on_load_once"] = True
+
+    center_on_load = bool(st.session_state.pop("_iact_center_on_load_once", False))
 
     selected = _render_agraph_tree(
         decision_tree,
-        key_suffix=f"global_{tree_render_nonce}",
         is_global=True,
-        remount_nonce=tree_render_nonce,
+        center_on_load=center_on_load,
     )
 
     if selected:
@@ -613,7 +670,7 @@ def render_interactive_scenarios_tab():
         st.info("👆 Haz clic en un nodo del árbol para editarlo.")
 
     projected_trees = _project_unified_tree_to_per_alt(decision_tree)
-    st.session_state["advanced_scenarios"] = projected_trees
+    st.session_state[STATE_SCENARIOS_PROJECTION] = projected_trees
 
     allowed_alt_ids = {a["id"] for a in alts}
     st.session_state["scenarios"] = {
@@ -655,11 +712,12 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
     """Render per-alternative EV density (tree-derived) positioned on raw MCDA x-axis."""
     mcda_by_name = _build_mcda_score_lookup(alts)
 
+    projected_trees = _get_projected_scenarios_trees()
     trees_data = []
     for alt in alts:
         alt_id = alt["id"]
         alt_name = alt["text"].strip()
-        tree = st.session_state.advanced_scenarios.get(alt_id)
+        tree = projected_trees.get(alt_id)
         mcda = mcda_by_name.get(alt_name)
         if tree and mcda is not None:
             leaves = _collect_leaves(tree)
@@ -846,6 +904,8 @@ def _render_decision_matrix(ev_results, alts):
     w_mcda = mcda_weight_pct / 100.0
     w_ev = 1.0 - w_mcda
     
+    projected_trees = _get_projected_scenarios_trees()
+
     # Build combined data
     combined_data = []
     for row in ev_results:
@@ -855,7 +915,7 @@ def _render_decision_matrix(ev_results, alts):
         
         # Get tree for uncertainty
         alt_id = row["alt_id"]
-        tree = st.session_state.advanced_scenarios.get(alt_id)
+        tree = projected_trees.get(alt_id)
         leaves = _collect_leaves(tree) if tree else []
         scores = [l["score"] for l in leaves] if leaves else [0]
         uncertainty = max(scores) - min(scores)
@@ -987,11 +1047,16 @@ def _render_decision_matrix(ev_results, alts):
 def _render_mixture_distribution(alts):
     """Render smooth, deterministic mixture density using all tree leaves."""
 
+    projected_trees = _get_projected_scenarios_trees()
+    preferred_order = _ordered_alternative_names_by_mcda(alts)
+    order_index = {name: idx for idx, name in enumerate(preferred_order)}
+    color_map = _build_alternative_color_map(alts)
+
     trees_data = []
     for alt in alts:
         alt_id = alt["id"]
         alt_name = alt["text"].strip()
-        tree = st.session_state.advanced_scenarios.get(alt_id)
+        tree = projected_trees.get(alt_id)
         if tree:
             leaves = _collect_leaves(tree)
             if leaves:
@@ -1005,14 +1070,13 @@ def _render_mixture_distribution(alts):
     if not trees_data:
         return
 
+    trees_data = sorted(trees_data, key=lambda d: order_index.get(d["name"], 10_000))
+
     st.markdown("---")
     st.markdown("### 📈 Distribuciones de probabilidad")
     st.caption("Vista consolidada: un solo eje X (0-10) y bandas verticales por alternativa.")
 
     x = np.linspace(0.0, 10.0, 400)
-    palette = [
-        "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
-    ]
 
     fig = go.Figure()
     row_count = len(trees_data)
@@ -1023,7 +1087,7 @@ def _render_mixture_distribution(alts):
     for idx, td in enumerate(trees_data):
         # First alternative at top, last at bottom
         baseline = row_count - idx
-        color = palette[idx % len(palette)]
+        color = color_map.get(td["name"], ALT_CHART_PALETTE[idx % len(ALT_CHART_PALETTE)])
         leaves = td["leaves"]
         density = np.zeros_like(x)
         for leaf in leaves:

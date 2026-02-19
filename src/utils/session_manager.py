@@ -46,7 +46,8 @@ class SessionStateManager:
         
         # Scenarios
         "scenarios": {},
-        "advanced_scenarios": {},
+        "scenarios_decision_tree": {},
+        "scenarios_tree_projection": {},
         
         # No Negociables (hard constraints)
         "no_negociables": [],  # list of {"id": uuid, "text": constraint_description}
@@ -154,13 +155,16 @@ class SessionStateManager:
         for key, value in st.session_state.items():
             if isinstance(value, list) and len(value) == 0:
                 # Keep essential empty lists, clean others
-                if key not in ["alts", "priorities", "kpis", "timeline_items", "stakeholders", "past_decisions"]:
+                if key not in ["alts", "priorities", "kpis", "timeline_items", "stakeholders", "past_decisions", "no_negociables"]:
                     keys_to_clean.append(key)
             elif value is None and key.startswith("_temp"):
                 keys_to_clean.append(key)
         
         for key in keys_to_clean:
             del st.session_state[key]
+
+        # Diagnostic hook for investigating one-time tab reset behavior.
+        st.session_state["_diag_cleanup_last_removed"] = keys_to_clean
     
     @staticmethod
     def reset_section(section: str) -> None:
@@ -177,7 +181,11 @@ class SessionStateManager:
             "informacion": ["past_decisions", "kpis", "timeline_items", "stakeholders", 
                            "quantitative_notes", "qualitative_notes"],
             "mcda": ["mcda_criteria", "mcda_scores", "mcda_scores_df"],
-            "scenarios": ["scenarios", "advanced_scenarios"],
+            "scenarios": [
+                "scenarios",
+                "scenarios_decision_tree",
+                "scenarios_tree_projection",
+            ],
             "no_negociables": ["no_negociables", "no_negociables_scores"],
             "risks": ["risks"],
             "retro": ["retro"]
@@ -249,6 +257,29 @@ class SessionStateManager:
             orphaned_scenarios = scenario_ids - alt_ids
             if orphaned_scenarios:
                 errors.append(f"Orphaned scenarios found: {orphaned_scenarios}")
+
+        # Check canonical projection consistency
+        scenarios_projection = st.session_state.get("scenarios_tree_projection", {})
+        if isinstance(scenarios_projection, dict) and scenarios_projection and alts:
+            alt_ids = {alt.get("id") for alt in alts if isinstance(alt, dict)}
+            projection_ids = set(scenarios_projection.keys())
+            orphaned_projection = projection_ids - alt_ids
+            if orphaned_projection:
+                errors.append(f"Orphaned scenarios_tree_projection entries found: {orphaned_projection}")
+
+        # Check canonical decision tree level-1 alternative consistency
+        decision_tree = st.session_state.get("scenarios_decision_tree", {})
+        if isinstance(decision_tree, dict) and decision_tree.get("children") and alts:
+            alt_ids = {alt.get("id") for alt in alts if isinstance(alt, dict)}
+            tree_alt_ids = {
+                child.get("alt_id")
+                for child in decision_tree.get("children", [])
+                if isinstance(child, dict) and child.get("node_type") == "alternative"
+            }
+            tree_alt_ids.discard(None)
+            orphaned_tree_alt_ids = tree_alt_ids - alt_ids
+            if orphaned_tree_alt_ids:
+                errors.append(f"Orphaned scenarios_decision_tree alternatives found: {orphaned_tree_alt_ids}")
         
         return errors
 

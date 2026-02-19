@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Advanced Scenarios utilities — Plotly tree visualization and EV helpers.
-Used by the interactive scenarios tab for the read-only global tree.
+DEPRECATED: Advanced Scenarios utilities (Plotly tree visualization + EV helpers).
+Retained temporarily as reference during Escenarios consolidation.
+The active runtime/UI path is components/advanced_scenarios_interactive.py.
 """
 
 import plotly.graph_objects as go

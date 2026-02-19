@@ -22,12 +22,12 @@ Se centra en el módulo **Escenarios** y su integración con el resto de la app.
 
 - La pestaña **Escenarios** está activa en el flujo principal de análisis.
 - `components/scenarios.py` funciona como **wrapper** y delega en la implementación interactiva.
-- Motor principal actual: `components/advanced_scenarios_interactive.py`.
+- Motor principal actual: `components/scenarios_interactive_impl.py`.
 - El árbol se puede recentrar manualmente con botón **"🎯 Centrar árbol"**.
 
 Referencias:
 - `src/components/scenarios.py`
-- `src/components/advanced_scenarios_interactive.py`
+- `src/components/scenarios_interactive_impl.py`
 - `src/app_with_routing.py`
 
 ### Modelo actual en ejecución (alto nivel)
@@ -38,7 +38,8 @@ Referencias:
   - niveles siguientes: ramas/sub-ramas editables por interacción.
 - Visualización interactiva con `streamlit-agraph`.
 - Filtrado de alternativas descalificadas por **No Negociables**.
-- El centrado/rezoom del árbol se fuerza por remount controlado del componente (`_iact_tree_recenter_nonce`).
+- Estado canónico de edición: `scenarios_decision_tree` + proyección derivada `scenarios_tree_projection`.
+- El centrado/rezoom del árbol se activa por `Config.fit` bajo demanda (sin nonce de remount).
 
 ### Salidas actuales dentro de Escenarios
 
@@ -58,14 +59,14 @@ Referencias:
 
 ## 3) Compatibilidad de datos (estado actual)
 
-Actualmente conviven dos representaciones para mantener compatibilidad:
+Actualmente conviven dos representaciones para operación interna:
 
 1. **Canónica para edición** (árbol interactivo)
-2. **Proyección legacy** (`scenarios` plano) para módulos existentes (Resultados/Informe/export)
+2. **Proyección plana** (`scenarios`) para módulos existentes (Resultados/Informe/export)
 
 Resultado práctico:
-- Se puede seguir exportando/importando con compatibilidad histórica,
-- pero existe complejidad adicional por sincronización y puentes de formato.
+- Se prioriza funcionalidad actual y round-trip del formato vigente,
+- sin mirrors deprecated adicionales de sesión.
 
 ---
 
@@ -78,7 +79,7 @@ Resultado práctico:
 
 ### Señales de código transicional / posible obsolescencia
 
-- `advanced_scenarios.py` mantiene utilidades (p. ej. Plotly tree) que **no parecen formar parte del flujo principal activo**.
+- `advanced_scenarios.py_obsoleto` mantiene utilidades (p. ej. Plotly tree) **fuera del flujo principal activo**.
 - Existen funciones/constantes con aparente duplicidad o desalineación entre módulos.
 - Hay artefactos de UI/constantes que pueden provenir de iteraciones previas.
 - La estrategia de remount por micro-cambio de configuración para `agraph` es un workaround práctico y conviene revisarla si se actualiza `streamlit-agraph`.
@@ -100,6 +101,78 @@ Resultado práctico:
 ## 6) Registro de cambios (log)
 
 > Añadir nuevas entradas al inicio (orden descendente por fecha).
+
+### [2026-02-19] Fix de estabilidad de pestañas tras carga (Plantilla/Import)
+
+- **Síntoma observado:**
+  - Después de cargar una plantilla o import, la **primera interacción** que dispara rerun (p. ej. clic en nodo de Escenarios) devolvía al usuario a la primera pestaña (`Dimensionado`).
+  - Se reportó también comportamiento similar potencial en flujos de `Seguimiento` (subpestañas).
+- **Causa raíz confirmada:**
+  - No era un cambio de `tiempo` ni de topología lógica de pestañas (se validó con diagnósticos).
+  - El problema venía de **inestabilidad del árbol de elementos UI** entre reruns consecutivos post-carga:
+    - mensajes transitorios (`st.success`/`st.info`) aparecían y desaparecían antes del bloque de tabs,
+    - lo que podía alterar identidad/orden interno del layout y provocar reset visual de tab activa.
+- **Corrección aplicada:**
+  1. Se creó un contenedor estable (`status_slot`) antes de tabs y se renderizan ahí los mensajes transitorios.
+  2. Se mantuvo `tiempo` cargado como override (`tiempo_user_override=True`) en cargas por plantilla/JSON/Excel para evitar mutaciones automáticas no deseadas en el primer ciclo post-carga.
+  3. Se evitó cleanup de optimización en `run=0` y se preservó `no_negociables` vacío durante limpieza.
+- **Regla práctica para futuras pantallas con tabs (incl. Seguimiento):**
+  - Evitar que componentes condicionales aparezcan/desaparezcan justo antes de `st.tabs(...)` entre reruns críticos.
+  - Usar slots/contenedores estables para mensajes efímeros.
+  - Evitar limpieza agresiva de estado en el primer ciclo tras carga/import.
+- **Archivos relevantes:**
+  - `src/app_with_routing.py`
+  - `src/components/templates.py`
+  - `src/utils/data_manager.py`
+  - `src/utils/session_manager.py`
+  - (instrumentación temporal usada para diagnóstico en `app_with_routing.py`)
+
+### [2026-02-19] Limpieza agresiva de rutas deprecated de Escenarios
+
+- **Cambio implementado:**
+  - Se eliminan mirrors runtime `advanced_scenarios` / `advanced_scenarios_decision_tree` de defaults y writes.
+  - Se eliminan fallbacks deprecated en runtime e import/export (`data_manager`).
+  - Se mantiene modelo activo con `scenarios_decision_tree` + `scenarios_tree_projection` + puente plano `scenarios`.
+  - Se actualiza documentación técnica (`README`, `ai-instructions`) a estado canónico sin mirrors.
+  - Se ejecuta hard cut final de naming: implementación activa en `scenarios_interactive_impl.py` y archivos legacy renombrados a `*_obsoleto`.
+- **Motivación:** cerrar deuda transicional, reducir complejidad de estado y evitar rutas paralelas obsoletas.
+- **Archivos tocados:**
+  - `src/components/scenarios_interactive_impl.py`
+  - `src/components/advanced_scenarios_interactive.py_obsoleto`
+  - `src/components/advanced_scenarios.py_obsoleto`
+  - `src/utils/data_manager.py`
+  - `src/utils/session_manager.py`
+  - `src/components/templates.py`
+  - `README.md`
+  - `ai-instructions.md`
+- **Impacto funcional visible:** no cambia UX principal; se simplifica consistencia interna y mantenimiento.
+- **Impacto en compatibilidad (import/export/resultados/informe):** import/export se centra en formato canónico vigente (`scenarios_decision_tree` + `scenarios_tree_projection` + `scenarios`).
+- **Drift/obsolescencia detectada:** módulos legacy quedan aislados y etiquetados explícitamente con sufijo `_obsoleto`.
+- **Decisión tomada / pendiente:**
+  - Tomada: retirar mirrors deprecated de estado en este ciclo.
+  - Tomada: no eliminar archivos legacy por ahora; se renombran con `_obsoleto`.
+
+### [2026-02-19] Intento de consolidación de estado y datos (scenarios_decision_tree)
+
+- **Cambio implementado:**
+  - Se establece `scenarios_decision_tree` como fuente editable canónica en runtime.
+  - Se establece `scenarios_tree_projection` como proyección derivada por alternativa.
+  - Se habilita transición temporal de mirrors deprecated (retirados posteriormente en limpieza agresiva del mismo día).
+  - Se reemplaza estrategia de recentrado por remount nonce con `Config.fit` bajo demanda.
+  - Se alinea orden MCDA y mapeo de color entre `Vista básica`, `🔍 Detalle` y `Distribuciones`.
+  - Se actualiza import/export para incluir `scenarios_decision_tree` + `scenarios_tree_projection` en JSON vigente.
+- **Motivación:** consolidar una sola lógica de Escenarios, reducir deuda del workaround de recenter y estabilizar round-trip del formato actual.
+- **Archivos tocados:**
+  - `src/components/scenarios_interactive_impl.py` (antes `advanced_scenarios_interactive.py`)
+  - `src/utils/data_manager.py`
+  - `src/utils/session_manager.py`
+  - `src/components/advanced_scenarios.py_obsoleto` (renombrado como obsoleto)
+- **Impacto funcional visible:** edición y visualización unificadas sobre árbol canónico; recentrado simplificado; consistencia visual reforzada.
+- **Impacto en compatibilidad (import/export/resultados/informe):** foco en formato vigente (sin compromiso de compatibilidad retro completa); se conserva puente plano `scenarios` para downstream.
+- **Drift/obsolescencia detectada:** mirrors deprecated identificados como deuda (retirados posteriormente en limpieza agresiva).
+- **Decisión tomada / pendiente:**
+  - Tomada: `scenarios_decision_tree` como base única editable.
+  - Pendiente: validación final post-retiro de mirrors.
 
 ### [2026-02-19] Consolidación UX/visual de Escenarios interactivos
 
@@ -124,7 +197,7 @@ Resultado práctico:
 ### [2026-02-17] Baseline inicial del documento
 
 - Se crea este archivo como referencia viva de transición para Escenarios.
-- Se confirma que la ruta activa actual usa wrapper `scenarios.py` → `advanced_scenarios_interactive.py`.
+- Se confirma que la ruta activa actual usa wrapper `scenarios.py` → implementación interactiva (hoy `scenarios_interactive_impl.py`).
 - Se registra coexistencia de modelo canónico (árbol) + proyección legacy (plano) para compatibilidad.
 - Se identifica presencia de drift de documentación y posibles restos transicionales.
 
@@ -163,7 +236,7 @@ Este documento podrá congelarse (o migrarse a docs oficiales) cuando:
 
 ### A. Modelo de estado y consistencia interna
 
-- [ ] Validar que `advanced_scenarios_decision_tree` es la única fuente editable en runtime (sin writes paralelos conflictivos).
+- [x] Validar que `scenarios_decision_tree` es la única fuente editable en runtime (sin writes paralelos conflictivos).
 - [ ] Confirmar sincronización estable de nivel 1 (alternativas) al crear/editar/eliminar alternativas.
 - [ ] Verificar que el filtrado por **No Negociables** no deja nodos huérfanos ni escenarios proyectados inconsistentes.
 - [ ] Revisar y documentar invariantes de probabilidades por nodo padre (sumatoria esperada y reglas de rebalanceo).
@@ -171,8 +244,8 @@ Este documento podrá congelarse (o migrarse a docs oficiales) cuando:
 ### B. UX/flujo de interacción
 
 - [ ] Verificar que `Mostrar visualizaciones` evita render costoso mientras se edita el árbol.
-- [ ] Confirmar que el orden de alternativas es consistente en `Vista básica`, `🔍 Detalle` y distribuciones.
-- [ ] Confirmar que el mapeo de colores por alternativa es consistente en todas las vistas.
+- [x] Confirmar que el orden de alternativas es consistente en `Vista básica`, `🔍 Detalle` y distribuciones.
+- [x] Confirmar que el mapeo de colores por alternativa es consistente en todas las vistas.
 - [ ] Validar comportamiento del botón `🎯 Centrar árbol` (centrado + rezoom percibido) en sesiones largas.
 - [ ] Revisar mensajes de ayuda/captions para minimizar ambigüedad entre vista básica y detalle.
 
@@ -180,19 +253,19 @@ Este documento podrá congelarse (o migrarse a docs oficiales) cuando:
 
 - [ ] Medir reruns por interacción clave (editar nodo, bifurcar, eliminar, recentrar, cambiar tabs/toggle).
 - [ ] Confirmar que no persiste el patrón de "rerun extra" tras recentrar.
-- [ ] Evaluar impacto del workaround de remount (`_iact_tree_recenter_nonce`) y definir criterio de sustitución futura.
+- [x] Sustituir workaround de remount (`_iact_tree_recenter_nonce`) por recentrado basado en `Config.fit`.
 
 ### D. Compatibilidad de datos (import/export + downstream)
 
 - [ ] Testear export/import round-trip (JSON) preservando árbol canónico + proyección legacy.
-- [ ] Confirmar compatibilidad con archivos legacy (sin `advanced_scenarios` o con estructura parcial).
+- [ ] *(Fuera de alcance en este ciclo)* Confirmar compatibilidad con archivos legacy (sin `advanced_scenarios` o con estructura parcial).
 - [ ] Validar que `Resultados` e `Informe` siguen consumiendo datos esperados sin regresiones.
 
 ### E. Limpieza técnica y deuda transicional
 
-- [ ] Inventariar funciones/código no usados en `advanced_scenarios.py` vs flujo activo.
-- [ ] Identificar constantes/artefactos de UI duplicados o heredados que puedan consolidarse.
-- [ ] Decidir explicitamente qué componentes se quedan como "legacy bridge" y cuáles se deprecian.
+- [x] Inventariar funciones/código no usados en `advanced_scenarios.py_obsoleto` vs flujo activo.
+- [x] Identificar constantes/artefactos de UI duplicados o heredados que puedan consolidarse.
+- [x] Decidir explicitamente qué componentes se quedan como "legacy bridge" y cuáles se deprecian.
 
 ### F. Evidencia de estabilidad antes de cerrar transición
 
