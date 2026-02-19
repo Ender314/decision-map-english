@@ -1,5 +1,10 @@
 # Evolución de la planificación de escenarios
 
+> **Estado:** ARCHIVADO (2026-02-19)
+>
+> Este documento cumplió su propósito como bitácora de transición.
+> Para documentación activa, usar `README.md` y `ai-instructions.md`.
+
 > Documento vivo de transición técnica para registrar el estado real de **Escenarios**, decisiones en evaluación, drift entre documentación/código y posibles restos obsoletos.
 
 ## 1) Propósito y alcance

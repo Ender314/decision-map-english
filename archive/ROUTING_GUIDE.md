@@ -1,5 +1,10 @@
 # Lambda Pro - Integrated Routing System
 
+> **Estado:** ARCHIVADO (2026-02-19)
+>
+> Guía histórica de implementación inicial del routing.
+> Referencia activa: `src/app_with_routing.py` y `README.md`.
+
 ## 🚀 Overview
 
 The Lambda Pro application now includes an integrated routing system that seamlessly combines the landing page with the main application functionality. Users can navigate between the marketing landing page and the decision analysis tools without losing their session data.

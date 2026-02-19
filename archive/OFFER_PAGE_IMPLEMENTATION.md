@@ -1,5 +1,10 @@
 # Lambda Pro - Offer Page Implementation
 
+> **Estado:** ARCHIVADO (2026-02-19)
+>
+> Documento de implementación puntual (snapshot histórico).
+> Referencia activa: `src/components/offer_page.py` y `src/app_with_routing.py`.
+
 ## Overview
 Successfully implemented a comprehensive marketing landing page for the "Decision Mastery System" offer, integrated with the existing Lambda Pro application routing system.
 

@@ -1,5 +1,10 @@
 # 🚀 Lambda Pro Performance Improvements
 
+> **Estado:** ARCHIVADO (2026-02-19)
+>
+> Documento de mejoras de rendimiento de una iteración previa.
+> Referencia activa: `src/utils/performance.py`, `src/utils/session_manager.py` y `README.md`.
+
 ## Overview
 This document outlines the performance optimizations and session state management improvements implemented for Lambda Pro v1.6.
 
