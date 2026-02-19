@@ -21,6 +21,18 @@ import pandas as pd
 
 MAX_TREE_DEPTH = 3
 MAX_NODE_BRANCHES = 4
+ALT_CHART_PALETTE = [
+    "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
+]
+
+
+def _build_alternative_color_map(alts):
+    """Return a stable color per alternative for cross-chart consistency."""
+    alt_names = [a.get("text", "").strip() for a in alts if a.get("text", "").strip()]
+    return {
+        name: ALT_CHART_PALETTE[idx % len(ALT_CHART_PALETTE)]
+        for idx, name in enumerate(alt_names)
+    }
 
 
 # ── Tree data helpers (shared logic with advanced_scenarios.py) ────
@@ -62,15 +74,15 @@ def _new_decision_tree(decision_label):
 
 def _build_mcda_score_lookup(alts):
     """Return MCDA score lookup by alternative name for ordering/hints."""
-    if not (
-        st.session_state.get("mcda_scores")
-        and "mcda_scores_df" in st.session_state
-        and "mcda_criteria" in st.session_state
-    ):
+    if not st.session_state.get("mcda_scores"):
         return {}
 
-    scores_df = st.session_state.mcda_scores_df
-    _, ranking_all = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+    scores_df = st.session_state.get("mcda_scores_df")
+    criteria = st.session_state.get("mcda_criteria")
+    if not isinstance(scores_df, pd.DataFrame) or scores_df.empty or not criteria:
+        return {}
+
+    _, ranking_all = mcda_totals_and_ranking(scores_df.copy(), criteria)
     qualified_names = {a["text"].strip() for a in alts}
     return {
         item["alternativa"]: item["score"]
@@ -434,43 +446,56 @@ def _render_action_panel(tree, selected_id):
         else:
             st.caption("Esta alternativa ya está bifurcada. Edita o añade sub-ramas en sus nodos hijos.")
     else:
-        # Editable node
-        c1, c2 = st.columns(2)
-        with c1:
-            new_label = st.text_input(
-                "Descripción", value=node["label"],
-                key=f"iact_lbl_{selected_id}",
-                placeholder="Describe este escenario..."
-            )
+        # Editable node (batched update to avoid rerun on each keystroke/slider step)
+        with st.form(key=f"iact_edit_form_{selected_id}", clear_on_submit=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                new_label = st.text_input(
+                    "Descripción", value=node["label"],
+                    key=f"iact_lbl_{selected_id}",
+                    placeholder="Describe este escenario..."
+                )
+
+            with c2:
+                col_p, col_s = st.columns(2)
+                with col_p:
+                    new_prob = st.number_input(
+                        "Probabilidad %",
+                        min_value=0, max_value=100, step=5,
+                        value=int(node["probability"]),
+                        key=f"iact_prob_{selected_id}"
+                    )
+                with col_s:
+                    new_score = st.slider(
+                        "Puntuación (0-10)",
+                        min_value=0, max_value=10, step=1,
+                        value=int(node["score"]),
+                        key=f"iact_score_{selected_id}"
+                    )
+
+            submit_col_left, submit_col_center, submit_col_right = st.columns([1, 1, 1])
+            with submit_col_center:
+                submitted = st.form_submit_button("💾 Aplicar cambios", use_container_width=True)
+
+        if submitted:
+            changed = False
             if new_label != node["label"]:
                 node["label"] = new_label
+                changed = True
+
+            if int(new_prob) != int(node["probability"]):
+                if parent is not None:
+                    _rebalance_sibling_probabilities(parent, selected_id, int(new_prob))
+                else:
+                    node["probability"] = int(new_prob)
+                changed = True
+
+            if int(new_score) != int(node["score"]):
+                node["score"] = int(new_score)
+                changed = True
+
+            if changed:
                 st.rerun()
-        
-        with c2:
-            col_p, col_s = st.columns(2)
-            with col_p:
-                new_prob = st.number_input(
-                    "Probabilidad %",
-                    min_value=0, max_value=100, step=5,
-                    value=node["probability"],
-                    key=f"iact_prob_{selected_id}"
-                )
-                if new_prob != node["probability"]:
-                    if parent is not None:
-                        _rebalance_sibling_probabilities(parent, selected_id, new_prob)
-                    else:
-                        node["probability"] = int(new_prob)
-                    st.rerun()
-            with col_s:
-                new_score = st.slider(
-                    "Puntuación (0-10)",
-                    min_value=0, max_value=10, step=1,
-                    value=node["score"],
-                    key=f"iact_score_{selected_id}"
-                )
-                if new_score != node["score"]:
-                    node["score"] = new_score
-                    st.rerun()
         
         # Action buttons
         btn_cols = st.columns(3)
@@ -584,20 +609,29 @@ def render_interactive_scenarios_tab():
         if tree:
             _sync_tree_to_flat(alt_id, alt_name, tree)
             ev_results.append({"alt_name": alt_name, "alt_id": alt_id, "ev": _calculate_ev(tree)})
-    
-    # ── Merged view: MCDA × EV density (violin-like) ──────────────
-    _render_mcda_ev_density_bridge(alts)
 
-    # ── Smooth mixture distribution (PERT-equivalent) ─────────────
+    st.markdown("---")
+    show_visualizations = st.toggle(
+        "Mostrar visualizaciones",
+        value=False,
+        key="_iact_show_visualizations",
+        help="Activa todas las visualizaciones (Distribuciones, Matriz de Decisión y MCDA × EV) cuando el árbol esté listo.",
+    )
+
+    if not show_visualizations:
+        st.caption("💡 Activa **Mostrar visualizaciones** para renderizar los gráficos cuando termines de editar el árbol.")
+        return
+
+    # Render first right after tree definition controls
     _render_mixture_distribution(alts)
 
-    # ── Decision Matrix (MCDA × EV) ───────────────────────────────
+    # Keep remaining visualizations available under the same toggle
     _render_decision_matrix(ev_results, alts)
 
 
 # ── Merged chart: MCDA × EV density ───────────────────────────────
 
-def _render_mcda_ev_density_bridge(alts):
+def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_density_bridge"):
     """Render per-alternative EV density (tree-derived) positioned on raw MCDA x-axis."""
     mcda_by_name = _build_mcda_score_lookup(alts)
 
@@ -622,119 +656,145 @@ def _render_mcda_ev_density_bridge(alts):
 
     trees_data = sorted(trees_data, key=lambda d: d["mcda"])
 
-    st.markdown("---")
-    st.markdown("### 🧬 MCDA × EV (densidad por alternativa)")
-    st.caption("Eje X = MCDA (0-5). Eje Y = EV (0-10). Cada violín usa las hojas del árbol y sus probabilidades efectivas.")
+    if not embedded:
+        st.markdown("---")
+        st.markdown("### 🧬 MCDA × EV (densidad por alternativa)")
+        st.caption("Eje X = MCDA (0-5). Eje Y = score de cada hoja (0-10). Cada círculo representa una hoja; la opacidad sigue su probabilidad efectiva (path_prob). En alternativas ramificadas, se muestra un contorno sutil de distribución y una marca sutil del EV.")
 
-    y_grid = np.linspace(0.0, 10.0, 300)
-    violin_half_width = 0.22
-    palette = [
-        "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
-    ]
+    color_map = _build_alternative_color_map(alts)
 
     fig = go.Figure()
+    y_kernel_grid = np.linspace(0.0, 10.0, 220)
 
     for idx, td in enumerate(trees_data):
-        color = palette[idx % len(palette)]
-        density = np.zeros_like(y_grid)
-
-        for leaf in td["leaves"]:
-            score = float(leaf["score"])
-            weight = max(0.0, float(leaf["path_prob"]))
-            sigma = 0.35 + 0.9 * (1.0 - min(weight, 1.0))
-            z = (y_grid - score) / sigma
-            gaussian = np.exp(-0.5 * (z ** 2)) / (sigma * np.sqrt(2 * np.pi))
-            gaussian[np.abs(z) > 2.25] = 0.0
-            density += weight * gaussian
-
-        area = np.trapezoid(density, y_grid) if hasattr(np, "trapezoid") else np.trapz(density, y_grid)
-        if area > 0:
-            density = density / area
-
-        peak = float(np.max(density)) if len(density) else 0.0
-        if peak > 0:
-            density[density < (peak * 0.02)] = 0.0
-            area_after_trim = np.trapezoid(density, y_grid) if hasattr(np, "trapezoid") else np.trapz(density, y_grid)
-            if area_after_trim > 0:
-                density = density / area_after_trim
-
-        peak = float(np.max(density)) if len(density) else 0.0
-        if peak <= 0:
+        color = color_map.get(td["name"], ALT_CHART_PALETTE[idx % len(ALT_CHART_PALETTE)])
+        leaves = td["leaves"]
+        if not leaves:
             continue
 
-        unbranched = len(td["leaves"]) == 1
-        width_multiplier = 0.55 if unbranched else 1.0
-        width_scale = (density / peak) * violin_half_width * width_multiplier
-        support_mask = width_scale > 1e-4
-        if np.count_nonzero(support_mask) < 3:
-            continue
-
-        y_support = y_grid[support_mask]
-        width_support = width_scale[support_mask]
-        x_center = td["mcda"]
-        x_right = x_center + width_support
-        x_left = x_center - width_support
-
-        x_poly = np.concatenate([x_right, x_left[::-1]])
-        y_poly = np.concatenate([y_support, y_support[::-1]])
+        x_vals = [td["mcda"]] * len(leaves)
+        y_vals = [float(leaf["score"]) for leaf in leaves]
+        path_probs = [max(0.0, min(1.0, float(leaf.get("path_prob", 0.0)))) for leaf in leaves]
+        marker_opacity = [max(0.08, p) for p in path_probs]
+        marker_sizes = [15 + (8 * p) for p in path_probs]
+        customdata = [[leaf.get("label", ""), p * 100] for leaf, p in zip(leaves, path_probs)]
 
         fig.add_trace(go.Scatter(
-            x=x_poly,
-            y=y_poly,
-            mode="lines",
-            fill="toself",
-            line=dict(color=color, width=1.2),
-            fillcolor=_hex_to_rgba(color, 0.28),
-            opacity=0.35,
+            x=x_vals,
+            y=y_vals,
+            mode="markers",
+            marker=dict(
+                size=marker_sizes,
+                color=color,
+                opacity=marker_opacity,
+                line=dict(width=1, color="white"),
+            ),
             name=td["name"],
             hovertemplate=(
                 f"<b>{td['name']}</b><br>"
                 f"MCDA: {td['mcda']:.2f}<br>"
-                "EV (eje Y): %{y:.2f}<br>"
-                "Densidad relativa: %{customdata:.3f}<extra></extra>"
+                "Score hoja: %{y:.2f}<br>"
+                "Hoja: %{customdata[0]}<br>"
+                "Prob. efectiva: %{customdata[1]:.1f}%<extra></extra>"
             ),
-            customdata=np.concatenate([density[support_mask], density[support_mask][::-1]]),
+            customdata=customdata,
             showlegend=True,
         ))
 
-        fig.add_trace(go.Scatter(
-            x=[x_center],
-            y=[td["ev"]],
-            mode="markers",
-            marker=dict(size=9, color=color, symbol="diamond", line=dict(width=1, color="white")),
-            hovertemplate=(
-                f"<b>{td['name']}</b><br>"
-                f"MCDA: {td['mcda']:.2f}<br>"
-                f"EV: {td['ev']:.2f}<extra></extra>"
-            ),
-            showlegend=False,
-        ))
+        # Branch-only subtle distribution outline + subtle EV marker
+        if len(leaves) > 1:
+            density = np.zeros_like(y_kernel_grid)
+            for leaf in leaves:
+                score = float(leaf["score"])
+                weight = max(0.0, float(leaf.get("path_prob", 0.0)))
+                sigma = 0.40 + 0.8 * (1.0 - min(weight, 1.0))
+                z = (y_kernel_grid - score) / sigma
+                gaussian = np.exp(-0.5 * (z ** 2)) / (sigma * np.sqrt(2 * np.pi))
+                gaussian[np.abs(z) > 2.3] = 0.0
+                density += weight * gaussian
+
+            peak = float(np.max(density)) if len(density) else 0.0
+            if peak > 0:
+                width_scale = (density / peak) * 0.12
+                support_mask = width_scale > 1e-4
+                if np.count_nonzero(support_mask) >= 3:
+                    y_support = y_kernel_grid[support_mask]
+                    width_support = width_scale[support_mask]
+                    x_center = td["mcda"]
+
+                    fig.add_trace(go.Scatter(
+                        x=x_center + width_support,
+                        y=y_support,
+                        mode="lines",
+                        line=dict(color=color, width=1.0),
+                        opacity=0.15,
+                        hoverinfo="skip",
+                        showlegend=False,
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=x_center - width_support,
+                        y=y_support,
+                        mode="lines",
+                        line=dict(color=color, width=1.0),
+                        opacity=0.15,
+                        hoverinfo="skip",
+                        showlegend=False,
+                    ))
+
+            fig.add_trace(go.Scatter(
+                x=[td["mcda"]],
+                y=[td["ev"]],
+                mode="markers",
+                marker=dict(size=8, symbol="diamond-open", color=color, line=dict(width=1.2, color=color)),
+                opacity=0.25,
+                hovertemplate=(
+                    f"<b>{td['name']}</b><br>"
+                    f"MCDA: {td['mcda']:.2f}<br>"
+                    f"EV: {td['ev']:.2f}<extra></extra>"
+                ),
+                showlegend=False,
+            ))
+
+    # Matrix-like quadrant framing (x split at 2.5 on MCDA scale, y split at 5 on EV 0-10 scale)
+    fig.add_shape(type="rect", x0=0, y0=5, x1=2.5, y1=10, fillcolor="rgba(59, 130, 246, 0.05)", line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=2.5, y0=5, x1=5, y1=10, fillcolor="rgba(56, 161, 105, 0.06)", line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=0, y0=0, x1=2.5, y1=5, fillcolor="rgba(229, 62, 62, 0.05)", line=dict(width=0), layer="below")
+    fig.add_shape(type="rect", x0=2.5, y0=0, x1=5, y1=5, fillcolor="rgba(246, 173, 85, 0.05)", line=dict(width=0), layer="below")
+
+    fig.add_vline(x=2.5, line_dash="dash", line_color="#cbd5e0", opacity=0.8)
+    fig.add_hline(y=5, line_dash="dash", line_color="#cbd5e0", opacity=0.8)
+
+    fig.add_annotation(x=1.25, y=9.0, text="Explorar", showarrow=False, font=dict(size=10, color="#718096"))
+    fig.add_annotation(x=3.75, y=9.0, text="Priorizar", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
+    fig.add_annotation(x=1.25, y=1.0, text="Descartar", showarrow=False, font=dict(size=10, color="#718096"))
+    fig.add_annotation(x=3.75, y=1.0, text="Revisar supuestos", showarrow=False, font=dict(size=10, color="#718096"))
 
     fig.update_layout(
-        height=430,
-        margin=dict(l=40, r=20, t=20, b=40),
+        height=400,
+        margin=dict(l=60, r=20, t=40, b=60),
         xaxis=dict(title="Puntuación MCDA (0-5)", range=[0, 5.1], dtick=0.5, showgrid=False),
         yaxis=dict(
             title="Valor Esperado (EV, 0-10)",
             range=[0, 10],
-            dtick=1,
-            showgrid=True,
-            gridcolor="rgba(100, 116, 139, 0.10)",
-            gridwidth=0.6,
+            dtick=2,
+            showgrid=False,
         ),
         legend=dict(
             title="Alternativas",
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
+            x=1.02,
+            y=1.0,
             xanchor="left",
-            x=0,
+            yanchor="top",
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="rgba(0,0,0,0.15)",
+            borderwidth=1,
         ),
         plot_bgcolor="white",
     )
 
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="mcda_ev_density_bridge")
-    st.caption("Comparación piloto: mantenemos también las dos vistas actuales debajo para validar lectura y utilidad.")
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=chart_key)
+    if not embedded:
+        st.caption("Comparación piloto: mantenemos también las dos vistas actuales debajo para validar lectura y utilidad.")
 
 
 # ── Decision Matrix section ───────────────────────────────────────
@@ -745,9 +805,10 @@ def _render_decision_matrix(ev_results, alts):
     # Need MCDA scores
     mcda_ranking = []
     if "mcda_scores" in st.session_state and st.session_state.mcda_scores:
-        if "mcda_scores_df" in st.session_state and "mcda_criteria" in st.session_state:
-            scores_df = st.session_state.mcda_scores_df
-            _, mcda_ranking_all = mcda_totals_and_ranking(scores_df.copy(), st.session_state.mcda_criteria)
+        scores_df = st.session_state.get("mcda_scores_df")
+        criteria = st.session_state.get("mcda_criteria")
+        if isinstance(scores_df, pd.DataFrame) and not scores_df.empty and criteria:
+            _, mcda_ranking_all = mcda_totals_and_ranking(scores_df.copy(), criteria)
             qualified_names = {a["text"].strip() for a in alts}
             mcda_ranking = [item for item in mcda_ranking_all if item["alternativa"] in qualified_names]
     
@@ -797,8 +858,7 @@ def _render_decision_matrix(ev_results, alts):
     # Bubble chart
     fig = go.Figure()
     
-    max_composite = max(d["composite"] for d in combined_data)
-    min_composite = min(d["composite"] for d in combined_data)
+    color_map = _build_alternative_color_map(alts)
     
     for item in combined_data:
         bubble_size = 20 + item["uncertainty"] * 16
@@ -811,10 +871,7 @@ def _render_decision_matrix(ev_results, alts):
             mode="markers",
             marker=dict(
                 size=bubble_size,
-                color=item["composite"],
-                colorscale="Viridis",
-                cmin=min_composite,
-                cmax=max_composite,
+                color=color_map.get(item["name"], COLOR_PRIMARY),
                 opacity=opacity,
                 line=dict(width=2, color="white")
             ),
@@ -848,8 +905,14 @@ def _render_decision_matrix(ev_results, alts):
         plot_bgcolor="white"
     )
     
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="interactive_decision_matrix")
-    st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor hoja). Burbujas más grandes indican mayor variabilidad.")
+    chart_tab, advanced_tab = st.tabs(["Vista básica", "🔍 Detalle"])
+
+    with chart_tab:
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="interactive_decision_matrix")
+        st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor hoja). Burbujas más grandes indican mayor variabilidad.")
+
+    with advanced_tab:
+        _render_mcda_ev_density_bridge(alts, embedded=True, chart_key="mcda_ev_density_bridge_tab")
     
     # Composite weight control (compact, right before ranking impact)
     st.markdown("")
@@ -898,8 +961,6 @@ def _render_decision_matrix(ev_results, alts):
 def _render_mixture_distribution(alts):
     """Render smooth, deterministic mixture density using all tree leaves."""
 
-    mcda_by_name = _build_mcda_score_lookup(alts)
-
     trees_data = []
     for alt in alts:
         alt_id = alt["id"]
@@ -909,10 +970,10 @@ def _render_mixture_distribution(alts):
             leaves = _collect_leaves(tree)
             if leaves:
                 trees_data.append({
+                    "alt_id": alt_id,
                     "name": alt_name,
                     "leaves": leaves,
                     "ev": _calculate_ev(tree),
-                    "mcda": mcda_by_name.get(alt_name),
                 })
 
     if not trees_data:
@@ -920,21 +981,28 @@ def _render_mixture_distribution(alts):
 
     st.markdown("---")
     st.markdown("### 📈 Distribuciones de probabilidad")
-    st.caption("Distribuciones ponderadas por probabilidad efectiva de cada hoja")
+    st.caption("Vista consolidada: un solo eje X (0-10) y bandas verticales por alternativa.")
 
     x = np.linspace(0.0, 10.0, 400)
-    fig = go.Figure()
+    palette = [
+        "#2563eb", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16", "#f97316",
+    ]
 
-    for td in trees_data:
+    fig = go.Figure()
+    row_count = len(trees_data)
+    alt_tickvals = []
+    alt_ticktext = []
+    band_half_height = 0.38
+
+    for idx, td in enumerate(trees_data):
+        # First alternative at top, last at bottom
+        baseline = row_count - idx
+        color = palette[idx % len(palette)]
         leaves = td["leaves"]
-        mcda = td.get("mcda")
-        shift = 0.0
-        if mcda is not None:
-            shift = (float(mcda) - 2.5) * 0.35
         density = np.zeros_like(x)
         for leaf in leaves:
-            score = float(leaf["score"]) + shift
-            weight = max(0.0, float(leaf["path_prob"]))
+            score = float(leaf["score"])
+            weight = max(0.0, float(leaf.get("path_prob", 0.0)))
             # Smooth deterministic kernel around each leaf score
             sigma = 0.35 + 0.9 * (1.0 - min(weight, 1.0))
             gaussian = np.exp(-0.5 * ((x - score) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
@@ -945,51 +1013,98 @@ def _render_mixture_distribution(alts):
         if area > 0:
             density = density / area
 
+        peak = float(np.max(density)) if len(density) else 0.0
+        if peak > 0:
+            density_scaled = (density / peak) * band_half_height
+        else:
+            density_scaled = np.zeros_like(density)
+
+        ev = float(td["ev"])
+        ev_y = baseline + np.interp(ev, x, density_scaled)
+
+        y_upper = baseline + density_scaled
+
+        # Baseline (used as fill origin)
         fig.add_trace(go.Scatter(
             x=x,
-            y=density,
+            y=np.full_like(x, baseline, dtype=float),
             mode="lines",
-            fill="tozeroy",
-            name=td["name"],
-            line=dict(width=2),
+            line=dict(width=0, color=color),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+        # Upper boundary + fill to create one-sided density area per alternative
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y_upper,
+            mode="lines",
+            fill="tonexty",
+            line=dict(width=1.6, color=color),
+            fillcolor=_hex_to_rgba(color, 0.18),
             hovertemplate=(
                 f"<b>{td['name']}</b><br>"
                 "Puntuación: %{x:.2f}<br>"
-                "Densidad relativa: %{y:.3f}<extra></extra>"
-            )
+                "Densidad (escalada): %{customdata:.3f}<extra></extra>"
+            ),
+            customdata=density_scaled,
+            showlegend=False,
         ))
 
         # EV marker
-        ev_shifted = td["ev"] + shift
-        ev_y = np.interp(ev_shifted, x, density)
         fig.add_trace(go.Scatter(
-            x=[ev_shifted],
+            x=[ev],
             y=[ev_y],
             mode="markers+text",
             marker=dict(size=11, color=COLOR_PRIMARY, symbol="diamond", line=dict(width=1, color="white")),
-            text=[f"EV {td['ev']:.1f}"],
+            text=[f"EV {ev:.1f}"],
             textposition="top center",
             textfont=dict(size=10, color=COLOR_PRIMARY),
             hovertemplate=(
                 f"<b>{td['name']}</b><br>"
-                f"EV: {td['ev']:.2f}<br>"
-                f"Offset MCDA: {shift:+.2f}<extra></extra>"
+                f"EV: {ev:.2f}<extra></extra>"
             ),
             showlegend=False,
         ))
 
+        alt_tickvals.append(baseline)
+        alt_ticktext.append(td["name"])
+
+        # Separator between alternatives
+        if baseline > 1:
+            fig.add_hline(
+                y=baseline - 0.5,
+                line_width=0.8,
+                line_color="rgba(148,163,184,0.22)",
+            )
+
     fig.update_layout(
-        height=380,
-        margin=dict(l=30, r=20, t=15, b=40),
-        xaxis=dict(title="Puntuación (0-10)", range=[0, 10], dtick=1, showgrid=False),
-        yaxis=dict(
-            title="Densidad relativa",
-            showgrid=True,
-            gridcolor="rgba(100, 116, 139, 0.12)",
-            gridwidth=0.6,
-        ),
+        height=max(280, 120 * row_count),
+        margin=dict(l=30, r=20, t=40, b=30),
         plot_bgcolor="white",
+        showlegend=False,
+        xaxis=dict(
+            title="Puntuación (0-10)",
+            range=[0, 10],
+            dtick=1,
+            showgrid=False,
+        ),
+        yaxis=dict(
+            title="Alternativa",
+            tickmode="array",
+            tickvals=alt_tickvals,
+            ticktext=alt_ticktext,
+            range=[0.5, row_count + 0.7],
+            showgrid=False,
+            zeroline=False,
+        ),
     )
 
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="mixture_distribution_chart")
-    st.caption("💎 Cada diamante marca el EV. La curva integra todas las hojas del árbol y sus probabilidades efectivas.")
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config={"displayModeBar": False},
+        key="mixture_distribution_chart_multi_axis",
+    )
+
+    st.caption("💎 Cada fila muestra la distribución de una alternativa y su EV sobre la escala 0–10.")
