@@ -464,7 +464,7 @@ def render_risk_analysis_tab():
                 margin=dict(l=60, r=20, t=40, b=60)
             )
             
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
             st.caption("📐 **Tamaño de burbuja** = puntuación de riesgo (probabilidad × impacto)")
         
         # Risk ranking table
@@ -484,7 +484,7 @@ def render_risk_analysis_tab():
                 })
             
             if ranking_data:
-                st.dataframe(pd.DataFrame(ranking_data), use_container_width=True)
+                st.dataframe(pd.DataFrame(ranking_data), width="stretch")
     
     else:
         st.info("No hay riesgos identificados. Añade el primer riesgo arriba.")

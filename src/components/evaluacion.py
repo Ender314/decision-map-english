@@ -299,7 +299,7 @@ def render_evaluacion_tab():
             # Create radar chart for top 3 alternatives
             top_alts = ranking_list[:3]
             fig = create_mcda_radar_chart(scores_df, prioridad_names, [alt["alternativa"] for alt in top_alts])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         except Exception as e:
             st.info("💡 Error al generar gráfico radar")
         
@@ -360,7 +360,7 @@ def render_evaluacion_tab():
             yaxis=dict(showgrid=False),
             bargap=0.3
         )
-        st.plotly_chart(fig_ranking, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig_ranking, width="stretch", config={'displayModeBar': False})
         
         # Winner announcement
         winner = ranking_list[0]
@@ -475,7 +475,7 @@ def render_evaluacion_tab():
                 yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, 1]),
             )
             
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig, width="stretch", config={'displayModeBar': False})
     
     # Check if pending weights differ from committed weights
     weights_changed = any(
@@ -487,7 +487,7 @@ def render_evaluacion_tab():
     # Submit button to apply pending weights
     col_btn, col_hint = st.columns([1, 3])
     with col_btn:
-        if st.button("✅ Aplicar pesos", disabled=not weights_changed, use_container_width=True):
+        if st.button("✅ Aplicar pesos", disabled=not weights_changed, width="stretch"):
             # Commit pending weights to mcda_criteria
             for i, criterion in enumerate(st.session_state.mcda_criteria):
                 if criterion["name"] in st.session_state.pending_weights:

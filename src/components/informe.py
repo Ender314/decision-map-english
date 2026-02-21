@@ -12,7 +12,8 @@ from typing import Dict, List, Any, Tuple, Optional
 
 from config.constants import (
     IMPACT_MAP, RISK_PROB_MAP, RISK_IMPACT_MAP,
-    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR, COLOR_INFO
+    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR, COLOR_INFO,
+    COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT,
 )
 from utils.calculations import (
     calculate_relevance_percentage,
@@ -65,6 +66,8 @@ def get_report_data() -> Dict[str, Any]:
     # Build combined data (MCDA + Scenarios) - only qualified alternatives
     qualified_alt_ids = {a["id"] for a in alts}
     combined_data = []
+    w_mcda = COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT / 100.0
+    w_ev = 1.0 - w_mcda
     if ranking_list and scenarios:
         for alt_id, scenario in scenarios.items():
             # Skip disqualified alternatives
@@ -83,7 +86,7 @@ def get_report_data() -> Dict[str, Any]:
             mcda_score = next((item["score"] for item in ranking_list if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                composite = w_mcda * mcda_score + w_ev * ev_scaled
                 combined_data.append({
                     "name": alt_name,
                     "mcda": mcda_score,
@@ -464,7 +467,7 @@ def render_informe_tab():
         with col2:
             st.markdown("**Nivel de Confianza**")
             fig_gauge = create_confidence_gauge(confidence_pct, confidence_level)
-            st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_gauge, width="stretch", config={"displayModeBar": False})
     
     elif data["ranking_list"]:
         winner = data["ranking_list"][0]
@@ -504,7 +507,7 @@ def render_informe_tab():
         with col1:
             st.markdown("**Matriz de Riesgos**")
             fig_heatmap = create_risk_heatmap(risks)
-            st.plotly_chart(fig_heatmap, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_heatmap, width="stretch", config={"displayModeBar": False})
         
         with col2:
             st.markdown("**Top Riesgos (por puntuación)**")
@@ -548,7 +551,7 @@ def render_informe_tab():
             st.markdown("**Comparación Antes/Después**")
             fig_before_after = create_before_after_chart(data["scenarios"], retro)
             if fig_before_after:
-                st.plotly_chart(fig_before_after, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_before_after, width="stretch", config={"displayModeBar": False})
                 st.caption("EV promedio de escenarios vs. sentimiento promedio de outcomes")
             else:
                 st.caption("Completa escenarios para ver la comparación")
@@ -589,7 +592,7 @@ def render_informe_tab():
     with col1:
         st.markdown("**Matriz Decisión-Resultado**")
         fig_quality = create_decision_quality_matrix(decision_score, outcome_score)
-        st.plotly_chart(fig_quality, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_quality, width="stretch", config={"displayModeBar": False})
         st.caption(f"Decisión: {decision_score}/5 — Resultado: {outcome_score}/5")
     
     with col2:
@@ -627,7 +630,7 @@ def render_informe_tab():
             st.markdown("**Atribución de Resultados**")
             fig_attribution = create_outcome_attribution_chart(outcomes)
             if fig_attribution:
-                st.plotly_chart(fig_attribution, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_attribution, width="stretch", config={"displayModeBar": False})
             else:
                 st.caption("No hay datos de atribución")
         

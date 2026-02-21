@@ -8,13 +8,13 @@ import streamlit as st
 from datetime import date, datetime, timedelta
 from collections import defaultdict
 import plotly.graph_objects as go
-from config.constants import RISK_PROB_MAP, RISK_IMPACT_MAP
+from config.constants import RISK_PROB_MAP, RISK_IMPACT_MAP, COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT
 
 
 def get_recommended_alternative():
     """Get the recommended alternative from scenarios/MCDA analysis.
     
-    Calculates a composite score: 50% MCDA + 50% scenario EV.
+    Calculates a composite score: default 60% MCDA + 40% scenario EV.
     Falls back to first qualified alternative if no analysis data available.
     Only considers alternatives that pass all No Negociables.
     
@@ -41,6 +41,8 @@ def get_recommended_alternative():
     # Build composite ranking if we have both MCDA and scenarios
     if scenarios and mcda_scores_df is not None and not mcda_scores_df.empty:
         _, mcda_ranking = mcda_totals_and_ranking(mcda_scores_df.copy(), mcda_criteria)
+        w_mcda = COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT / 100.0
+        w_ev = 1.0 - w_mcda
         
         combined_data = []
         for alt in alts:
@@ -56,7 +58,7 @@ def get_recommended_alternative():
             mcda_score = next((item["score"] for item in mcda_ranking if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
-                composite = 0.5 * mcda_score + 0.5 * ev_scaled
+                composite = w_mcda * mcda_score + w_ev * ev_scaled
                 combined_data.append({
                     "id": alt_id,
                     "name": alt_name,
@@ -501,7 +503,7 @@ def render_monitoring_timeline():
         hovermode="closest"
     )
     
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     
     # Legend help text
     st.caption("💡 Haz clic en la leyenda para mostrar/ocultar categorías. Doble clic para aislar una categoría.")

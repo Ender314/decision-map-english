@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 # streamlit run "src\app_with_routing.py"
 # streamlit run "src\app_with_routing.py" --port 8501
 # python -m streamlit run "src\app_with_routing.py"
@@ -17,8 +17,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Simple imports - no complex managers or generic systems
 from config.constants import (
     APP_NAME, APP_ICON, TAB_DIMENSIONADO, TAB_ALTERNATIVAS, TAB_OBJETIVO, 
-    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS, TAB_RESULTADOS, 
-    TAB_RIESGOS, TAB_RETRO, TAB_INFORME, ALL_SECTIONS, MONITORING_SECTIONS, TAB_DISPLAY_NAMES
+    TAB_PRIORIDADES, TAB_INFO, TAB_EVAL, TAB_SCENARIOS,
+    TAB_RESULTADOS, TAB_RIESGOS, TAB_RETRO,
+    TAB_INFORME, ALL_SECTIONS, MONITORING_SECTIONS, TAB_DISPLAY_NAMES
 )
 from utils.calculations import get_sections_for_time
 from utils.session_manager import init_session_state
@@ -111,7 +112,7 @@ def _render_import_gate():
                 if not is_valid:
                     st.error(f"❌ JSON inválido: {error_msg}")
                 else:
-                    if st.button("🔄 Importar JSON", use_container_width=True):
+                    if st.button("🔄 Importar JSON", width="stretch"):
                         st.session_state["_import_data"] = json_data
                         st.session_state["_pending_import"] = True
                         st.session_state["_show_import_gate"] = False
@@ -123,7 +124,7 @@ def _render_import_gate():
                 st.error(f"❌ Error leyendo JSON: {str(e)}")
 
         elif ext in ["xlsx", "xls"]:
-            if st.button("🔄 Importar Excel", use_container_width=True):
+            if st.button("🔄 Importar Excel", width="stretch"):
                 try:
                     success, message = import_excel_data(uploaded)
                     if success:
@@ -142,6 +143,79 @@ def _render_import_gate():
         st.rerun()
 
 
+def _render_template_selector_guard(render_template_selector) -> bool:
+    """Regression guard: template selector must be reachable from any app state.
+
+    Keep this check before welcome/main branching so sidebar "Cargar Plantilla"
+    never becomes a no-op when the session already has data.
+    """
+    if not st.session_state.get("show_template_selector", False):
+        return False
+
+    render_template_selector()
+    st.markdown("")
+    if st.button("← Volver", key="back_from_templates"):
+        st.session_state["show_template_selector"] = False
+        st.rerun()
+    return True
+
+
+def _tab_reset_diag_enabled() -> bool:
+    """Return True when tab-reset diagnostics are enabled."""
+    return (
+        str(st.query_params.get("diag_tabs", "")).lower() == "true"
+        or bool(st.session_state.get("_diag_tab_reset", False))
+    )
+
+
+def _record_tab_diag(stage: str, extra: dict = None) -> None:
+    """Append a lightweight diagnostic snapshot for tab reset analysis."""
+    if not _tab_reset_diag_enabled():
+        return
+
+    snapshot = {
+        "stage": stage,
+        "run": int(st.session_state.get("_app_run_count", 0)),
+        "current_page": st.session_state.get("current_page"),
+        "tiempo": st.session_state.get("tiempo"),
+        "tiempo_user_override": st.session_state.get("tiempo_user_override"),
+        "impacto": {
+            "corto": st.session_state.get("impacto_corto"),
+            "medio": st.session_state.get("impacto_medio"),
+            "largo": st.session_state.get("impacto_largo"),
+        },
+        "flags": {
+            "show_template_selector": st.session_state.get("show_template_selector", False),
+            "_skip_welcome": st.session_state.get("_skip_welcome", False),
+            "_pending_import": st.session_state.get("_pending_import", False),
+            "_template_loaded": st.session_state.get("_template_loaded", False),
+        },
+        "load_diag": {
+            "source": st.session_state.get("_diag_last_load_source"),
+            "run_index": st.session_state.get("_diag_post_load_run_index"),
+            "marker": st.session_state.get("_diag_last_load_marker"),
+        },
+    }
+    if extra:
+        snapshot.update(extra)
+
+    log = st.session_state.get("_diag_tab_reset_log", [])
+    log.append(snapshot)
+    st.session_state["_diag_tab_reset_log"] = log[-80:]
+
+
+def _advance_post_load_diag_counter() -> None:
+    """Track runs immediately after load operations for one-time reset diagnosis."""
+    if not _tab_reset_diag_enabled():
+        return
+    if not st.session_state.get("_diag_last_load_source"):
+        return
+
+    idx = int(st.session_state.get("_diag_post_load_run_index", 0)) + 1
+    st.session_state["_diag_post_load_run_index"] = idx
+    _record_tab_diag("post_load_run", {"post_load_index": idx})
+
+
 def render_main_app():
     """Render the main Decider Pro application."""
     from components.templates import render_template_selector, get_template_list
@@ -156,6 +230,15 @@ def render_main_app():
         len([a for a in st.session_state.get("alts", []) if a.get("text", "").strip()]) > 0
     )
     show_welcome = not has_data and not st.session_state.get("_skip_welcome", False)
+
+    _advance_post_load_diag_counter()
+    _record_tab_diag(
+        "render_main_app_start",
+        {
+            "has_data": bool(has_data),
+            "show_welcome": bool(show_welcome),
+        },
+    )
     
     # Navigation bar for app pages
     col1, col2, col3 = st.columns([1, 4, 1])
@@ -175,24 +258,23 @@ def render_main_app():
     
     st.markdown("---")
     
-    # Show template loaded message
-    if st.session_state.get("_template_loaded", False):
-        template_name = st.session_state.get("_loaded_template_name", "")
-        st.success(f"✅ Plantilla cargada: **{template_name}**. Explora las pestañas para ver los datos de ejemplo.")
-        st.session_state["_template_loaded"] = False
-        st.session_state["_loaded_template_name"] = ""
+    # Keep a stable UI slot for transient status messages so tab identity
+    # does not shift between consecutive reruns.
+    status_slot = st.container()
+
+    with status_slot:
+        if st.session_state.get("_template_loaded", False):
+            template_name = st.session_state.get("_loaded_template_name", "")
+            st.success(f"✅ Plantilla cargada: **{template_name}**. Explora las pestañas para ver los datos de ejemplo.")
+            st.session_state["_template_loaded"] = False
+            st.session_state["_loaded_template_name"] = ""
+
+    # Regression guard: keep template selector globally reachable.
+    if _render_template_selector_guard(render_template_selector):
+        return
     
     # Show welcome gate for new users — blocks main app until user chooses
     if show_welcome:
-        # Template selector sub-screen
-        if st.session_state.get("show_template_selector", False):
-            render_template_selector()
-            st.markdown("")
-            if st.button("← Volver", key="back_from_templates"):
-                st.session_state["show_template_selector"] = False
-                st.rerun()
-            return
-        
         # Import sub-screen
         if st.session_state.get("_show_import_gate", False):
             _render_import_gate()
@@ -205,15 +287,15 @@ def render_main_app():
         
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            if st.button("📝 Empezar desde cero", use_container_width=True, help="Crear un nuevo análisis vacío"):
+            if st.button("📝 Empezar desde cero", width="stretch", help="Crear un nuevo análisis vacío"):
                 st.session_state["_skip_welcome"] = True
                 st.rerun()
         with col_b:
-            if st.button("📋 Ver plantillas de ejemplo", use_container_width=True, type="primary", help="Cargar una plantilla para entender cómo funciona"):
+            if st.button("📋 Ver plantillas de ejemplo", width="stretch", type="primary", help="Cargar una plantilla para entender cómo funciona"):
                 st.session_state["show_template_selector"] = True
                 st.rerun()
         with col_c:
-            if st.button("📂 Importar análisis guardado", use_container_width=True, help="Cargar un archivo JSON o Excel exportado previamente"):
+            if st.button("📂 Importar análisis guardado", width="stretch", help="Cargar un archivo JSON o Excel exportado previamente"):
                 st.session_state["_show_import_gate"] = True
                 st.rerun()
         return
@@ -314,10 +396,11 @@ def render_main_app():
     
     st.markdown('#')
 
-    # Handle redirect after import
-    if st.session_state.get("redirect_to_first_tab", False):
-        st.session_state["redirect_to_first_tab"] = False
-        st.info("✅ Datos importados. Comenzando desde el primer paso...")
+    # Handle redirect after import in the same fixed status slot.
+    with status_slot:
+        if st.session_state.get("redirect_to_first_tab", False):
+            st.session_state["redirect_to_first_tab"] = False
+            st.info("✅ Datos importados. Comenzando desde el primer paso...")
 
     # Parent tabs gated by tiempo
     tiempo_levels = ["Menos de media hora", "Un par de horas", "Una mañana", "Un par de días"]
@@ -341,6 +424,16 @@ def render_main_app():
         parent_tab_labels.append(monitoring_label)
     if show_informe:
         parent_tab_labels.append("📋 Informe")
+
+    _record_tab_diag(
+        "before_parent_tabs",
+        {
+            "tiempo_idx": int(tiempo_idx),
+            "show_seguimiento": bool(show_seguimiento),
+            "show_informe": bool(show_informe),
+            "parent_tab_labels": list(parent_tab_labels),
+        },
+    )
 
     parent_tabs = st.tabs(parent_tab_labels)
     
@@ -371,9 +464,23 @@ def render_main_app():
     if debug_mode or st.query_params.get("debug") == "true":
         show_performance_debug()
 
-    # Periodic session state optimization
-    if st.session_state.get("_app_run_count", 0) % 10 == 0:
+    # Periodic session state optimization (skip first render to avoid wiping
+    # freshly-initialized widget state before first user interaction).
+    run_count = st.session_state.get("_app_run_count", 0)
+    if run_count > 0 and run_count % 10 == 0:
+        _record_tab_diag("before_optimize_session")
         optimize_session_state()
+        _record_tab_diag(
+            "after_optimize_session",
+            {
+                "cleanup_removed": st.session_state.get("_diag_cleanup_last_removed", []),
+            },
+        )
+
+    if _tab_reset_diag_enabled():
+        with st.expander("🧪 Tab Reset Diagnostics", expanded=False):
+            st.caption("Activa con ?diag_tabs=true para registrar snapshots por rerun.")
+            st.json(st.session_state.get("_diag_tab_reset_log", [])[-15:])
 
     # Increment run counter for periodic optimization
     st.session_state["_app_run_count"] = st.session_state.get("_app_run_count", 0) + 1
@@ -386,6 +493,13 @@ def render_analysis_view():
     
     # Create display names with emojis for visual tabs
     display_sections = [TAB_DISPLAY_NAMES.get(section, section) for section in sections]
+    _record_tab_diag(
+        "analysis_tab_topology",
+        {
+            "analysis_sections": list(sections),
+            "analysis_display_sections": list(display_sections),
+        },
+    )
     tabs = st.tabs(display_sections)
     
     # Map internal names to tabs (keeps logic intact)
@@ -424,7 +538,7 @@ def render_analysis_view():
         with tab_map[TAB_EVAL]:
             render_evaluacion_tab()
 
-    # Scenarios tab
+    # Unified scenarios tab
     if TAB_SCENARIOS in tab_map:
         with tab_map[TAB_SCENARIOS]:
             render_scenarios_tab()
@@ -438,14 +552,24 @@ def render_analysis_view():
 def render_monitoring_view():
     """Render the monitoring phase view with timeline and tabs."""
     from components.monitoring_timeline import render_monitoring_timeline
-    
-    # Show timeline overview first
-    render_monitoring_timeline()
-    
+
+    # Keep a stable UI slot before tabs so dynamic timeline content changes
+    # (tripwires/results/risks) do not remount the monitoring tabs.
+    timeline_slot = st.container()
+    with timeline_slot:
+        render_monitoring_timeline()
+
     st.markdown("---")
     
     # Monitoring tabs
     display_sections = [TAB_DISPLAY_NAMES.get(section, section) for section in MONITORING_SECTIONS]
+    _record_tab_diag(
+        "monitoring_tab_topology",
+        {
+            "monitoring_sections": list(MONITORING_SECTIONS),
+            "monitoring_display_sections": list(display_sections),
+        },
+    )
     tabs = st.tabs(display_sections)
     
     tab_map = {name: tab for name, tab in zip(MONITORING_SECTIONS, tabs)}

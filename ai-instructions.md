@@ -86,7 +86,7 @@ Legacy (unused, only in deprecated `violin_plots.py`): `seaborn`, `matplotlib`
 
 ## JSON Schema (Import/Export)
 Required top-level keys: `meta`, `decision`, `impacto`, `alternativas`, `asignacion_tiempo`, `objetivo`, `prioridades`, `informacion`, `mcda`, `scenarios`
-Optional keys (v0.3.0+): `risks`, `retro`, `estrategia_corporativa`, `no_negociables`, `emotion_notes`
+Optional keys (current consolidation): `scenarios_decision_tree`, `scenarios_tree_projection`, `risks`, `retro`, `estrategia_corporativa`, `no_negociables`, `emotion_notes`
 
 Validation in `validate_json_structure()` — accepts `APP_NAME` ("Decider Pro") or legacy names ("Focal Path Pro", "Lambda Pro").
 
@@ -97,10 +97,11 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` ("Decider Pro")
 - **v0.2.0**: Base schema with MCDA and scenarios
 
 ### Scenarios Representation
-- **In-session**: `st.session_state["scenarios"]` is a dict keyed by `alt_id`
-- **Export JSON**: `scenarios` is exported as a list of rows (one per alternativa) including `alternativa`, `worst_desc`, `best_desc`, scores, probabilities, and `EV`
-- **Distribution chart**: Uses analytical **PERT distribution** (scaled Beta PDF via `pert_pdf()` in `calculations.py`), rendered as Plotly filled area curves in `create_scenario_pert_chart()`. No Monte Carlo sampling — deterministic, smooth curves.
-- **Default slider range**: `(4, 6)` (worst, best) — intentionally close together to avoid overconfident initial estimates
+- **Canonical in-session source**: `st.session_state["scenarios_decision_tree"]` (single editable tree root)
+- **Derived bridge**: `st.session_state["scenarios_tree_projection"]` (dict by `alt_id` with per-alternative subtree)
+- **Flat downstream bridge**: `st.session_state["scenarios"]` remains projected for Resultados/Informe and tabular export rows
+- **Export JSON**: keeps `scenarios` rows and also includes `scenarios_decision_tree` + `scenarios_tree_projection`
+- **Recenter behavior**: uses `Config.fit` on demand instead of remount nonce workaround
 
 ### Risks Representation
 - **In-session**: `st.session_state["risks"]` is a dict keyed by `risk_id`

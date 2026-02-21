@@ -47,7 +47,7 @@ def render_sidebar():
             
             # JSON Export
             with col1:
-                if st.button("📥 JSON", use_container_width=True, help="Exportar como JSON"):
+                if st.button("📥 JSON", width="stretch", help="Exportar como JSON"):
                     try:
                         export_data = create_export_data()
                         if export_data:
@@ -58,7 +58,7 @@ def render_sidebar():
                                 data=json_str,
                                 file_name=_export_filename('json'),
                                 mime="application/json",
-                                use_container_width=True
+                                width="stretch"
                             )
                             st.success("✅ JSON generado")
                         else:
@@ -68,7 +68,7 @@ def render_sidebar():
             
             # Excel Export
             with col2:
-                if st.button("📈 Excel", use_container_width=True, help="Exportar como Excel"):
+                if st.button("📈 Excel", width="stretch", help="Exportar como Excel"):
                     try:
                         excel_data = create_excel_export()
                         if excel_data:
@@ -77,7 +77,7 @@ def render_sidebar():
                                 data=excel_data,
                                 file_name=_export_filename('xlsx'),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True
+                                width="stretch"
                             )
                             st.success("✅ Excel generado")
                         else:
@@ -116,7 +116,7 @@ def render_sidebar():
                     if not is_valid:
                         st.error(f"❌ JSON inválido: {error_msg}")
                     else:
-                        if st.button("🔄 Importar JSON", use_container_width=True):
+                        if st.button("🔄 Importar JSON", width="stretch"):
                             try:
                                 # Store import data temporarily and trigger rerun
                                 st.session_state["_import_data"] = json_data
@@ -135,7 +135,7 @@ def render_sidebar():
             
             elif file_extension in ['xlsx', 'xls']:
                 # Excel Import
-                if st.button("🔄 Importar Excel", use_container_width=True):
+                if st.button("🔄 Importar Excel", width="stretch"):
                     try:
                         success, message = import_excel_data(uploaded_file)
                         if success:

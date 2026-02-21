@@ -58,7 +58,7 @@ def render_dimensionado_tab():
 
     # Use cached visualization function
     fig = create_impact_chart(df, relevancia_pct)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Relevance display (exact original)
     st.markdown(

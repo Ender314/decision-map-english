@@ -123,7 +123,7 @@ def render_informacion_tab():
                 
                 st.markdown("---")
     
-    if st.button("➕ Añadir Decisión Pasada", key="add_past_decision_btn", use_container_width=True):
+    if st.button("➕ Añadir Decisión Pasada", key="add_past_decision_btn", width="stretch"):
         add_past_decision()
         st.rerun()
     
@@ -170,7 +170,7 @@ def render_informacion_tab():
                     remove_kpi(kpi["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir KPI", key="add_kpi_btn", use_container_width=True):
+    if st.button("➕ Añadir KPI", key="add_kpi_btn", width="stretch"):
         add_kpi()
         st.rerun()
     
@@ -204,7 +204,7 @@ def render_informacion_tab():
                     remove_timeline_item(item["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir Evento", key="add_timeline_btn", use_container_width=True):
+    if st.button("➕ Añadir Evento", key="add_timeline_btn", width="stretch"):
         add_timeline_item()
         st.rerun()
     
@@ -216,7 +216,7 @@ def render_informacion_tab():
         try:
             fig = create_timeline_chart(timeline_items)
             if fig.data:
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         except Exception as e:
             st.info("💡 Error al generar la visualización del timeline")
     
@@ -272,7 +272,7 @@ def render_informacion_tab():
             st.markdown("**Comparación de KPIs Numéricos**")
             try:
                 fig = create_kpi_bar_chart(numeric_kpis)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             except Exception as e:
                 st.info("💡 Error al generar gráfico de KPIs")
     
@@ -321,7 +321,7 @@ def render_informacion_tab():
                     remove_stakeholder(stakeholder["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir Stakeholder", key="add_stakeholder_btn", use_container_width=True):
+    if st.button("➕ Añadir Stakeholder", key="add_stakeholder_btn", width="stretch"):
         add_stakeholder()
         st.rerun()
     

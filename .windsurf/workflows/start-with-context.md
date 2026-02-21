@@ -1,0 +1,1 @@
+Read @ai-start-with-context.md and @README.md carefully in order to gain context about the project. Then ask for specific clarifying questions if needed. The main goal is to continue developing the project in a stable and maintainable way.

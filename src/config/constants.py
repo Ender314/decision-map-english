@@ -13,6 +13,7 @@ TAB_INFO = "Información"
 TAB_EVAL = "Evaluación"
 TAB_RESULTADOS = "Resultados"
 TAB_SCENARIOS = "Escenarios"
+TAB_SCENARIOS_INTERACTIVE = "Escenarios Interactivos"
 TAB_RIESGOS = "Riesgos"
 TAB_RETRO = "Retrospectiva"
 TAB_INFORME = "Informe"
@@ -27,6 +28,7 @@ TAB_DISPLAY_NAMES = {
     TAB_EVAL: "⚖️ Evaluación",
     TAB_RESULTADOS: "📊 Resultados",
     TAB_SCENARIOS: "🔮 Escenarios",
+    TAB_SCENARIOS_INTERACTIVE: "� Escenarios Interactivos",
     TAB_RIESGOS: "⚠️ Riesgos",
     TAB_RETRO: "🔄 Retrospectiva",
     TAB_INFORME: "📋 Informe"
@@ -73,7 +75,7 @@ DEFAULT_MCDA_CRITERIA = [
 
 # App metadata
 APP_NAME = "Decider Pro"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_ICON = "🧭"
 APP_FILENAME_PREFIX = APP_NAME.lower().replace(" ", "_")  # "decider_pro"
 
@@ -89,9 +91,14 @@ COLOR_ERROR = "#e53e3e"        # Red - risk, low confidence
 COLOR_INFO = "#3182ce"         # Blue - information
 COLOR_NEUTRAL = "#718096"      # Gray - neutral, disabled
 
+# Advanced scenarios constraints
+ADV_SCENARIO_MAX_BRANCHES = 3
+ADV_SCENARIO_MAX_DEPTH = 3
+
 # Scoring configuration
 SCORE_STEPS = [x / 2 for x in range(0, 11)]  # 0, 0.5, 1.0, ..., 5.0
 PROBABILITY_STEPS = list(range(0, 101, 5))  # 0, 5, 10, ..., 100
+COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT = 60
 
 # Color configuration for visualizations
 def get_relevance_color(relevance_pct: float) -> tuple[str, str]:

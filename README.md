@@ -12,7 +12,7 @@ This is the **final clean version** - a balanced approach that provides the bene
 - ✅ **Priorities Management**: Ordered list with up/down controls
 - ✅ **Information Gathering**: KPIs, timeline, stakeholders with visualizations
 - ✅ **MCDA Evaluation**: Full weighted scoring with radar charts
-- ✅ **Scenario Planning**: PERT distribution analysis with interactive Plotly charts
+- ✅ **Scenario Planning**: Unified decision-tree modeling (`scenarios_decision_tree`) with interactive graph editing, MCDA×EV views, and consolidated probability distributions
 - ✅ **Executive Summary**: Comprehensive results dashboard with robustness analysis, print/PDF support, and emotional reflection
 - ✅ **Export/Import**: Complete session persistence (JSON + Excel)
 
@@ -93,6 +93,12 @@ src/
 ## 🏷️ Versioning Note
 
 This repo uses a **marketing/release label** in this README (e.g. **v1.8**) while the app code contains an internal `APP_VERSION` (currently `1.0.0` in `config/constants.py`) used for schema compatibility. If you change export structure, update the internal version accordingly.
+
+### Scenarios Data Notes (Current Consolidation)
+- Canonical runtime state: `st.session_state["scenarios_decision_tree"]`
+- Derived per-alternative bridge: `st.session_state["scenarios_tree_projection"]`
+- Flat compatibility bridge for downstream tables/modules: `st.session_state["scenarios"]`
+- JSON exports include all three (`scenarios`, `scenarios_decision_tree`, `scenarios_tree_projection`)
 
 **Note**: The app was renamed from "Focal Path Pro" to "Decider Pro". Legacy names are accepted during JSON import for backward compatibility.
 

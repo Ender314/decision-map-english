@@ -33,20 +33,28 @@ def render_retro_tab():
     """
     st.subheader("🔄 Retrospectiva")
     
-    # Initialize retro if needed
-    if "retro" not in st.session_state:
-        st.session_state.retro = {
-            "decision_date": None,
-            "review_date": None,
-            "chosen_alternative_id": None,
-            "outcomes": [],
-            "tripwires": [],
-            "lessons_learned": "",
-            "decision_quality_score": 3,
-            "outcome_quality_score": 3
-        }
-    
-    retro = st.session_state.retro
+    # Initialize/normalize retro payload (some load paths may leave partial dicts).
+    retro_defaults = {
+        "decision_date": None,
+        "review_date": None,
+        "chosen_alternative_id": None,
+        "outcomes": [],
+        "tripwires": [],
+        "lessons_learned": "",
+        "decision_quality_score": 3,
+        "outcome_quality_score": 3,
+    }
+
+    current_retro = st.session_state.get("retro")
+    if not isinstance(current_retro, dict):
+        current_retro = {}
+
+    for key, default in retro_defaults.items():
+        if key not in current_retro:
+            current_retro[key] = default.copy() if isinstance(default, list) else default
+
+    st.session_state["retro"] = current_retro
+    retro = st.session_state["retro"]
     
     # Decision date
     col1, col2 = st.columns(2)
@@ -187,7 +195,7 @@ def render_retro_tab():
                     margin=dict(l=20, r=20, t=40, b=20),
                     showlegend=True
                 )
-                st.plotly_chart(fig_attr, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_attr, width="stretch", config={"displayModeBar": False})
             
             with c2:
                 # Sentiment pie chart
@@ -203,7 +211,7 @@ def render_retro_tab():
                     margin=dict(l=20, r=20, t=40, b=20),
                     showlegend=True
                 )
-                st.plotly_chart(fig_sent, use_container_width=True, config={"displayModeBar": False})
+                st.plotly_chart(fig_sent, width="stretch", config={"displayModeBar": False})
             
             # Insight
             decision_outcomes = attr_counts["decisión"]
