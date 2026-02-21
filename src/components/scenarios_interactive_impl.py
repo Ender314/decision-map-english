@@ -224,6 +224,18 @@ def _calculate_ev(node):
     return ev
 
 
+def _collapse_subtree_to_leaf(node):
+    """Collapse a branched node into a leaf, keeping its expected-value signal."""
+    collapsed_score = int(round(_calculate_ev(node)))
+    node["score"] = max(0, min(10, collapsed_score))
+    node["children"] = []
+
+
+def _disable_visualizations_after_tree_change():
+    """Disable heavy visualizations after tree edits for smoother interaction."""
+    st.session_state["_iact_show_visualizations"] = False
+
+
 def _find_node(tree, node_id):
     """Find a node by ID. Returns (node, parent, depth)."""
     if tree["id"] == node_id:
@@ -511,9 +523,14 @@ def _render_action_panel(tree, selected_id):
                     _new_node("Mejor sub-escenario", 50, min(node["score"] + 2, 10)),
                     _new_node("Peor sub-escenario", 50, max(node["score"] - 2, 0)),
                 ]
+                _disable_visualizations_after_tree_change()
                 st.rerun()
         else:
             st.caption("Esta alternativa ya está bifurcada. Edita o añade sub-ramas en sus nodos hijos.")
+            if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_alt_{selected_id}"):
+                _collapse_subtree_to_leaf(node)
+                _disable_visualizations_after_tree_change()
+                st.rerun()
     else:
         # Editable node (batched update to avoid rerun on each keystroke/slider step)
         with st.form(key=f"iact_edit_form_{selected_id}", clear_on_submit=False):
@@ -564,10 +581,11 @@ def _render_action_panel(tree, selected_id):
                 changed = True
 
             if changed:
+                _disable_visualizations_after_tree_change()
                 st.rerun()
         
         # Action buttons
-        btn_cols = st.columns(3)
+        btn_cols = st.columns(4)
         
         with btn_cols[0]:
             # Bifurcate (add children to this leaf)
@@ -577,6 +595,7 @@ def _render_action_panel(tree, selected_id):
                         _new_node("Mejor sub-escenario", 50, min(node["score"] + 2, 10)),
                         _new_node("Peor sub-escenario", 50, max(node["score"] - 2, 0)),
                     ]
+                    _disable_visualizations_after_tree_change()
                     st.rerun()
         
         with btn_cols[1]:
@@ -584,15 +603,25 @@ def _render_action_panel(tree, selected_id):
             if not is_root and len(children) < MAX_NODE_BRANCHES and not is_leaf and depth < MAX_TREE_DEPTH:
                 if st.button("➕ Sub-rama", key=f"iact_addsub_{selected_id}"):
                     _redistribute_and_add(node, "Sub-escenario", 5)
+                    _disable_visualizations_after_tree_change()
                     st.rerun()
         
         with btn_cols[2]:
+            # Collapse branch into a leaf using subtree EV
+            if not is_root and not is_leaf:
+                if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_{selected_id}"):
+                    _collapse_subtree_to_leaf(node)
+                    _disable_visualizations_after_tree_change()
+                    st.rerun()
+
+        with btn_cols[3]:
             # Delete this node
             if parent and len(parent.get("children", [])) > 1 and not is_alternative:
                 if st.button("🗑️ Eliminar", key=f"iact_del_{selected_id}"):
                     parent["children"] = [c for c in parent["children"] if c["id"] != selected_id]
                     if "_iact_selected_global" in st.session_state:
                         del st.session_state["_iact_selected_global"]
+                    _disable_visualizations_after_tree_change()
                     st.rerun()
 
 

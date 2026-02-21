@@ -140,7 +140,8 @@ def render_resultados_tab():
     # Build combined data for Decision Matrix (excluding disqualified)
     combined_data = []
     combined_data_all = []  # Keep all for display purposes
-    w_mcda = COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT / 100.0
+    mcda_weight_pct = int(st.session_state.get("composite_weight_slider", COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT))
+    w_mcda = mcda_weight_pct / 100.0
     w_ev = 1.0 - w_mcda
     if ranking_list_all and scenarios_state:
         for alt_id, scenario in scenarios_state.items():
@@ -156,13 +157,17 @@ def render_resultados_tab():
             mcda_score = next((item["score"] for item in ranking_list_all if item["alternativa"] == alt_name), None)
             
             if mcda_score is not None:
-                composite = w_mcda * mcda_score + w_ev * ev_scaled
+                mcda_component = w_mcda * mcda_score
+                ev_component = w_ev * ev_scaled
+                composite = mcda_component + ev_component
                 item_data = {
                     "name": alt_name,
                     "alt_id": alt_id,
                     "mcda": mcda_score,
                     "ev": ev,
                     "ev_scaled": ev_scaled,
+                    "mcda_component": mcda_component,
+                    "ev_component": ev_component,
                     "uncertainty": uncertainty,
                     "composite": composite,
                     "disqualified": alt_name in disqualified_names
@@ -320,25 +325,81 @@ def render_resultados_tab():
         
         st.info("💡 Completa los **Escenarios** para ver la Matriz de Decisión combinada")
     
-    # Stacked bar chart: contribution by criterion (always breakdown mode)
-    if ranking_list and crit:
+    # Stacked bar chart: composite contribution by source (MCDA vs Escenarios)
+    if combined_sorted:
         st.markdown("###")
-        
+        st.caption(
+            f"Ranking compuesto con pesos activos: MCDA **{mcda_weight_pct}%** + Escenarios **{100 - mcda_weight_pct}%**."
+        )
+
+        rows = list(reversed(combined_sorted))
+        labels = [row["name"] for row in rows]
+        mcda_components = [row["mcda_component"] for row in rows]
+        ev_components = [row["ev_component"] for row in rows]
+        totals = [row["composite"] for row in rows]
+
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            y=labels,
+            x=mcda_components,
+            orientation='h',
+            name='MCDA',
+            marker_color='#4f46e5',
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Contribución MCDA: %{x:.2f}<extra></extra>"
+            ),
+        ))
+
+        fig_bar.add_trace(go.Bar(
+            y=labels,
+            x=ev_components,
+            orientation='h',
+            name='Escenarios',
+            marker_color='#0ea5a4',
+            text=[f"{total:.2f}" for total in totals],
+            textposition='outside',
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Contribución Escenarios: %{x:.2f}<extra></extra>"
+            ),
+        ))
+
+        max_total = max(totals) if totals else 5.0
+
+        fig_bar.update_layout(
+            barmode='stack',
+            height=max(200, len(labels) * 52),
+            margin=dict(l=10, r=60, t=10, b=10),
+            showlegend=True,
+            xaxis=dict(
+                title='Puntuación compuesta',
+                range=[0, max_total * 1.25],
+                showgrid=True,
+                gridcolor='#eee'
+            ),
+            yaxis=dict(showgrid=False),
+            bargap=0.3
+        )
+        st.plotly_chart(fig_bar, width="stretch", config={'displayModeBar': False})
+
+    # Fallback when scenarios are not available yet: keep MCDA-only breakdown
+    elif ranking_list and crit:
+        st.markdown("###")
         colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
         priority_colors = {c["name"]: colors[i % len(colors)] for i, c in enumerate(crit)}
         weight_map = normalize_weights(crit)
-        
+
         fig_bar = go.Figure()
-        
-        for i, item in enumerate(reversed(ranking_list)):
+        for item in reversed(ranking_list):
             alt_name = item['alternativa']
             alt_scores = st.session_state.get("mcda_scores", {}).get(alt_name, {})
-            
+
             for criterion in prioridad_names:
                 score = alt_scores.get(criterion, 0)
                 weight = weight_map.get(criterion, 0)
                 contribution = score * weight
-                
+
                 fig_bar.add_trace(go.Bar(
                     y=[alt_name],
                     x=[contribution],
@@ -348,7 +409,7 @@ def render_resultados_tab():
                     hovertemplate=f"<b>{criterion}</b><br>{score:.1f} × {weight:.1%} = {contribution:.2f}<extra></extra>",
                     showlegend=False
                 ))
-        
+
         fig_bar.update_layout(
             barmode='stack',
             height=max(200, len(ranking_list) * 50),
