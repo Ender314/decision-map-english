@@ -456,13 +456,15 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         _tree_to_agraph(child, nodes, edges, depth + 1, is_global=is_global)
 
 
-def _render_agraph_tree(tree, is_global=False, center_on_load=False):
+def _render_agraph_tree(tree, is_global=False, render_nonce=0):
     """Render an interactive agraph tree and return the selected node ID."""
     nodes = []
     edges = []
     _tree_to_agraph(tree, nodes, edges, is_global=is_global)
 
-    base_height = 450 + len(nodes) * 20
+    # Tiny nonce-based variation to force a component refresh when requested
+    # (streamlit-agraph doesn't expose a `key` argument on agraph()).
+    base_height = 450 + len(nodes) * 20 + (1 if int(render_nonce) % 2 else 0)
 
     config = Config(
         directed=True,
@@ -487,7 +489,6 @@ def _render_agraph_tree(tree, is_global=False, center_on_load=False):
             }
         },
     )
-    config.fit = bool(center_on_load)
     config.width = "100%"
     
     selected = agraph(
@@ -663,18 +664,22 @@ def render_interactive_scenarios_tab():
 
     tree_controls_col, _ = st.columns([1, 5])
     with tree_controls_col:
-        recenter_requested = st.button("🎯 Centrar árbol", key="iact_center_tree_btn", help="Re-centra el árbol si se fue fuera de vista")
+        recenter_requested = st.button(
+            "🎯 Centrar árbol",
+            key="iact_center_tree_btn",
+            help="Re-centra la vista del árbol si se fue fuera de pantalla",
+        )
 
     if recenter_requested:
         st.session_state.pop("_iact_selected_global", None)
-        st.session_state["_iact_center_on_load_once"] = True
+        st.session_state["_iact_tree_recenter_nonce"] = int(st.session_state.get("_iact_tree_recenter_nonce", 0)) + 1
 
-    center_on_load = bool(st.session_state.pop("_iact_center_on_load_once", False))
+    tree_recenter_nonce = int(st.session_state.get("_iact_tree_recenter_nonce", 0))
 
     selected = _render_agraph_tree(
         decision_tree,
         is_global=True,
-        center_on_load=center_on_load,
+        render_nonce=tree_recenter_nonce,
     )
 
     if selected:

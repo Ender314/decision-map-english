@@ -101,7 +101,7 @@ Validation in `validate_json_structure()` — accepts `APP_NAME` ("Decider Pro")
 - **Derived bridge**: `st.session_state["scenarios_tree_projection"]` (dict by `alt_id` with per-alternative subtree)
 - **Flat downstream bridge**: `st.session_state["scenarios"]` remains projected for Resultados/Informe and tabular export rows
 - **Export JSON**: keeps `scenarios` rows and also includes `scenarios_decision_tree` + `scenarios_tree_projection`
-- **Recenter behavior**: uses `Config.fit` on demand instead of remount nonce workaround
+- **Tree viewport**: no `Config.fit` recenter hook (unsupported in current streamlit-agraph/vis-network options path)
 
 ### Risks Representation
 - **In-session**: `st.session_state["risks"]` is a dict keyed by `risk_id`
