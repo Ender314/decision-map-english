@@ -19,6 +19,36 @@ from utils.calculations import (
 from utils.visualizations import create_mcda_radar_chart, create_impact_chart
 
 
+def _calculate_tree_ev(node: dict) -> float:
+    """Recursively calculate expected value from a scenario tree node."""
+    children = node.get("children", [])
+    if not children:
+        return float(node.get("score", 0.0))
+
+    total_prob = sum(float(child.get("probability", 0.0)) for child in children)
+    if total_prob <= 0:
+        return 0.0
+
+    ev = 0.0
+    for child in children:
+        p = float(child.get("probability", 0.0)) / total_prob
+        ev += p * _calculate_tree_ev(child)
+    return ev
+
+
+def _collect_tree_leaves(node: dict, leaves=None) -> list:
+    """Collect leaf nodes from a scenario subtree."""
+    if leaves is None:
+        leaves = []
+    children = node.get("children", [])
+    if not children:
+        leaves.append(node)
+        return leaves
+    for child in children:
+        _collect_tree_leaves(child, leaves)
+    return leaves
+
+
 def create_decision_matrix_chart(combined_data: list) -> go.Figure:
     """Create the bubble chart for Decision Matrix."""
     fig = go.Figure()
@@ -136,6 +166,7 @@ def render_resultados_tab():
     
     # Get scenarios data
     scenarios_state = st.session_state.get("scenarios", {})
+    projected_trees = st.session_state.get("scenarios_tree_projection", {})
     
     # Build combined data for Decision Matrix (excluding disqualified)
     combined_data = []
@@ -143,16 +174,51 @@ def render_resultados_tab():
     mcda_weight_pct = int(st.session_state.get("composite_weight_slider", COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT))
     w_mcda = mcda_weight_pct / 100.0
     w_ev = 1.0 - w_mcda
-    if ranking_list_all and scenarios_state:
+    alt_name_by_id = {
+        a.get("id"): a.get("text", "").strip()
+        for a in st.session_state.alts
+        if a.get("id") and a.get("text", "").strip()
+    }
+
+    scenario_metrics_by_alt = {}
+
+    # Preferred source: full projected trees (matches Escenarios/Matriz pipeline)
+    if isinstance(projected_trees, dict):
+        for alt_id, tree in projected_trees.items():
+            if not isinstance(tree, dict):
+                continue
+            leaves = _collect_tree_leaves(tree)
+            if not leaves:
+                continue
+            scores = [float(leaf.get("score", 0.0)) for leaf in leaves]
+            scenario_metrics_by_alt[alt_id] = {
+                "name": alt_name_by_id.get(alt_id, tree.get("label", "")),
+                "ev": _calculate_tree_ev(tree),
+                "uncertainty": max(scores) - min(scores),
+            }
+
+    # Fallback source: flat bridge (legacy/downstream compatibility)
+    if isinstance(scenarios_state, dict):
         for alt_id, scenario in scenarios_state.items():
-            alt_name = scenario.get("name", "")
+            if alt_id in scenario_metrics_by_alt:
+                continue
             ev = scenario_expected_value(
                 scenario.get("p_best", 0.5),
                 scenario.get("worst_score", 0),
                 scenario.get("best_score", 0)
             )
+            scenario_metrics_by_alt[alt_id] = {
+                "name": scenario.get("name", alt_name_by_id.get(alt_id, "")),
+                "ev": ev,
+                "uncertainty": scenario.get("best_score", 0) - scenario.get("worst_score", 0),
+            }
+
+    if ranking_list_all and scenario_metrics_by_alt:
+        for alt_id, metrics in scenario_metrics_by_alt.items():
+            alt_name = metrics.get("name", "")
+            ev = float(metrics.get("ev", 0.0))
             ev_scaled = ev / 2.0
-            uncertainty = scenario.get("best_score", 0) - scenario.get("worst_score", 0)
+            uncertainty = float(metrics.get("uncertainty", 0.0))
             
             mcda_score = next((item["score"] for item in ranking_list_all if item["alternativa"] == alt_name), None)
             
