@@ -528,10 +528,18 @@ def _render_action_panel(tree, selected_id):
                 st.rerun()
         else:
             st.caption("Esta alternativa ya está bifurcada. Edita o añade sub-ramas en sus nodos hijos.")
-            if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_alt_{selected_id}"):
-                _collapse_subtree_to_leaf(node)
-                _disable_visualizations_after_tree_change()
-                st.rerun()
+            alt_btn_col1, alt_btn_col2 = st.columns(2)
+            with alt_btn_col1:
+                if len(children) < MAX_NODE_BRANCHES and depth < MAX_TREE_DEPTH:
+                    if st.button("➕ Sub-rama", key=f"iact_addsub_alt_{selected_id}"):
+                        _redistribute_and_add(node, "Sub-escenario", 5)
+                        _disable_visualizations_after_tree_change()
+                        st.rerun()
+            with alt_btn_col2:
+                if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_alt_{selected_id}"):
+                    _collapse_subtree_to_leaf(node)
+                    _disable_visualizations_after_tree_change()
+                    st.rerun()
     else:
         # Editable node (batched update to avoid rerun on each keystroke/slider step)
         with st.form(key=f"iact_edit_form_{selected_id}", clear_on_submit=False):
