@@ -13,6 +13,37 @@ from typing import List, Dict, Any
 from config.constants import PLAZO_ORDER, YMAX, get_relevance_color
 
 
+def generate_alternative_colors(alternative_names: List[str]) -> Dict[str, str]:
+    """
+    Generate consistent colors for alternatives across all charts.
+    
+    Args:
+        alternative_names: List of alternative names
+        
+    Returns:
+        Dictionary mapping alternative names to hex colors
+    """
+    # Use a visually distinct color palette that works well for both radar and scatter plots
+    color_palette = [
+        '#1f77b4',  # Blue
+        '#ff7f0e',  # Orange  
+        '#2ca02c',  # Green
+        '#d62728',  # Red
+        '#9467bd',  # Purple
+        '#8c564b',  # Brown
+        '#e377c2',  # Pink
+        '#7f7f7f',  # Gray
+        '#bcbd22',  # Olive
+        '#17becf',  # Cyan
+    ]
+    
+    colors = {}
+    for i, alt_name in enumerate(alternative_names):
+        colors[alt_name] = color_palette[i % len(color_palette)]
+    
+    return colors
+
+
 @st.cache_data
 def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
     """

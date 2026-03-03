@@ -49,12 +49,15 @@ def _collect_tree_leaves(node: dict, leaves=None) -> list:
     return leaves
 
 
-def create_decision_matrix_chart(combined_data: list) -> go.Figure:
+def create_decision_matrix_chart(combined_data: list, alt_colors: dict = None) -> go.Figure:
     """Create the bubble chart for Decision Matrix."""
     fig = go.Figure()
     
-    max_composite = max(d["composite"] for d in combined_data)
-    min_composite = min(d["composite"] for d in combined_data)
+    # Generate colors if not provided
+    if alt_colors is None:
+        alt_names = [item["name"] for item in combined_data]
+        from utils.visualizations import generate_alternative_colors
+        alt_colors = generate_alternative_colors(alt_names)
     
     for item in combined_data:
         # Bubble size based on uncertainty
@@ -64,16 +67,16 @@ def create_decision_matrix_chart(combined_data: list) -> go.Figure:
         max_uncertainty = 10
         opacity = 0.95 - (item["uncertainty"] / max_uncertainty) * 0.9
         
+        # Get alternative-specific color
+        alt_color = alt_colors.get(item["name"], '#1f77b4')
+        
         fig.add_trace(go.Scatter(
             x=[item["mcda"]],
             y=[item["ev_scaled"]],
             mode="markers",
             marker=dict(
                 size=bubble_size,
-                color=item["composite"],
-                colorscale="Viridis",
-                cmin=min_composite,
-                cmax=max_composite,
+                color=alt_color,
                 opacity=opacity,
                 line=dict(width=2, color="white")
             ),
@@ -359,6 +362,11 @@ def render_resultados_tab():
     st.markdown("## 📊 Análisis Visual")
     
     if combined_data:
+        # Generate consistent colors for all alternatives
+        alt_names = [item["name"] for item in combined_data]
+        from utils.visualizations import generate_alternative_colors
+        alt_colors = generate_alternative_colors(alt_names)
+        
         # Two-column layout: Radar Chart + Decision Matrix
         col1, col2 = st.columns(2)
         
@@ -367,6 +375,12 @@ def render_resultados_tab():
             try:
                 top_alts = [item["alternativa"] for item in ranking_list[:3]]
                 fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts, showlegend=False)
+                # Apply consistent colors to radar chart
+                for i, trace in enumerate(fig_radar.data):
+                    alt_name = trace.name
+                    if alt_name in alt_colors:
+                        trace.marker.color = alt_colors[alt_name]
+                        trace.line.color = alt_colors[alt_name]
                 fig_radar.update_layout(height=350, margin=dict(l=30, r=30, t=30, b=30))
                 st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
                 st.caption("Top 3 alternativas por criterio")
@@ -375,7 +389,7 @@ def render_resultados_tab():
         
         with col2:
             st.markdown("####")
-            fig_matrix = create_decision_matrix_chart(combined_data)
+            fig_matrix = create_decision_matrix_chart(combined_data, alt_colors)
             st.plotly_chart(fig_matrix, width="stretch", config={"displayModeBar": False})
             st.caption("Tamaño/transparencia = incertidumbre")
     
@@ -385,6 +399,14 @@ def render_resultados_tab():
         try:
             top_alts = [item["alternativa"] for item in ranking_list[:3]]
             fig_radar = create_mcda_radar_chart(scores_df, prioridad_names, top_alts)
+            # Apply consistent colors to radar chart
+            from utils.visualizations import generate_alternative_colors
+            alt_colors = generate_alternative_colors(top_alts)
+            for i, trace in enumerate(fig_radar.data):
+                alt_name = trace.name
+                if alt_name in alt_colors:
+                    trace.marker.color = alt_colors[alt_name]
+                    trace.line.color = alt_colors[alt_name]
             st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
         except Exception:
             st.info("💡 Complete la evaluación para ver el gráfico radar")
