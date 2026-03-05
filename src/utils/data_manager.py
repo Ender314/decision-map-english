@@ -671,42 +671,51 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         decision_tree = json.loads(json.dumps(decision_tree_raw))
     elif isinstance(projection_raw, dict) and projection_raw:
         decision_tree = _build_unified_tree_from_projection(decision_label, imported_alts, projection_raw)
-    else:
+    elif imported_scenarios:  # Only generate fallback if we have actual scenario data
         fallback_projection = {
             alt_id: _create_tree_from_flat_scenario(scenario.get("name", ""), scenario)
             for alt_id, scenario in imported_scenarios.items()
         }
         decision_tree = _build_unified_tree_from_projection(decision_label, imported_alts, fallback_projection)
+    else:
+        # No scenario data - set empty structures
+        st.session_state["scenarios_decision_tree"] = {}
+        st.session_state["scenarios_tree_projection"] = {}
+        st.session_state["scenarios"] = {}
+        return  # Skip the rest of scenario processing
 
-    decision_tree["label"] = (decision_label or "Decisión")[:50]
-    decision_tree["node_type"] = "root"
-    decision_tree["alt_id"] = None
-    decision_tree["probability"] = 100
-    decision_tree.setdefault("children", [])
+    # Only process scenarios if we have a decision tree (i.e., have scenario data)
+    if decision_tree:
+        decision_tree["label"] = (decision_label or "Decisión")[:50]
+        decision_tree["node_type"] = "root"
+        decision_tree["alt_id"] = None
+        decision_tree["probability"] = 100
+        decision_tree.setdefault("children", [])
 
-    projected_scenarios_trees = _project_unified_tree_to_per_alt(decision_tree)
-    st.session_state["scenarios_decision_tree"] = decision_tree
-    st.session_state["scenarios_tree_projection"] = projected_scenarios_trees
+        projected_scenarios_trees = _project_unified_tree_to_per_alt(decision_tree)
+        st.session_state["scenarios_decision_tree"] = decision_tree
+        st.session_state["scenarios_tree_projection"] = projected_scenarios_trees
 
-    projected_scenarios = {}
-    for alt in imported_alts:
-        alt_id = alt["id"]
-        alt_name = alt.get("text", "")
-        tree = projected_scenarios_trees.get(alt_id)
-        if tree:
-            row = _flatten_tree_to_legacy_row(alt_name, tree)
-            projected_scenarios[alt_id] = {
-                "name": alt_name,
-                "best_desc": row.get("best_desc", ""),
-                "best_score": float(row.get("best_score", 0.0)),
-                "worst_desc": row.get("worst_desc", ""),
-                "worst_score": float(row.get("worst_score", 0.0)),
-                "p_best": float(row.get("p_best", 0.0)),
-                "p_best_pct": int(row.get("p_best_pct", 0)),
-                "ev": float(row.get("EV", 0.0)),
-            }
+        projected_scenarios = {}
+        if decision_tree.get("children"):  # Only project if tree has children (i.e., has scenario data)
+            for alt in imported_alts:
+                alt_id = alt["id"]
+                alt_name = alt.get("text", "")
+                tree = projected_scenarios_trees.get(alt_id)
+                if tree:
+                    row = _flatten_tree_to_legacy_row(alt_name, tree)
+                    projected_scenarios[alt_id] = {
+                        "name": alt_name,
+                        "best_desc": row.get("best_desc", ""),
+                        "best_score": float(row.get("best_score", 0.0)),
+                        "worst_desc": row.get("worst_desc", ""),
+                        "worst_score": float(row.get("worst_score", 0.0)),
+                        "p_best": float(row.get("p_best", 0.0)),
+                        "p_best_pct": int(row.get("p_best_pct", 0)),
+                        "ev": float(row.get("EV", 0.0)),
+                    }
 
-    st.session_state["scenarios"] = projected_scenarios or imported_scenarios
+        st.session_state["scenarios"] = projected_scenarios or imported_scenarios
     
     # Import risks (if present)
     risks_data = data.get("risks", [])

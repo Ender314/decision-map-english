@@ -56,7 +56,7 @@ TOOLTIPS = {
     # Resultados tab
     "matriz_decision": "Arriba-derecha = óptimo (alto MCDA + alto EV). Tamaño de burbuja = incertidumbre",
     "confianza": "Basado en la ventaja del ganador sobre el segundo y la incertidumbre de los escenarios",
-    "composite": "Puntuación compuesta = 50% MCDA + 50% Valor Esperado (ambos en escala 0-5)",
+    "composite": "Puntuación compuesta = 60% MCDA + 40% Valor Esperado (ambos en escala 0-5)",
     
     # Riesgos tab
     "risk_score": "Puntuación de riesgo = Probabilidad × Impacto. Mayor puntuación = mayor prioridad",
