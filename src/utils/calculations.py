@@ -121,13 +121,13 @@ def calculate_recommended_time(relevance_pct: float) -> str:
         Recommended time allocation string
     """
     if relevance_pct <= 20:
-        return "Menos de media hora"
+        return "Less than 30 minutes"
     elif relevance_pct <= 45:
-        return "Un par de horas"
+        return "A couple of hours"
     elif relevance_pct <= 80:
-        return "Una mañana"
+        return "One morning"
     else:
-        return "Un par de días"
+        return "A couple of days"
 
 
 def pert_pdf(x_values: np.ndarray, minimum: float, maximum: float, mode: float, lam: float = 4.0) -> np.ndarray:
@@ -398,9 +398,9 @@ def get_sections_for_time(tiempo_value: str, all_sections: List[str]) -> List[st
     Returns:
         List of sections to display
     """
-    if tiempo_value == "Menos de media hora":
-        return ["Dimensionado", "Alternativas", "Prioridades", "Evaluación"]
-    elif tiempo_value == "Un par de horas":
-        return ["Dimensionado", "Alternativas", "Información", "Prioridades", "Evaluación", "Resultados"]
+    if tiempo_value == "Less than 30 minutes":
+        return ["Sizing", "Alternatives", "Priorities", "Evaluation"]
+    elif tiempo_value == "A couple of hours":
+        return ["Sizing", "Alternatives", "Information", "Priorities", "Evaluation", "Results"]
     else:
         return all_sections[:]

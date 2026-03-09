@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-UI Helper utilities for Decider Pro.
+UI helper utilities for Decision Map.
 Provides consistent tooltip styling and contextual help across the app.
 """
 
@@ -23,47 +23,47 @@ def help_label(label: str, tip: str) -> str:
     Returns a label with an inline help icon.
     
     Usage:
-        st.markdown(help_label("Impacto", "Diferencia entre mejor y peor escenario"), unsafe_allow_html=True)
+        st.markdown(help_label("Impact", "Difference between best and worst scenario"), unsafe_allow_html=True)
     """
     return f'{label} {help_tip(tip)}'
 
 
 # Predefined tooltips for consistency across the app
 TOOLTIPS = {
-    # Dimensionado tab
-    "impacto": "Impacto = diferencia entre el mejor y peor resultado posible en este plazo temporal",
-    "tiempo": "Más tiempo = análisis más profundo. Ajusta según la importancia de la decisión",
-    "relevancia": "Calculada automáticamente según el impacto en los tres plazos temporales",
+    # Sizing tab
+    "impacto": "Impact = difference between the best and worst possible outcome in this time horizon",
+    "tiempo": "More time = deeper analysis. Adjust based on the importance of this decision",
+    "relevancia": "Calculated automatically from impact across short, medium, and long term",
     
-    # Alternativas tab
-    "alternativas": "Incluye siempre 'no hacer nada' o 'mantener status quo' como alternativa de referencia",
-    "alternativa_add": "Añade entre 2 y 5 alternativas para un análisis efectivo",
+    # Alternatives tab
+    "alternativas": "Always include 'do nothing' or 'maintain status quo' as a reference alternative",
+    "alternativa_add": "Add between 2 and 5 alternatives for effective analysis",
     
-    # Prioridades tab
-    "prioridades": "Ordena de más a menos importante. El orden afecta los pesos automáticos en la evaluación",
-    "prioridad_orden": "La primera prioridad tiene peso 1, la segunda 0.5, la tercera 0.33, etc.",
+    # Priorities tab
+    "prioridades": "Order from most to least important. Order affects automatic evaluation weights",
+    "prioridad_orden": "The first priority has weight 1, second 0.5, third 0.33, etc.",
     
-    # Evaluación tab
-    "mcda_score": "0 = muy malo, 5 = excelente. Sé consistente al puntuar entre alternativas",
-    "mcda_weights": "Los pesos se normalizan automáticamente para sumar 100%",
-    "mcda_ranking": "Ranking basado en puntuación ponderada de todos los criterios",
+    # Evaluation tab
+    "mcda_score": "0 = very poor, 5 = excellent. Keep scoring consistent across alternatives",
+    "mcda_weights": "Weights are automatically normalized to sum to 100%",
+    "mcda_ranking": "Ranking based on weighted scores across all criteria",
     
-    # Escenarios tab
-    "scenario_prob": "¿Qué tan probable es el mejor resultado? 50% = igual de probable que el peor",
-    "scenario_range": "Mayor rango = más incertidumbre. Sé honesto sobre lo que no sabes",
-    "scenario_ev": "Valor Esperado = probabilidad × mejor + (1-probabilidad) × peor",
+    # Scenarios tab
+    "scenario_prob": "How likely is the best outcome? 50% = equally likely as the worst",
+    "scenario_range": "Wider range = higher uncertainty. Be honest about what you don't know",
+    "scenario_ev": "Expected Value = probability × best + (1-probability) × worst",
     
-    # Resultados tab
-    "matriz_decision": "Arriba-derecha = óptimo (alto MCDA + alto EV). Tamaño de burbuja = incertidumbre",
-    "confianza": "Basado en la ventaja del ganador sobre el segundo y la incertidumbre de los escenarios",
-    "composite": "Puntuación compuesta = 50% MCDA + 50% Valor Esperado (ambos en escala 0-5)",
+    # Results tab
+    "matriz_decision": "Top-right = optimal (high MCDA + high EV). Bubble size = uncertainty",
+    "confianza": "Based on winner margin vs second place and scenario uncertainty",
+    "composite": "Composite score = 50% MCDA + 50% Expected Value (both on a 0-5 scale)",
     
-    # Riesgos tab
-    "risk_score": "Puntuación de riesgo = Probabilidad × Impacto. Mayor puntuación = mayor prioridad",
-    "risk_strategies": "Las 4 estrategias clásicas: Evitar, Transferir, Mitigar, Plan de contingencia",
+    # Risks tab
+    "risk_score": "Risk score = Probability × Impact. Higher score = higher priority",
+    "risk_strategies": "The 4 classic strategies: Avoid, Transfer, Mitigate, Contingency plan",
     
     # General
-    "export": "Exporta tu análisis para compartirlo o guardarlo. Puedes importarlo después",
+    "export": "Export your analysis to share or store it. You can import it later",
 }
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Session state management utilities for Decider Pro.
+Session state management utilities for Decision Map.
 Provides efficient session state initialization, cleanup, and optimization.
 """
 
@@ -11,22 +11,22 @@ from config.constants import DEFAULT_MCDA_CRITERIA
 
 class SessionStateManager:
     """
-    Centralized session state management for Decider Pro.
+    Centralized session state management for Decision Map.
     Provides lazy initialization, cleanup, and optimization utilities.
     """
     
     # Define default values as class constants for better performance
     DEFAULTS = {
         # Impact assessment
-        "impacto_corto": "bajo",
-        "impacto_medio": "medio", 
-        "impacto_largo": "bajo",
+        "impacto_corto": "low",
+        "impacto_medio": "medium",
+        "impacto_largo": "low",
         
         # Core data
         "decision": "",
         "estrategia_corporativa": "",
         "objetivo": "",
-        "tiempo": "Menos de media hora",
+        "tiempo": "Less than 30 minutes",
         "tiempo_user_override": False,
         "alts": [],
         "priorities": [],

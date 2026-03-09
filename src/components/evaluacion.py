@@ -18,7 +18,7 @@ def get_position_based_weights(n: int) -> list:
 
 def render_evaluacion_tab():
     """Render the Evaluación (MCDA Evaluation) tab."""
-    st.subheader("⚖️ Evaluación")
+    st.subheader("⚖️ Evaluation")
     
     # Clean up orphaned slider states when alternatives/priorities change
     current_slider_keys = set()
@@ -38,11 +38,11 @@ def render_evaluacion_tab():
     prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
     
     if not alt_names:
-        st.info("💡 Añade al menos una **Alternativa** en la pestaña *Alternativas* para poder evaluarlas.")
+        st.info("💡 Add at least one **Alternative** in the *Alternatives* tab to evaluate.")
         return
     
     if not prioridad_names:
-        st.info("💡 Define al menos una **Prioridad** en la pestaña *Prioridades* para poder hacer la evaluación.")
+        st.info("💡 Define at least one **Priority** in the *Priorities* tab to run the evaluation.")
         return
     
 
@@ -180,7 +180,7 @@ def render_evaluacion_tab():
         # We'll use a placeholder for the alternative name - update after checkboxes
         alt_name_placeholder = row_cols[0].empty()
         
-        row_data = {"Alternativa": alt_name}
+        row_data = {"Alternative": alt_name}
         
         # Priority sliders
         for i, criterion in enumerate(prioridad_names):
@@ -237,7 +237,7 @@ def render_evaluacion_tab():
         scores_data.append(row_data)
     
     # Create DataFrame for calculations
-    scores_df = pd.DataFrame(scores_data).set_index("Alternativa")
+    scores_df = pd.DataFrame(scores_data).set_index("Alternative")
     st.session_state.mcda_scores_df = scores_df
     
     # Get disqualified alternatives AFTER all checkboxes have been rendered and synced
@@ -248,33 +248,33 @@ def render_evaluacion_tab():
         num_disqualified = len(disqualified_alts)
         num_total = len([a for a in st.session_state.alts if a["text"].strip()])
         if num_disqualified == num_total:
-            st.error(f"⚠️ **Todas las alternativas están descalificadas**. Revisa los No Negociables o añade alternativas que los cumplan.")
+            st.error(f"⚠️ **All alternatives are disqualified**. Review non-negotiables or add alternatives that satisfy them.")
         else:
-            st.warning(f"⚠️ **{num_disqualified} alternativa(s) descalificada(s)** por no cumplir todos los No Negociables.")
+            st.warning(f"⚠️ **{num_disqualified} alternative(s) disqualified** for not meeting all non-negotiables.")
     
     # Contextual help - placed after scoring matrix where confusion might arise
-    with st.expander("*\"¿Qué significa un 3? ¿Cómo comparo de forma justa?\"*", expanded=False):
+    with st.expander("*\"What does a score of 3 mean? How do I compare fairly?\"*", expanded=False):
         st.markdown("""
-        **Escala de puntuación (0-5):**
+        **Scoring scale (0-5):**
         
-        | Puntuación | Significado |
+        | Score | Meaning |
         |------------|-------------|
-        | **0** | Muy malo — La alternativa falla completamente en este criterio |
-        | **1-2** | Malo/Débil — Por debajo de lo aceptable |
-        | **2.5** | Neutro — Ni bueno ni malo, cumple lo mínimo |
-        | **3-4** | Bueno/Fuerte — Por encima de lo esperado |
-        | **5** | Excelente — La alternativa destaca en este criterio |
+        | **0** | Very poor — The alternative fully fails this criterion |
+        | **1-2** | Weak/Poor — Below acceptable |
+        | **2.5** | Neutral — Meets minimum expectations |
+        | **3-4** | Good/Strong — Above expected |
+        | **5** | Excellent — The alternative stands out on this criterion |
         
-        **Consejos:**
-        - Puntúa **comparando alternativas entre sí**, no en abstracto
-        - Sé consistente: si A es mejor que B en un criterio, A debe tener mayor puntuación
-        - No te preocupes por ser exacto — la diferencia entre 3 y 3.5 rara vez cambia el resultado
+        **Tips:**
+        - Score by **comparing alternatives to each other**, not in absolute terms
+        - Be consistent: if A is better than B on a criterion, A should score higher
+        - Don't worry about perfect precision — the gap between 3 and 3.5 rarely changes the final outcome
         """)
     
     st.markdown("---")
     
     # Results FIRST
-    st.markdown("### 🏆 Resultados")
+    st.markdown("### 🏆 Results")
     
     # Colors for priority visualization (used in ranking breakdown and weight sliders)
     colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336', '#00BCD4', '#FFEB3B', '#795548']
@@ -301,7 +301,7 @@ def render_evaluacion_tab():
             fig = create_mcda_radar_chart(scores_df, prioridad_names, [alt["alternativa"] for alt in top_alts])
             st.plotly_chart(fig, width="stretch")
         except Exception as e:
-            st.info("💡 Error al generar gráfico radar")
+            st.info("💡 Error generating radar chart")
         
         st.markdown("")
         st.markdown("")
@@ -349,14 +349,14 @@ def render_evaluacion_tab():
                     text=f"{item['score']:.2f}",
                     textposition='outside',
                     textfont=dict(size=14, color='#333'),
-                    hovertemplate=f"<b>{item['alternativa']}</b><br>Puntuación: {item['score']:.2f}<extra></extra>"
+                    hovertemplate=f"<b>{item['alternativa']}</b><br>Score: {item['score']:.2f}<extra></extra>"
                 ))
         
         fig_ranking.update_layout(
             height=max(200, len(ranking_list) * 50),
             margin=dict(l=10, r=60, t=10, b=10),
             showlegend=False,
-            xaxis=dict(range=[0, ranking_list[0]['score'] * 1.2], title="Puntuación", showgrid=True, gridcolor='#eee'),
+            xaxis=dict(range=[0, ranking_list[0]['score'] * 1.2], title="Score", showgrid=True, gridcolor='#eee'),
             yaxis=dict(showgrid=False),
             bargap=0.3
         )
@@ -364,10 +364,10 @@ def render_evaluacion_tab():
         
         # Winner announcement
         winner = ranking_list[0]
-        st.success(f"🏆 **Alternativa recomendada**: {winner['alternativa']} (Puntuación: {winner['score']:.2f})")
+        st.success(f"🏆 **Recommended alternative**: {winner['alternativa']} (Score: {winner['score']:.2f})")
         
         # Show score breakdown for winner
-        with st.expander(f"Desglose de puntuación - {winner['alternativa']}"):
+        with st.expander(f"Score breakdown - {winner['alternativa']}"):
             winner_scores = st.session_state.mcda_scores[winner['alternativa']]
             for criterion, score in winner_scores.items():
                 weight = weight_map.get(criterion, 0)
@@ -376,20 +376,20 @@ def render_evaluacion_tab():
             
             st.markdown("")
             st.checkbox(
-                "Visualizar contribución por criterio",
+                "Show contribution by criterion",
                 value=st.session_state.get("show_ranking_breakdown", False),
                 key="show_ranking_breakdown"
             )
     else:
         if disqualified_alts and len(disqualified_alts) == len([a for a in st.session_state.alts if a["text"].strip()]):
-            st.info("💡 Todas las alternativas están descalificadas. Revisa los No Negociables para ver resultados.")
+            st.info("💡 All alternatives are disqualified. Review non-negotiables to unlock results.")
         else:
-            st.info("💡 Completa la evaluación para ver los resultados")
+            st.info("💡 Complete the evaluation to view results")
     
     st.markdown("---")
     
     # Weight sliders section (no expander)
-    st.markdown("### 📐 Pesos de Prioridades")
+    st.markdown("### 📐 Priority Weights")
     
     # Initialize pending_weights from committed weights if not present or structure changed
     committed_weight_map = {c["name"]: c["weight"] for c in st.session_state.mcda_criteria}
@@ -456,7 +456,7 @@ def render_evaluacion_tab():
                 # Truncate name if too long for label
                 display_name = name[:15] + "..." if len(name) > 18 else name
                 fig.add_trace(go.Bar(
-                    x=['Pesos'],
+                    x=['Weights'],
                     y=[normalized],
                     name=name,
                     marker_color=item["color"],
@@ -487,7 +487,7 @@ def render_evaluacion_tab():
     # Submit button to apply pending weights
     col_btn, col_hint = st.columns([1, 3])
     with col_btn:
-        if st.button("✅ Aplicar pesos", disabled=not weights_changed, width="stretch"):
+        if st.button("✅ Apply weights", disabled=not weights_changed, width="stretch"):
             # Commit pending weights to mcda_criteria
             for i, criterion in enumerate(st.session_state.mcda_criteria):
                 if criterion["name"] in st.session_state.pending_weights:
@@ -496,4 +496,4 @@ def render_evaluacion_tab():
             st.rerun()
     with col_hint:
         if weights_changed:
-            st.caption("⚠️ Hay cambios de pesos pendientes. Pulsa *Aplicar pesos* para actualizar los resultados.")
+            st.caption("⚠️ There are pending weight changes. Click *Apply weights* to refresh results.")

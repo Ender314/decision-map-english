@@ -70,7 +70,7 @@ def render_prioridades_tab():
         st.markdown(f"🎯 *{objetivo_text}*")
         st.markdown("---")
     
-    st.markdown(f"### ⭐ Prioridades {help_tip(get_tooltip('prioridades'))}", unsafe_allow_html=True)
+    st.markdown(f"### ⭐ Priorities {help_tip(get_tooltip('prioridades'))}", unsafe_allow_html=True)
     
     # Show existing priorities with reordering
     if st.session_state.priorities:
@@ -79,14 +79,14 @@ def render_prioridades_tab():
             
             # Up button
             with col1:
-                if i > 1 and st.button("⬆️", key=f"up_{priority['id']}", help="Mover arriba"):
+                if i > 1 and st.button("⬆️", key=f"up_{priority['id']}", help="Move up"):
                     move_priority(priority["id"], "up")
                     st.rerun()
             
             # Text input
             with col2:
                 new_text = st.text_input(
-                    f"Prioridad {i}",
+                    f"Priority {i}",
                     value=priority["text"],
                     key=f"priority_text_{priority['id']}",
                     placeholder="Our top priority is...",
@@ -98,20 +98,20 @@ def render_prioridades_tab():
             
             # Down button
             with col3:
-                if i < len(st.session_state.priorities) and st.button("⬇️", key=f"down_{priority['id']}", help="Mover abajo"):
+                if i < len(st.session_state.priorities) and st.button("⬇️", key=f"down_{priority['id']}", help="Move down"):
                     move_priority(priority["id"], "down")
                     st.rerun()
             
             # Delete button
             with col4:
-                if st.button("🗑️", key=f"del_priority_{priority['id']}", help="Eliminar prioridad"):
+                if st.button("🗑️", key=f"del_priority_{priority['id']}", help="Delete priority"):
                     remove_priority(priority["id"])
                     st.rerun()
     else:
-        st.info("💡 **Tip**: Define las prioridades que usarás como criterios para evaluar las alternativas")
+        st.info("💡 **Tip**: Define the priorities you will use as criteria to evaluate alternatives")
     
     # Add new priority button
-    if st.button("➕ Añadir Prioridad", width="stretch"):
+    if st.button("➕ Add Priority", width="stretch"):
         add_priority()
         st.rerun()
     
@@ -123,15 +123,15 @@ def render_prioridades_tab():
     
     # Warning for too many priorities
     if len(valid_priorities) > 4:
-        st.warning("⚠️ **Cuidado, demasiadas prioridades es no tenerlas**")
+        st.warning("⚠️ **Warning: too many priorities can make prioritization meaningless**")
     
     # ===========================================
     # NO NEGOCIABLES SECTION
     # ===========================================
     
     st.markdown("---")
-    st.markdown("### 🚫 No Negociables")
-    st.caption("Requisitos obligatorios que una alternativa debe cumplir para ser considerada.")
+    st.markdown("### 🚫 Non-negotiables")
+    st.caption("Mandatory requirements an alternative must satisfy to be considered.")
     
     # Initialize no_negociables if needed
     if "no_negociables" not in st.session_state:
@@ -152,7 +152,7 @@ def render_prioridades_tab():
                     f"No negociable {i}",
                     value=constraint["text"],
                     key=f"no_neg_text_{constraint['id']}",
-                    placeholder="Ej: Debe tener aprobación regulatoria",
+                    placeholder="E.g. Must have regulatory approval",
                     label_visibility="collapsed",
                 )
                 # Update if text changed
@@ -161,13 +161,13 @@ def render_prioridades_tab():
             
             # Delete button
             with col3:
-                if st.button("🗑️", key=f"del_no_neg_{constraint['id']}", help="Eliminar restricción"):
+                if st.button("🗑️", key=f"del_no_neg_{constraint['id']}", help="Delete constraint"):
                     remove_no_negociable(constraint["id"])
                     st.rerun()
     else:
-        st.info("💡 **Tip**: Los no negociables son requisitos binarios (sí/no). Una alternativa que no cumpla **cualquier** no negociable será descartada del análisis.")
+        st.info("💡 **Tip**: Non-negotiables are binary requirements (yes/no). An alternative that fails **any** non-negotiable will be disqualified from analysis.")
     
     # Add new no negociable button
-    if st.button("➕ Añadir No Negociable", width="stretch"):
+    if st.button("➕ Add Non-negotiable", width="stretch"):
         add_no_negociable()
         st.rerun()

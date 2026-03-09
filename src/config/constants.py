@@ -1,37 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-Constants and configuration for Decider Pro application.
+Constants and configuration for Decision Map application.
 Centralized source of truth for all application constants.
 """
 
 # Tab names
-TAB_DIMENSIONADO = "Dimensionado"
-TAB_ALTERNATIVAS = "Alternativas"
-TAB_OBJETIVO = "Objetivo"
-TAB_PRIORIDADES = "Prioridades"
-TAB_INFO = "Información"
-TAB_EVAL = "Evaluación"
-TAB_RESULTADOS = "Resultados"
-TAB_SCENARIOS = "Escenarios"
-TAB_SCENARIOS_INTERACTIVE = "Escenarios Interactivos"
-TAB_RIESGOS = "Riesgos"
-TAB_RETRO = "Retrospectiva"
-TAB_INFORME = "Informe"
+TAB_DIMENSIONADO = "Sizing"
+TAB_ALTERNATIVAS = "Alternatives"
+TAB_OBJETIVO = "Objective"
+TAB_PRIORIDADES = "Priorities"
+TAB_INFO = "Information"
+TAB_EVAL = "Evaluation"
+TAB_RESULTADOS = "Results"
+TAB_SCENARIOS = "Scenarios"
+TAB_SCENARIOS_INTERACTIVE = "Interactive Scenarios"
+TAB_RIESGOS = "Risks"
+TAB_RETRO = "Retrospective"
+TAB_INFORME = "Report"
 
 # Tab display names with emojis (for visual display only)
 TAB_DISPLAY_NAMES = {
-    TAB_DIMENSIONADO: "📏Dimensionado",
-    TAB_ALTERNATIVAS: "🧭 Alternativas", 
-    TAB_OBJETIVO: "🎯 Objetivo",
-    TAB_PRIORIDADES: "⭐ Prioridades",
-    TAB_INFO: "📝 Información",
-    TAB_EVAL: "⚖️ Evaluación",
-    TAB_RESULTADOS: "📊 Resultados",
-    TAB_SCENARIOS: "🔮 Escenarios",
-    TAB_SCENARIOS_INTERACTIVE: "� Escenarios Interactivos",
-    TAB_RIESGOS: "⚠️ Riesgos",
-    TAB_RETRO: "🔄 Retrospectiva",
-    TAB_INFORME: "📋 Informe"
+    TAB_DIMENSIONADO: "📏 Sizing",
+    TAB_ALTERNATIVAS: "🧭 Alternatives",
+    TAB_OBJETIVO: "🎯 Objective",
+    TAB_PRIORIDADES: "⭐ Priorities",
+    TAB_INFO: "📝 Information",
+    TAB_EVAL: "⚖️ Evaluation",
+    TAB_RESULTADOS: "📊 Results",
+    TAB_SCENARIOS: "🔮 Scenarios",
+    TAB_SCENARIOS_INTERACTIVE: "🔀 Interactive Scenarios",
+    TAB_RIESGOS: "⚠️ Risks",
+    TAB_RETRO: "🔄 Retrospective",
+    TAB_INFORME: "📋 Report"
 }
 
 # Tab flow configuration - Analysis phase only
@@ -44,43 +44,43 @@ ALL_SECTIONS = [
 MONITORING_SECTIONS = [TAB_RIESGOS, TAB_RETRO]
 
 # Risk categories for risk analysis
-RISK_CATEGORIES = ["técnico", "financiero", "operacional", "externo", "estratégico"]
-RISK_PROBABILITY = ["bajo", "medio", "alto"]
-RISK_IMPACT = ["bajo", "medio", "alto", "crítico"]
-RISK_STATUS = ["identificado", "en_tratamiento", "aceptado", "cerrado"]
+RISK_CATEGORIES = ["technical", "financial", "operational", "external", "strategic"]
+RISK_PROBABILITY = ["low", "medium", "high"]
+RISK_IMPACT = ["low", "medium", "high", "critical"]
+RISK_STATUS = ["identified", "in_treatment", "accepted", "closed"]
 
 # Risk score mapping (probability × impact)
-RISK_PROB_MAP = {"bajo": 1, "medio": 2, "alto": 3}
-RISK_IMPACT_MAP = {"bajo": 1, "medio": 2, "alto": 3, "crítico": 4}
+RISK_PROB_MAP = {"low": 1, "medium": 2, "high": 3}
+RISK_IMPACT_MAP = {"low": 1, "medium": 2, "high": 3, "critical": 4}
 
 # Outcome attribution options for retrospective
-OUTCOME_ATTRIBUTION = ["decisión", "azar", "mixto"]
-OUTCOME_SENTIMENT = ["positivo", "neutral", "negativo"]
-TRIPWIRE_STATUS = ["activo", "disparado", "superado"]
+OUTCOME_ATTRIBUTION = ["decision", "luck", "mixed"]
+OUTCOME_SENTIMENT = ["positive", "neutral", "negative"]
+TRIPWIRE_STATUS = ["active", "triggered", "resolved"]
 
 # Impact assessment
-IMPACT_OPTS = ["bajo", "medio", "alto", "crítico"]
-IMPACT_MAP = {"bajo": 0, "medio": 5, "alto": 10, "crítico": 15}
-PLAZO_ORDER = ["corto", "medio", "largo"]
+IMPACT_OPTS = ["low", "medium", "high", "critical"]
+IMPACT_MAP = {"low": 0, "medium": 5, "high": 10, "critical": 15}
+PLAZO_ORDER = ["short", "medium", "long"]
 YMAX = max(IMPACT_MAP.values())  # 15
 
 # Time allocation options
-TIME_OPTIONS = ["Menos de media hora", "Un par de horas", "Una mañana", "Un par de días"]
+TIME_OPTIONS = ["Less than 30 minutes", "A couple of hours", "One morning", "A couple of days"]
 
 # Default MCDA criteria
 DEFAULT_MCDA_CRITERIA = [
-    {"name": "Impacto estratégico", "weight": 0.5},
-    {"name": "Urgencia", "weight": 0.5},
+    {"name": "Strategic impact", "weight": 0.5},
+    {"name": "Urgency", "weight": 0.5},
 ]
 
 # App metadata
-APP_NAME = "Decider Pro"
+APP_NAME = "Decision Map"
 APP_VERSION = "1.1.0"
 APP_ICON = "🧭"
-APP_FILENAME_PREFIX = APP_NAME.lower().replace(" ", "_")  # "decider_pro"
+APP_FILENAME_PREFIX = APP_NAME.lower().replace(" ", "_")  # "decision_map"
 
 # Legacy app names (for import compatibility)
-LEGACY_APP_NAMES = ["Focal Path Pro", "Lambda Pro"]
+LEGACY_APP_NAMES = ["Decider Pro", "Focal Path Pro", "Lambda Pro"]
 
 # Brand colors
 COLOR_PRIMARY = "#1a365d"      # Deep navy - trust, authority

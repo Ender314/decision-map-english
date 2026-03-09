@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Offer Landing Page for Decider Pro - Sistema de Maestría en Decisiones
+Offer Landing Page for Decision Map - Decision Mastery System
 Marketing-focused landing page with conversion optimization.
 """
 
@@ -181,12 +181,12 @@ def render_offer_page():
     # Navigation bar
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col1:
-        if st.button("← Inicio", key="nav_to_landing", help="Volver a la página principal"):
+        if st.button("← Home", key="nav_to_landing", help="Go back to the main page"):
             st.session_state["current_page"] = "landing"
             st.query_params.clear()  # Clear URL parameters
             st.rerun()
     with col4:
-        if st.button("🚀 Demo Gratis", key="nav_to_app", help="Probar la aplicación"):
+        if st.button("🚀 Try free", key="nav_to_app", help="Try the app"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"
             st.rerun()
@@ -196,10 +196,10 @@ def render_offer_page():
     # Hero Section
     st.markdown("""
     <div class="hero-section">
-        <div class="hero-title">🧭 Sistema de Maestría en Decisiones</div>
-        <div class="hero-subtitle">Para profesionales ambiciosos y dueños de negocio</div>
+        <div class="hero-title">🧭 Decision Mastery System</div>
+        <div class="hero-subtitle">For ambitious professionals and business owners</div>
         <div class="dream-outcome">
-            💎 "Toma cada decisión importante de negocio o carrera con claridad y confianza — en minutos, no en meses."
+            💎 "Make every important business or career decision with clarity and confidence — in minutes, not months."
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -207,7 +207,7 @@ def render_offer_page():
     # Positioning Line
     st.markdown("""
     <div style="text-align: center; font-size: 1.5rem; font-weight: 600; color: #2c3e50; margin: 2rem 0;">
-        🎯 Convierte el sobreanálisis en claridad — y la claridad en progreso.
+        🎯 Turn overanalysis into clarity — and clarity into progress.
     </div>
     """, unsafe_allow_html=True)
     
@@ -216,38 +216,38 @@ def render_offer_page():
     
     with col1:
         st.markdown("""
-        ### 😰 El Problema que Enfrentas a Diario
+        ### 😰 The Problem You Face Every Day
         
-        - **Parálisis por Análisis**: Semanas en decisiones que deberían tomar horas
-        - **Ceguera de Sesgos**: Fallos obvios en tu razonamiento que no ves
-        - **Proceso Inconsistente**: Un enfoque diferente para cada decisión
-        - **Arrepentimiento y Duda**: Cuestionando tus elecciones después de tomarlas
-        - **Oportunidades Perdidas**: Mientras deliberas, otros actúan
+        - **Analysis Paralysis**: Weeks spent on decisions that should take hours
+        - **Bias Blindness**: Obvious reasoning flaws you don't notice
+        - **Inconsistent Process**: A different approach for every decision
+        - **Regret and Doubt**: Second-guessing choices after making them
+        - **Missed Opportunities**: While you deliberate, others act
         """)
     
     with col2:
         st.markdown("""
-        ### ⚡ Tu Nuevo Superpoder para Decidir
+        ### ⚡ Your New Decision-Making Superpower
         
-        - **Marco Estructurado**: El mismo proceso probado cada vez
-        - **Detección de Sesgos**: Verificaciones integradas para trampas cognitivas
-        - **Claridad Visual**: Ve tus opciones mapeadas y ponderadas
-        - **Impulso de Confianza**: Decisiones respaldadas por datos que puedes defender
-        - **Velocidad**: Reduce el tiempo de decisión un 70% sin sacrificar calidad
+        - **Structured Framework**: The same proven process every time
+        - **Bias Detection**: Built-in checks for cognitive traps
+        - **Visual Clarity**: See your options mapped and weighted
+        - **Confidence Boost**: Data-backed decisions you can defend
+        - **Speed**: Cut decision time by 70% without sacrificing quality
         """)
     
     # Offer Stack
     st.markdown("""
     <div class="offer-stack">
-        <h2 style="text-align: center; color: #2c3e50; margin-bottom: 2rem;">🚀 Sistema Completo de Maestría en Decisiones</h2>
+        <h2 style="text-align: center; color: #2c3e50; margin-bottom: 2rem;">🚀 Complete Decision Mastery System</h2>
     """, unsafe_allow_html=True)
     
     # Component 1
     st.markdown(f"""
     <div class="component-item">
         <div>
-            <div class="component-name">⚡ {APP_NAME} App (Edición Pro)</div>
-            <div class="component-desc">Motor de toma de decisiones con verificación de sesgos, herramientas de ponderación e informes visuales</div>
+            <div class="component-name">⚡ {APP_NAME} App (Pro Edition)</div>
+            <div class="component-desc">Decision engine with bias checks, weighting tools, and visual reports</div>
         </div>
         <div class="component-value">€300</div>
     </div>
@@ -257,8 +257,8 @@ def render_offer_page():
     st.markdown("""
     <div class="component-item">
         <div>
-            <div class="component-name">📋 Biblioteca de Plantillas de Decisión</div>
-            <div class="component-desc">15+ plantillas prediseñadas (ej. "Contratar o Subcontratar", "Aceptar Oferta de Trabajo", "Lanzar o Esperar")</div>
+            <div class="component-name">📋 Decision Template Library</div>
+            <div class="component-desc">15+ prebuilt templates (e.g., "Hire or Outsource", "Accept Job Offer", "Launch or Wait")</div>
         </div>
         <div class="component-value">€150</div>
     </div>
@@ -268,8 +268,8 @@ def render_offer_page():
     st.markdown("""
     <div class="component-item">
         <div>
-            <div class="component-name">🔍 Checklist de Auditoría de Sesgos</div>
-            <div class="component-desc">Lista de verificación de sesgos cognitivos usada en revisiones estilo McKinsey</div>
+            <div class="component-name">🔍 Bias Audit Checklist</div>
+            <div class="component-desc">Cognitive-bias checklist inspired by McKinsey-style reviews</div>
         </div>
         <div class="component-value">€50</div>
     </div>
@@ -279,8 +279,8 @@ def render_offer_page():
     st.markdown("""
     <div class="component-item">
         <div>
-            <div class="component-name">🤖 Revisión de Decisiones con IA</div>
-            <div class="component-desc">Sube tu razonamiento → La IA identifica puntos ciegos y sugiere mejoras</div>
+            <div class="component-name">🤖 AI Decision Review</div>
+            <div class="component-desc">Upload your reasoning → AI identifies blind spots and suggests improvements</div>
         </div>
         <div class="component-value">€250</div>
     </div>
@@ -290,8 +290,8 @@ def render_offer_page():
     st.markdown("""
     <div class="component-item">
         <div>
-            <div class="component-name">🎯 Reto de Claridad de 30 Días</div>
-            <div class="component-desc">Micro-decisiones diarias guiadas para entrenar un pensamiento más rápido y racional</div>
+            <div class="component-name">🎯 30-Day Clarity Challenge</div>
+            <div class="component-desc">Guided daily micro-decisions to train faster, more rational thinking</div>
         </div>
         <div class="component-value">€100</div>
     </div>
@@ -301,8 +301,8 @@ def render_offer_page():
     st.markdown("""
     <div class="component-item">
         <div>
-            <div class="component-name">🔄 Actualizaciones de por Vida + Acceso Prioritario</div>
-            <div class="component-desc">Nuevas plantillas continuas y actualizaciones de ciencia de decisiones</div>
+            <div class="component-name">🔄 Lifetime Updates + Priority Access</div>
+            <div class="component-desc">Continuous new templates and decision-science updates</div>
         </div>
         <div class="component-value">€100</div>
     </div>
@@ -312,19 +312,19 @@ def render_offer_page():
     # Pricing Section
     st.markdown("""
     <div class="pricing-section">
-        <h2>💰 Inversión</h2>
+        <h2>💰 Investment</h2>
         <div style="margin: 1rem 0;">
             <span class="original-price">€950+</span>
-            <span style="font-size: 1.2rem;">Valor Total Percibido</span>
+            <span style="font-size: 1.2rem;">Total Perceived Value</span>
         </div>
         <div style="margin: 2rem 0;">
-            <div style="font-size: 1.5rem; margin-bottom: 1rem;">Tu Inversión Hoy:</div>
+            <div style="font-size: 1.5rem; margin-bottom: 1rem;">Your Investment Today:</div>
             <div class="offer-price">€99</div>
-            <div style="font-size: 1.2rem; margin-top: 1rem;">Pago único</div>
-            <div style="font-size: 1rem; opacity: 0.8; margin-top: 0.5rem;">o €12/mes</div>
+            <div style="font-size: 1.2rem; margin-top: 1rem;">One-time payment</div>
+            <div style="font-size: 1rem; opacity: 0.8; margin-top: 0.5rem;">or €12/month</div>
         </div>
         <div style="font-size: 1.3rem; font-weight: 600; margin-top: 2rem;">
-            💥 Ahorra €851+ (89% DESCUENTO)
+            💥 Save €851+ (89% OFF)
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -332,64 +332,64 @@ def render_offer_page():
     # Scarcity Alert
     st.markdown("""
     <div class="scarcity-alert">
-        🔥 Precio de lanzamiento para los primeros 250 usuarios — ¡47 plazas disponibles!
+        🔥 Launch price for the first 250 users — only 47 spots left!
     </div>
     """, unsafe_allow_html=True)
     
     # Guarantee
     st.markdown("""
     <div class="guarantee-box">
-        <h3>🛡️ Garantía de 30 Días "Mejor Decisión"</h3>
+        <h3>🛡️ 30-Day "Better Decisions" Guarantee</h3>
         <p style="font-size: 1.1rem; margin: 1rem 0;">
-            Si no sientes <strong>2× más claridad</strong> en cualquier decisión en 30 días, 
-            obtén un <strong>reembolso completo</strong> — sin preguntas.
+            If you don't feel <strong>2× more clarity</strong> in any decision within 30 days,
+            get a <strong>full refund</strong> — no questions asked.
         </p>
         <p style="font-style: italic; color: #6c757d;">
-            Estamos tan seguros de que este sistema transformará tu toma de decisiones que asumimos todo el riesgo.
+            We're so confident this system will transform your decision-making that we take all the risk.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
     # Social Proof / Testimonials
-    st.markdown("### 🗣️ Lo que Dicen los Primeros Usuarios")
+    st.markdown("### 🗣️ What Early Users Say")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
         <div class="testimonial-box">
-            <p><em>"Solía pasar semanas agonizando sobre decisiones de negocio. Ahora tengo claridad en horas. Este sistema se pagó solo con mi primera decisión importante."</em></p>
-            <strong>— Sara M., Directora de Marketing</strong>
+            <p><em>"I used to spend weeks agonizing over business decisions. Now I get clarity in hours. This system paid for itself with my first major decision."</em></p>
+            <strong>— Sara M., Marketing Director</strong>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
         <div class="testimonial-box">
-            <p><em>"Solo el checklist de sesgos vale el precio. Me pillé a mí mismo cometiendo un error de €50k por sesgo de confirmación."</em></p>
-            <strong>— David L., Dueño de Pequeña Empresa</strong>
+            <p><em>"The bias checklist alone is worth the price. I caught myself making a €50k mistake due to confirmation bias."</em></p>
+            <strong>— David L., Small Business Owner</strong>
         </div>
         """, unsafe_allow_html=True)
     
     # Feature Highlights
-    st.markdown("### ⭐ Por Qué Funciona Este Sistema")
+    st.markdown("### ⭐ Why This System Works")
     
     st.markdown("""
     <div class="feature-grid">
         <div class="feature-card">
             <div class="feature-icon">🧠</div>
-            <h4>Basado en Ciencia</h4>
-            <p>Basado en economía conductual ganadora del Premio Nobel y marcos de decisión estilo McKinsey</p>
+            <h4>Science-Based</h4>
+            <p>Built on Nobel-winning behavioral economics and McKinsey-style decision frameworks</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">⚡</div>
-            <h4>Ultra Rápido</h4>
-            <p>Obtén claridad en minutos, no en meses. Perfecto para profesionales ocupados que necesitan actuar rápido</p>
+            <h4>Ultra Fast</h4>
+            <p>Get clarity in minutes, not months. Perfect for busy professionals who need to act fast</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">🎯</div>
-            <h4>Proceso Probado</h4>
-            <p>El mismo enfoque sistemático usado por empresas Fortune 500, ahora disponible para individuos</p>
+            <h4>Proven Process</h4>
+            <p>The same systematic approach used by Fortune 500 companies, now available to individuals</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -397,9 +397,9 @@ def render_offer_page():
     # Final CTA Section
     st.markdown("""
     <div style="text-align: center; margin: 3rem 0;">
-        <h2>¿Listo para Dominar tus Decisiones?</h2>
+        <h2>Ready to Master Your Decisions?</h2>
         <p style="font-size: 1.2rem; color: #6c757d; margin: 1rem 0;">
-            Únete a 203 profesionales ambiciosos que ya han transformado su toma de decisiones
+            Join 203 ambitious professionals who have already transformed their decision-making
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -408,14 +408,14 @@ def render_offer_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        if st.button("🚀 OBTENER ACCESO INMEDIATO - €99", key="main_cta", help="Pago único, acceso de por vida"):
+        if st.button("🚀 GET INSTANT ACCESS - €99", key="main_cta", help="One-time payment, lifetime access"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"
             st.rerun()
         
         st.markdown("<div style='text-align: center; margin: 1rem 0;'>o</div>", unsafe_allow_html=True)
         
-        if st.button("💳 Empezar por €12/mes", key="monthly_cta", help="Suscripción mensual"):
+        if st.button("💳 Start at €12/month", key="monthly_cta", help="Monthly subscription"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"
             st.rerun()
@@ -423,35 +423,35 @@ def render_offer_page():
     # Trust Signals
     st.markdown("""
     <div style="text-align: center; margin: 2rem 0; color: #6c757d;">
-        <p>🔒 Pago seguro • 💯 Garantía 30 días • ⚡ Acceso instantáneo</p>
-        <p style="font-size: 0.9rem;">Usado por profesionales en Google, Microsoft, McKinsey y más de 200 empresas</p>
+        <p>🔒 Secure payment • 💯 30-day guarantee • ⚡ Instant access</p>
+        <p style="font-size: 0.9rem;">Used by professionals at Google, Microsoft, McKinsey, and 200+ companies</p>
     </div>
     """, unsafe_allow_html=True)
     
     # FAQ Section
-    with st.expander("❓ Preguntas Frecuentes"):
+    with st.expander("❓ Frequently Asked Questions"):
         st.markdown("""
-        **P: ¿En qué se diferencia esto de hacer una simple lista de pros y contras?**
-        R: Nuestro sistema incluye detección de sesgos, criterios ponderados, planificación de escenarios y análisis visual que revela puntos ciegos que una lista simple no puede detectar.
+        **Q: How is this different from making a simple pros and cons list?**
+        A: Our system includes bias detection, weighted criteria, scenario planning, and visual analysis that reveals blind spots a simple list cannot.
         
-        **P: ¿Necesito habilidades técnicas?**
-        R: Ninguna. Si puedes usar un navegador web, puedes dominar este sistema en minutos.
+        **Q: Do I need technical skills?**
+        A: None. If you can use a web browser, you can master this system in minutes.
         
-        **P: ¿Qué pasa si no estoy satisfecho?**
-        R: Reembolso completo en 30 días, sin preguntas. Estamos seguros de que verás resultados inmediatamente.
+        **Q: What if I'm not satisfied?**
+        A: Full refund within 30 days, no questions asked. We're confident you'll see results quickly.
         
-        **P: ¿Esto sirve también para decisiones personales?**
-        R: ¡Absolutamente! Cambios de carrera, compras importantes, decisiones de relaciones - el marco funciona para cualquier elección importante.
+        **Q: Does this also work for personal decisions?**
+        A: Absolutely! Career changes, major purchases, relationship decisions — the framework works for any important choice.
         
-        **P: ¿Cuánto tiempo tarda en verse resultados?**
-        R: La mayoría de usuarios reportan pensar más claro desde su primera decisión. El reto de 30 días construye maestría a largo plazo.
+        **Q: How long does it take to see results?**
+        A: Most users report clearer thinking from their first decision. The 30-day challenge builds long-term mastery.
         """)
     
     # Footer
     st.markdown("---")
     st.markdown(f"""
     <div style="text-align: center; color: #6c757d; font-size: 0.9rem;">
-        <p>© 2024 {APP_NAME} • Sistema de Maestría en Decisiones</p>
-        <p>Transforma tu toma de decisiones, transforma tu vida.</p>
+        <p>© 2024 {APP_NAME} • Decision Mastery System</p>
+        <p>Transform your decision-making, transform your life.</p>
     </div>
     """, unsafe_allow_html=True)

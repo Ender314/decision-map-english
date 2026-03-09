@@ -6,7 +6,7 @@ Dimensionado (Impact Assessment) tab - Exact replica of original functionality.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from config.constants import IMPACT_OPTS, IMPACT_MAP, PLAZO_ORDER, YMAX
+from config.constants import IMPACT_OPTS, IMPACT_MAP, PLAZO_ORDER, YMAX, TIME_OPTIONS
 from utils.calculations import calculate_relevance_percentage, calculate_recommended_time
 from utils.visualizations import create_impact_chart
 from utils.performance import monitor_performance
@@ -16,11 +16,11 @@ from utils.ui_helpers import help_tip, get_tooltip
 @monitor_performance("render_dimensionado_tab")
 def render_dimensionado_tab():
     """Render the Dimensionado (Impact Assessment) tab."""
-    st.markdown("### 📐 ¿Cómo de importante es esta decisión?")
+    st.markdown("### 📐 How important is this decision?")
     st.markdown(
         f"""
         <span style="font-weight:600;">
-          Estima su impacto en el corto, medio y largo plazo
+          Estimate its impact in the short, medium, and long term
           {help_tip(get_tooltip('impacto'))}
         </span>
         """,
@@ -30,13 +30,13 @@ def render_dimensionado_tab():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.select_slider("Corto", options=IMPACT_OPTS, key="impacto_corto", 
+        st.select_slider("Short", options=IMPACT_OPTS, key="impacto_corto",
                          label_visibility="collapsed")
     with col2:
-        st.select_slider("Medio", options=IMPACT_OPTS, key="impacto_medio",
+        st.select_slider("Medium", options=IMPACT_OPTS, key="impacto_medio",
                          label_visibility="collapsed")
     with col3:
-        st.select_slider("Largo", options=IMPACT_OPTS, key="impacto_largo",
+        st.select_slider("Long", options=IMPACT_OPTS, key="impacto_largo",
                          label_visibility="collapsed")
 
     # Use cached calculation for relevance percentage
@@ -51,9 +51,9 @@ def render_dimensionado_tab():
     
     # Create DataFrame for visualization
     df = pd.DataFrame([
-        {"Plazo": "corto", "Impacto": impacto_corto, "Impacto_num": IMPACT_MAP[impacto_corto]},
-        {"Plazo": "medio", "Impacto": impacto_medio, "Impacto_num": IMPACT_MAP[impacto_medio]},
-        {"Plazo": "largo", "Impacto": impacto_largo, "Impacto_num": IMPACT_MAP[impacto_largo]},
+        {"Plazo": "short", "Impacto": impacto_corto, "Impacto_num": IMPACT_MAP[impacto_corto]},
+        {"Plazo": "medium", "Impacto": impacto_medio, "Impacto_num": IMPACT_MAP[impacto_medio]},
+        {"Plazo": "long", "Impacto": impacto_largo, "Impacto_num": IMPACT_MAP[impacto_largo]},
     ])
 
     # Use cached visualization function
@@ -65,14 +65,14 @@ def render_dimensionado_tab():
         f"""
         <div style="text-align: center; margin-top: 10px;">
             <div style="font-size: 2em;">{int(relevancia_pct)}</div>
-            <div style="font-size: 1.2em; font-weight: 600;">Relevancia estimada</div>
+            <div style="font-size: 1.2em; font-weight: 600;">Estimated relevance</div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
     st.write('##')
-    st.markdown(f'¿Cuánto tiempo crees que deberías dedicarle <u>toda tu atención</u> a esta decisión? {help_tip(get_tooltip("tiempo"))}', unsafe_allow_html=True)
+    st.markdown(f'How much focused time should you dedicate to this decision? {help_tip(get_tooltip("tiempo"))}', unsafe_allow_html=True)
 
     # Calculate recommended tiempo based on relevancia (uses shared calculation)
     recommended_tiempo = calculate_recommended_time(relevancia_pct)
@@ -94,9 +94,9 @@ def render_dimensionado_tab():
         st.session_state["tiempo"] = st.session_state["tiempo_widget"]
     
     st.select_slider(
-        "Asignación de tiempo",
-        options=["Menos de media hora", "Un par de horas", "Una mañana", "Un par de días"],
-        value=st.session_state.get("tiempo", "Menos de media hora"),
+        "Time allocation",
+        options=TIME_OPTIONS,
+        value=st.session_state.get("tiempo", TIME_OPTIONS[0]),
         key="tiempo_widget",
         label_visibility="collapsed",
         on_change=on_tiempo_change
@@ -104,18 +104,18 @@ def render_dimensionado_tab():
     
     # Show recommendation hint if user has overridden (exact original)
     if st.session_state.get("tiempo_user_override", False) and st.session_state.get("tiempo") != recommended_tiempo:
-        st.info(f"💡 En base a la relevancia estimada ({int(relevancia_pct)}), se recomienda: **{recommended_tiempo}**")
+        st.info(f"💡 Based on the estimated relevance ({int(relevancia_pct)}), recommended: **{recommended_tiempo}**")
     
     # Contextual help - placed after content where confusion might arise
     st.markdown("")
-    with st.expander("*\"¿Qué estoy midiendo aquí? ¿Impacto de qué?\"*", expanded=False):
+    with st.expander("*\"What am I measuring here? Impact of what?\"*", expanded=False):
         st.markdown("""
-        **El impacto determina cuánto análisis necesitas.**
+        **Impact determines how much analysis you need.**
         
-        - **Decisión de bajo impacto** → Análisis rápido (menos pestañas, menos tiempo)
-        - **Decisión de alto impacto** → Análisis profundo (más herramientas, más rigor)
+        - **Low-impact decision** -> Quick analysis (fewer tabs, less time)
+        - **High-impact decision** -> Deep analysis (more tools, more rigor)
         
-        *Ejemplo: Contratar a alguien tiene impacto medio a corto plazo (onboarding), alto a medio plazo (productividad), y potencialmente crítico a largo plazo (cultura, liderazgo).*
+        *Example: Hiring someone can have medium short-term impact (onboarding), high medium-term impact (productivity), and potentially critical long-term impact (culture, leadership).*
         """)
     
     return relevancia_pct

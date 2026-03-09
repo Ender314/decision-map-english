@@ -1,12 +1,41 @@
 # -*- coding: utf-8 -*-
 """
-Decision Templates for Decider Pro
+Decision templates for Decision Map.
 Pre-populated templates to help users get started quickly and understand the app.
 """
 
 import streamlit as st
 import uuid
+from datetime import date, timedelta
 from typing import Dict, List, Any
+
+
+_TEMPLATE_TIME_MAP = {
+    "menos de media hora": "Less than 30 minutes",
+    "un par de horas": "A couple of hours",
+    "una mañana": "One morning",
+    "una manana": "One morning",
+    "un par de días": "A couple of days",
+    "un par de dias": "A couple of days",
+}
+
+_TEMPLATE_IMPACT_MAP = {
+    "bajo": "low",
+    "medio": "medium",
+    "alto": "high",
+    "crítico": "critical",
+    "critico": "critical",
+}
+
+
+def _normalize_template_time(value: str) -> str:
+    key = str(value or "").strip().lower()
+    return _TEMPLATE_TIME_MAP.get(key, value)
+
+
+def _normalize_template_impact(value: str) -> str:
+    key = str(value or "").strip().lower()
+    return _TEMPLATE_IMPACT_MAP.get(key, value)
 
 
 def _new_template_tree_node(label: str, probability: int, score: float, node_type: str = "scenario", alt_id: str = None) -> Dict[str, Any]:
@@ -24,7 +53,7 @@ def _new_template_tree_node(label: str, probability: int, score: float, node_typ
 
 def _build_template_decision_tree(objetivo: str, alts: List[Dict[str, str]], scenarios: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Build canonical scenarios_decision_tree from template flat scenarios."""
-    root = _new_template_tree_node((objetivo or "Decisión")[:50], 100, 0.0, node_type="root", alt_id=None)
+    root = _new_template_tree_node((objetivo or "Decision")[:50], 100, 0.0, node_type="root", alt_id=None)
 
     for alt in alts:
         alt_id = alt.get("id")
@@ -43,12 +72,12 @@ def _build_template_decision_tree(objetivo: str, alts: List[Dict[str, str]], sce
         alt_node = _new_template_tree_node(alt_name, 100, 5.0, node_type="alternative", alt_id=alt_id)
         alt_node["children"] = [
             _new_template_tree_node(
-                scenario_data.get("best_desc", "Mejor escenario") if scenario_data else "Mejor escenario",
+                scenario_data.get("best_desc", "Best scenario") if scenario_data else "Best scenario",
                 p_best_pct,
                 best_score,
             ),
             _new_template_tree_node(
-                scenario_data.get("worst_desc", "Peor escenario") if scenario_data else "Peor escenario",
+                scenario_data.get("worst_desc", "Worst scenario") if scenario_data else "Worst scenario",
                 p_worst_pct,
                 worst_score,
             ),
@@ -62,226 +91,355 @@ def _build_template_decision_tree(objetivo: str, alts: List[Dict[str, str]], sce
 DECISION_TEMPLATES = {
     "hire_vs_outsource": {
         "id": "hire_vs_outsource",
-        "name": "¿Contratamos o subcontratamos?",
-        "tagline": "Porque 'mi cuñado sabe de esto' no es una alternativa válida",
+        "name": "Hire or Outsource?",
+        "tagline": "Because 'my cousin knows someone' is not a strategy",
         "icon": "👥",
-        "category": "Recursos Humanos",
-        "tiempo": "Un par de horas",
-        "decision": "Decidir si contratar un empleado a tiempo completo para cubrir una función clave o subcontratar el servicio a una agencia o freelancer",
-        "objetivo": "Cubrir la necesidad operativa optimizando coste, calidad y flexibilidad a largo plazo",
-        "impacto": {"corto": "medio", "medio": "alto", "largo": "alto"},
+        "category": "Human Resources",
+        "tiempo": "A couple of hours",
+        "decision": "Decide whether to hire a full-time employee for a key function or outsource to an agency/freelancer.",
+        "objetivo": "Cover the operational need while optimizing cost, quality, and long-term flexibility.",
+        "impacto": {"corto": "medium", "medio": "high", "largo": "high"},
         "alternativas": [
-            "Contratar empleado a tiempo completo",
-            "Subcontratar a agencia especializada",
-            "Contratar freelancer a largo plazo",
-            "No hacer nada (mantener status quo)"
+            "Hire a full-time employee",
+            "Outsource to a specialized agency",
+            "Work with a long-term freelancer",
+            "Do nothing (maintain status quo)",
         ],
         "prioridades": [
-            "Coste total (salario + beneficios vs factura)",
-            "Calidad y consistencia del trabajo",
-            "Flexibilidad para escalar",
-            "Control y supervisión directa",
-            "Velocidad de implementación"
+            "Total cost (salary + benefits vs invoice)",
+            "Quality and consistency of output",
+            "Scalability flexibility",
+            "Direct control and supervision",
+            "Implementation speed",
         ],
         "mcda_scores": {
-            "Contratar empleado a tiempo completo": {"Coste total (salario + beneficios vs factura)": 2.0, "Calidad y consistencia del trabajo": 4.0, "Flexibilidad para escalar": 2.0, "Control y supervisión directa": 5.0, "Velocidad de implementación": 2.0},
-            "Subcontratar a agencia especializada": {"Coste total (salario + beneficios vs factura)": 3.0, "Calidad y consistencia del trabajo": 4.0, "Flexibilidad para escalar": 4.5, "Control y supervisión directa": 2.5, "Velocidad de implementación": 4.0},
-            "Contratar freelancer a largo plazo": {"Coste total (salario + beneficios vs factura)": 4.0, "Calidad y consistencia del trabajo": 3.5, "Flexibilidad para escalar": 4.0, "Control y supervisión directa": 3.0, "Velocidad de implementación": 3.5},
-            "No hacer nada (mantener status quo)": {"Coste total (salario + beneficios vs factura)": 5.0, "Calidad y consistencia del trabajo": 2.0, "Flexibilidad para escalar": 1.0, "Control y supervisión directa": 5.0, "Velocidad de implementación": 5.0}
+            "Hire a full-time employee": {
+                "Total cost (salary + benefits vs invoice)": 2.0,
+                "Quality and consistency of output": 4.0,
+                "Scalability flexibility": 2.0,
+                "Direct control and supervision": 5.0,
+                "Implementation speed": 2.0,
+            },
+            "Outsource to a specialized agency": {
+                "Total cost (salary + benefits vs invoice)": 3.0,
+                "Quality and consistency of output": 4.0,
+                "Scalability flexibility": 4.5,
+                "Direct control and supervision": 2.5,
+                "Implementation speed": 4.0,
+            },
+            "Work with a long-term freelancer": {
+                "Total cost (salary + benefits vs invoice)": 4.0,
+                "Quality and consistency of output": 3.5,
+                "Scalability flexibility": 4.0,
+                "Direct control and supervision": 3.0,
+                "Implementation speed": 3.5,
+            },
+            "Do nothing (maintain status quo)": {
+                "Total cost (salary + benefits vs invoice)": 5.0,
+                "Quality and consistency of output": 2.0,
+                "Scalability flexibility": 1.0,
+                "Direct control and supervision": 5.0,
+                "Implementation speed": 5.0,
+            },
         },
         "scenarios": {
-            "Contratar empleado a tiempo completo": {"worst_score": 3, "best_score": 8, "p_best_pct": 60, "worst_desc": "No encaja en la cultura, hay que despedir en 6 meses", "best_desc": "Se convierte en pieza clave del equipo"},
-            "Subcontratar a agencia especializada": {"worst_score": 4, "best_score": 7, "p_best_pct": 70, "worst_desc": "Resultados mediocres, dependencia excesiva", "best_desc": "Profesionalismo y escalabilidad sin complicaciones"},
-            "Contratar freelancer a largo plazo": {"worst_score": 2, "best_score": 8, "p_best_pct": 50, "worst_desc": "Desaparece o sube precios drásticamente", "best_desc": "Relación estable, económica y de confianza"},
-            "No hacer nada (mantener status quo)": {"worst_score": 1, "best_score": 4, "p_best_pct": 30, "worst_desc": "El problema empeora y afecta al negocio", "best_desc": "Se resuelve solo (poco probable)"}
-        }
+            "Hire a full-time employee": {"worst_score": 3, "best_score": 8, "p_best_pct": 60, "worst_desc": "Poor fit and replacement in 6 months", "best_desc": "Becomes a key team performer"},
+            "Outsource to a specialized agency": {"worst_score": 4, "best_score": 7, "p_best_pct": 70, "worst_desc": "Mediocre delivery and over-dependency", "best_desc": "Professional output with scalable capacity"},
+            "Work with a long-term freelancer": {"worst_score": 2, "best_score": 8, "p_best_pct": 50, "worst_desc": "Freelancer disappears or doubles rates", "best_desc": "Stable and cost-effective partnership"},
+            "Do nothing (maintain status quo)": {"worst_score": 1, "best_score": 4, "p_best_pct": 30, "worst_desc": "The issue worsens and hits performance", "best_desc": "Issue resolves itself (unlikely)"},
+        },
     },
-    
+
     "launch_timing": {
         "id": "launch_timing",
-        "name": "Lanzar ahora vs esperar",
-        "tagline": "El perfeccionismo es el enemigo del progreso... y del sueño",
+        "name": "Launch now vs wait",
+        "tagline": "Perfectionism is the enemy of progress... and sleep",
         "icon": "🚀",
-        "category": "Producto",
-        "tiempo": "Una mañana",
-        "decision": "Decidir si lanzar el producto/feature ahora con funcionalidad básica o esperar a tener una versión más completa",
-        "objetivo": "Maximizar el impacto del lanzamiento equilibrando velocidad al mercado con calidad percibida",
-        "impacto": {"corto": "alto", "medio": "alto", "largo": "medio"},
+        "category": "Product",
+        "tiempo": "One morning",
+        "decision": "Decide whether to launch now with an MVP or wait for a more complete version.",
+        "objetivo": "Maximize launch impact by balancing time-to-market and perceived quality.",
+        "impacto": {"corto": "high", "medio": "high", "largo": "medium"},
         "alternativas": [
-            "Lanzar ahora (MVP)",
-            "Esperar 1 mes más",
-            "Esperar 3 meses (versión completa)",
-            "Lanzamiento gradual (beta cerrada)"
+            "Launch now (MVP)",
+            "Wait one more month",
+            "Wait three months (full version)",
+            "Gradual launch (closed beta)",
         ],
         "prioridades": [
-            "Velocidad al mercado",
-            "Calidad percibida por usuarios",
-            "Feedback temprano para iterar",
-            "Riesgo reputacional",
-            "Coste de oportunidad"
+            "Speed to market",
+            "Perceived user quality",
+            "Early feedback for iteration",
+            "Reputational risk",
+            "Opportunity cost",
         ],
         "mcda_scores": {
-            "Lanzar ahora (MVP)": {"Velocidad al mercado": 5.0, "Calidad percibida por usuarios": 2.5, "Feedback temprano para iterar": 5.0, "Riesgo reputacional": 2.0, "Coste de oportunidad": 5.0},
-            "Esperar 1 mes más": {"Velocidad al mercado": 3.5, "Calidad percibida por usuarios": 3.5, "Feedback temprano para iterar": 3.5, "Riesgo reputacional": 3.5, "Coste de oportunidad": 3.0},
-            "Esperar 3 meses (versión completa)": {"Velocidad al mercado": 1.5, "Calidad percibida por usuarios": 4.5, "Feedback temprano para iterar": 2.0, "Riesgo reputacional": 4.5, "Coste de oportunidad": 1.5},
-            "Lanzamiento gradual (beta cerrada)": {"Velocidad al mercado": 4.0, "Calidad percibida por usuarios": 3.0, "Feedback temprano para iterar": 4.5, "Riesgo reputacional": 4.0, "Coste de oportunidad": 4.0}
+            "Launch now (MVP)": {"Speed to market": 5.0, "Perceived user quality": 2.5, "Early feedback for iteration": 5.0, "Reputational risk": 2.0, "Opportunity cost": 5.0},
+            "Wait one more month": {"Speed to market": 3.5, "Perceived user quality": 3.5, "Early feedback for iteration": 3.5, "Reputational risk": 3.5, "Opportunity cost": 3.0},
+            "Wait three months (full version)": {"Speed to market": 1.5, "Perceived user quality": 4.5, "Early feedback for iteration": 2.0, "Reputational risk": 4.5, "Opportunity cost": 1.5},
+            "Gradual launch (closed beta)": {"Speed to market": 4.0, "Perceived user quality": 3.0, "Early feedback for iteration": 4.5, "Reputational risk": 4.0, "Opportunity cost": 4.0},
         },
         "scenarios": {
-            "Lanzar ahora (MVP)": {"worst_score": 2, "best_score": 9, "p_best_pct": 45, "worst_desc": "Usuarios decepcionados, malas reseñas iniciales", "best_desc": "Capturamos mercado, iteramos rápido con feedback real"},
-            "Esperar 1 mes más": {"worst_score": 4, "best_score": 7, "p_best_pct": 60, "worst_desc": "Competidor nos adelanta, mes perdido", "best_desc": "Lanzamiento más sólido, buena recepción"},
-            "Esperar 3 meses (versión completa)": {"worst_score": 3, "best_score": 6, "p_best_pct": 50, "worst_desc": "Mercado cambió, producto ya no relevante", "best_desc": "Producto pulido pero llegamos tarde"},
-            "Lanzamiento gradual (beta cerrada)": {"worst_score": 4, "best_score": 8, "p_best_pct": 65, "worst_desc": "Beta se alarga, usuarios beta se aburren", "best_desc": "Feedback valioso, lanzamiento público exitoso"}
-        }
+            "Launch now (MVP)": {"worst_score": 2, "best_score": 9, "p_best_pct": 45, "worst_desc": "Users disappointed by initial gaps", "best_desc": "Capture momentum and iterate quickly"},
+            "Wait one more month": {"worst_score": 4, "best_score": 7, "p_best_pct": 60, "worst_desc": "Competitor launches first", "best_desc": "Stronger launch with better reception"},
+            "Wait three months (full version)": {"worst_score": 3, "best_score": 6, "p_best_pct": 50, "worst_desc": "Market shifts and relevance drops", "best_desc": "Polished product, but late"},
+            "Gradual launch (closed beta)": {"worst_score": 4, "best_score": 8, "p_best_pct": 65, "worst_desc": "Beta drags and early users churn", "best_desc": "High-value feedback and confident public launch"},
+        },
     },
-    
+
     "job_offer": {
         "id": "job_offer",
-        "name": "Aceptar oferta de trabajo",
-        "tagline": "Tu madre opina que deberías aceptar. Veamos qué dicen los datos",
+        "name": "Accept a job offer",
+        "tagline": "Your mom says accept it. Let's see what the data says",
         "icon": "💼",
-        "category": "Carrera Profesional",
-        "tiempo": "Un par de horas",
-        "decision": "Decidir si aceptar la nueva oferta de trabajo o mantener mi posición actual",
-        "objetivo": "Tomar la decisión que maximice mi satisfacción profesional y personal a largo plazo",
-        "impacto": {"corto": "alto", "medio": "crítico", "largo": "crítico"},
+        "category": "Career",
+        "tiempo": "A couple of hours",
+        "decision": "Decide whether to accept a new job offer or stay in the current role.",
+        "objetivo": "Choose the option that maximizes long-term professional and personal satisfaction.",
+        "impacto": {"corto": "high", "medio": "critical", "largo": "critical"},
         "alternativas": [
-            "Aceptar la nueva oferta",
-            "Rechazar y quedarme donde estoy",
-            "Negociar mejores condiciones",
-            "Usar la oferta para negociar en mi trabajo actual"
+            "Accept the new offer",
+            "Decline and stay",
+            "Negotiate better terms",
+            "Use offer as leverage internally",
         ],
         "prioridades": [
-            "Compensación total",
-            "Oportunidades de crecimiento",
-            "Balance vida-trabajo",
-            "Cultura y ambiente laboral",
-            "Estabilidad y seguridad"
+            "Total compensation",
+            "Growth opportunities",
+            "Work-life balance",
+            "Culture and team environment",
+            "Stability and security",
         ],
         "mcda_scores": {
-            "Aceptar la nueva oferta": {"Compensación total": 4.5, "Oportunidades de crecimiento": 4.0, "Balance vida-trabajo": 3.0, "Cultura y ambiente laboral": 3.0, "Estabilidad y seguridad": 2.5},
-            "Rechazar y quedarme donde estoy": {"Compensación total": 3.0, "Oportunidades de crecimiento": 2.5, "Balance vida-trabajo": 4.0, "Cultura y ambiente laboral": 4.0, "Estabilidad y seguridad": 4.5},
-            "Negociar mejores condiciones": {"Compensación total": 4.0, "Oportunidades de crecimiento": 4.0, "Balance vida-trabajo": 3.5, "Cultura y ambiente laboral": 3.0, "Estabilidad y seguridad": 3.0},
-            "Usar la oferta para negociar en mi trabajo actual": {"Compensación total": 3.5, "Oportunidades de crecimiento": 3.0, "Balance vida-trabajo": 4.0, "Cultura y ambiente laboral": 3.5, "Estabilidad y seguridad": 3.5}
+            "Accept the new offer": {"Total compensation": 4.5, "Growth opportunities": 4.0, "Work-life balance": 3.0, "Culture and team environment": 3.0, "Stability and security": 2.5},
+            "Decline and stay": {"Total compensation": 3.0, "Growth opportunities": 2.5, "Work-life balance": 4.0, "Culture and team environment": 4.0, "Stability and security": 4.5},
+            "Negotiate better terms": {"Total compensation": 4.0, "Growth opportunities": 4.0, "Work-life balance": 3.5, "Culture and team environment": 3.0, "Stability and security": 3.0},
+            "Use offer as leverage internally": {"Total compensation": 3.5, "Growth opportunities": 3.0, "Work-life balance": 4.0, "Culture and team environment": 3.5, "Stability and security": 3.5},
         },
         "scenarios": {
-            "Aceptar la nueva oferta": {"worst_score": 2, "best_score": 9, "p_best_pct": 55, "worst_desc": "No encajo, ambiente tóxico, me arrepiento", "best_desc": "Salto de carrera, crecimiento acelerado"},
-            "Rechazar y quedarme donde estoy": {"worst_score": 3, "best_score": 6, "p_best_pct": 60, "worst_desc": "Me estanco, oportunidad perdida para siempre", "best_desc": "Estabilidad, mejora gradual"},
-            "Negociar mejores condiciones": {"worst_score": 3, "best_score": 9, "p_best_pct": 40, "worst_desc": "Retiran la oferta, quedo sin nada", "best_desc": "Mejor paquete, mejor posición"},
-            "Usar la oferta para negociar en mi trabajo actual": {"worst_score": 2, "best_score": 7, "p_best_pct": 35, "worst_desc": "Jefe se molesta, relación dañada", "best_desc": "Contraoferta competitiva, me quedo mejor"}
-        }
+            "Accept the new offer": {"worst_score": 2, "best_score": 9, "p_best_pct": 55, "worst_desc": "Poor fit and regret after transition", "best_desc": "Major career acceleration"},
+            "Decline and stay": {"worst_score": 3, "best_score": 6, "p_best_pct": 60, "worst_desc": "Stagnation and missed opportunity", "best_desc": "Stability and gradual improvement"},
+            "Negotiate better terms": {"worst_score": 3, "best_score": 9, "p_best_pct": 40, "worst_desc": "Offer withdrawn during negotiation", "best_desc": "Better package and stronger role"},
+            "Use offer as leverage internally": {"worst_score": 2, "best_score": 7, "p_best_pct": 35, "worst_desc": "Damaged trust with manager", "best_desc": "Competitive counter-offer"},
+        },
     },
-    
+
     "market_expansion": {
         "id": "market_expansion",
-        "name": "Expandir a nuevo mercado",
-        "tagline": "Conquistar el mundo, un mercado a la vez",
+        "name": "Expand to a new market",
+        "tagline": "Conquer the world, one market at a time",
         "icon": "🌍",
-        "category": "Estrategia",
-        "tiempo": "Un par de días",
-        "decision": "Decidir si expandir operaciones a un nuevo mercado geográfico o vertical",
-        "objetivo": "Crecer el negocio de forma sostenible minimizando riesgos de expansión",
-        "impacto": {"corto": "medio", "medio": "alto", "largo": "crítico"},
+        "category": "Strategy",
+        "tiempo": "A couple of days",
+        "decision": "Decide whether to expand operations into a new geography or vertical market.",
+        "objetivo": "Grow sustainably while minimizing expansion risk.",
+        "impacto": {"corto": "medium", "medio": "high", "largo": "critical"},
         "alternativas": [
-            "Expansión agresiva inmediata",
-            "Entrada gradual con piloto",
-            "Partnership con empresa local",
-            "Posponer y consolidar mercado actual"
+            "Immediate aggressive expansion",
+            "Gradual pilot entry",
+            "Partner with a local company",
+            "Postpone and consolidate core market",
         ],
         "prioridades": [
-            "Potencial de ingresos",
-            "Inversión requerida",
-            "Riesgo operacional",
-            "Tiempo hasta rentabilidad",
-            "Sinergias con negocio actual"
+            "Revenue potential",
+            "Required investment",
+            "Operational risk",
+            "Time to profitability",
+            "Synergy with current business",
         ],
         "mcda_scores": {
-            "Expansión agresiva inmediata": {"Potencial de ingresos": 5.0, "Inversión requerida": 1.5, "Riesgo operacional": 1.5, "Tiempo hasta rentabilidad": 2.0, "Sinergias con negocio actual": 3.0},
-            "Entrada gradual con piloto": {"Potencial de ingresos": 3.5, "Inversión requerida": 3.5, "Riesgo operacional": 4.0, "Tiempo hasta rentabilidad": 3.0, "Sinergias con negocio actual": 3.5},
-            "Partnership con empresa local": {"Potencial de ingresos": 3.0, "Inversión requerida": 4.0, "Riesgo operacional": 3.5, "Tiempo hasta rentabilidad": 4.0, "Sinergias con negocio actual": 2.5},
-            "Posponer y consolidar mercado actual": {"Potencial de ingresos": 2.0, "Inversión requerida": 5.0, "Riesgo operacional": 5.0, "Tiempo hasta rentabilidad": 5.0, "Sinergias con negocio actual": 4.5}
+            "Immediate aggressive expansion": {"Revenue potential": 5.0, "Required investment": 1.5, "Operational risk": 1.5, "Time to profitability": 2.0, "Synergy with current business": 3.0},
+            "Gradual pilot entry": {"Revenue potential": 3.5, "Required investment": 3.5, "Operational risk": 4.0, "Time to profitability": 3.0, "Synergy with current business": 3.5},
+            "Partner with a local company": {"Revenue potential": 3.0, "Required investment": 4.0, "Operational risk": 3.5, "Time to profitability": 4.0, "Synergy with current business": 2.5},
+            "Postpone and consolidate core market": {"Revenue potential": 2.0, "Required investment": 5.0, "Operational risk": 5.0, "Time to profitability": 5.0, "Synergy with current business": 4.5},
         },
         "scenarios": {
-            "Expansión agresiva inmediata": {"worst_score": 1, "best_score": 10, "p_best_pct": 30, "worst_desc": "Fracaso costoso, afecta negocio principal", "best_desc": "Dominamos nuevo mercado rápidamente"},
-            "Entrada gradual con piloto": {"worst_score": 3, "best_score": 8, "p_best_pct": 55, "worst_desc": "Piloto inconcluso, recursos desperdiciados", "best_desc": "Aprendemos y escalamos con confianza"},
-            "Partnership con empresa local": {"worst_score": 3, "best_score": 7, "p_best_pct": 50, "worst_desc": "Partner no cumple, conflictos", "best_desc": "Acceso rápido con bajo riesgo"},
-            "Posponer y consolidar mercado actual": {"worst_score": 4, "best_score": 6, "p_best_pct": 70, "worst_desc": "Competidor nos adelanta, oportunidad perdida", "best_desc": "Base sólida para expansión futura"}
-        }
+            "Immediate aggressive expansion": {"worst_score": 1, "best_score": 10, "p_best_pct": 30, "worst_desc": "Costly failure impacting core operations", "best_desc": "Rapid market leadership"},
+            "Gradual pilot entry": {"worst_score": 3, "best_score": 8, "p_best_pct": 55, "worst_desc": "Inconclusive pilot with wasted resources", "best_desc": "Learn fast and scale with confidence"},
+            "Partner with a local company": {"worst_score": 3, "best_score": 7, "p_best_pct": 50, "worst_desc": "Partner execution conflicts", "best_desc": "Fast access with reduced risk"},
+            "Postpone and consolidate core market": {"worst_score": 4, "best_score": 6, "p_best_pct": 70, "worst_desc": "Competitor captures the opportunity", "best_desc": "Stronger base for future expansion"},
+        },
     },
-    
+
     "tech_investment": {
         "id": "tech_investment",
-        "name": "Invertir en tecnología",
-        "tagline": "No, ChatGPT no puede tomar esta decisión por ti... todavía",
+        "name": "Invest in technology",
+        "tagline": "No, ChatGPT cannot make this decision for you... yet",
         "icon": "💻",
-        "category": "Tecnología",
-        "tiempo": "Una mañana",
-        "decision": "Decidir si invertir en una nueva tecnología o sistema para el negocio",
-        "objetivo": "Mejorar eficiencia operativa y competitividad con una inversión tecnológica inteligente",
-        "impacto": {"corto": "bajo", "medio": "alto", "largo": "alto"},
+        "category": "Technology",
+        "tiempo": "One morning",
+        "decision": "Decide whether to invest in a new technology/system for the business.",
+        "objetivo": "Improve operational efficiency and competitiveness through a smart tech investment.",
+        "impacto": {"corto": "low", "medio": "high", "largo": "high"},
         "alternativas": [
-            "Implementar solución enterprise completa",
-            "Adoptar herramienta SaaS existente",
-            "Desarrollar solución interna",
-            "Mantener procesos actuales"
+            "Implement full enterprise solution",
+            "Adopt existing SaaS tool",
+            "Build an internal solution",
+            "Maintain current processes",
         ],
         "prioridades": [
-            "Coste total de propiedad",
-            "Tiempo de implementación",
-            "Escalabilidad futura",
-            "Facilidad de adopción",
-            "Soporte y mantenimiento"
+            "Total cost of ownership",
+            "Implementation speed",
+            "Future scalability",
+            "Ease of adoption",
+            "Support and maintenance",
         ],
         "mcda_scores": {
-            "Implementar solución enterprise completa": {"Coste total de propiedad": 1.5, "Tiempo de implementación": 2.0, "Escalabilidad futura": 5.0, "Facilidad de adopción": 2.5, "Soporte y mantenimiento": 4.5},
-            "Adoptar herramienta SaaS existente": {"Coste total de propiedad": 3.5, "Tiempo de implementación": 4.5, "Escalabilidad futura": 3.5, "Facilidad de adopción": 4.0, "Soporte y mantenimiento": 4.0},
-            "Desarrollar solución interna": {"Coste total de propiedad": 2.5, "Tiempo de implementación": 1.5, "Escalabilidad futura": 4.0, "Facilidad de adopción": 3.0, "Soporte y mantenimiento": 2.0},
-            "Mantener procesos actuales": {"Coste total de propiedad": 5.0, "Tiempo de implementación": 5.0, "Escalabilidad futura": 1.5, "Facilidad de adopción": 5.0, "Soporte y mantenimiento": 3.0}
+            "Implement full enterprise solution": {"Total cost of ownership": 1.5, "Implementation speed": 2.0, "Future scalability": 5.0, "Ease of adoption": 2.5, "Support and maintenance": 4.5},
+            "Adopt existing SaaS tool": {"Total cost of ownership": 3.5, "Implementation speed": 4.5, "Future scalability": 3.5, "Ease of adoption": 4.0, "Support and maintenance": 4.0},
+            "Build an internal solution": {"Total cost of ownership": 2.5, "Implementation speed": 1.5, "Future scalability": 4.0, "Ease of adoption": 3.0, "Support and maintenance": 2.0},
+            "Maintain current processes": {"Total cost of ownership": 5.0, "Implementation speed": 5.0, "Future scalability": 1.5, "Ease of adoption": 5.0, "Support and maintenance": 3.0},
         },
         "scenarios": {
-            "Implementar solución enterprise completa": {"worst_score": 2, "best_score": 9, "p_best_pct": 45, "worst_desc": "Implementación fallida, costes disparados", "best_desc": "Transformación digital exitosa"},
-            "Adoptar herramienta SaaS existente": {"worst_score": 4, "best_score": 7, "p_best_pct": 65, "worst_desc": "No se adapta bien, dependencia del proveedor", "best_desc": "Rápido valor, equipo productivo"},
-            "Desarrollar solución interna": {"worst_score": 1, "best_score": 8, "p_best_pct": 35, "worst_desc": "Proyecto interminable, nunca se termina", "best_desc": "Solución perfecta a medida"},
-            "Mantener procesos actuales": {"worst_score": 2, "best_score": 5, "p_best_pct": 50, "worst_desc": "Quedamos obsoletos, perdemos competitividad", "best_desc": "Ahorramos dinero, funciona por ahora"}
-        }
+            "Implement full enterprise solution": {"worst_score": 2, "best_score": 9, "p_best_pct": 45, "worst_desc": "Failed rollout and cost overrun", "best_desc": "Successful digital transformation"},
+            "Adopt existing SaaS tool": {"worst_score": 4, "best_score": 7, "p_best_pct": 65, "worst_desc": "Poor fit and vendor lock-in", "best_desc": "Fast value and productive team"},
+            "Build an internal solution": {"worst_score": 1, "best_score": 8, "p_best_pct": 35, "worst_desc": "Never-ending development project", "best_desc": "Tailored high-fit solution"},
+            "Maintain current processes": {"worst_score": 2, "best_score": 5, "p_best_pct": 50, "worst_desc": "Obsolescence and lost competitiveness", "best_desc": "Short-term savings"},
+        },
     },
-    
+
     "vendor_change": {
         "id": "vendor_change",
-        "name": "Cambiar de proveedor",
-        "tagline": "Porque 'siempre lo hemos hecho así' no es estrategia",
+        "name": "Change supplier",
+        "tagline": "Because 'we've always done it this way' is not strategy",
         "icon": "🔄",
-        "category": "Operaciones",
-        "tiempo": "Un par de horas",
-        "decision": "Decidir si cambiar a un nuevo proveedor o mantener la relación actual",
-        "objetivo": "Optimizar la cadena de suministro equilibrando coste, calidad y riesgo de transición",
-        "impacto": {"corto": "medio", "medio": "medio", "largo": "medio"},
+        "category": "Operations",
+        "tiempo": "A couple of hours",
+        "decision": "Decide whether to switch to a new supplier or maintain the current relationship.",
+        "objetivo": "Optimize the supply chain balancing cost, quality, and transition risk.",
+        "impacto": {"corto": "medium", "medio": "medium", "largo": "medium"},
         "alternativas": [
-            "Cambiar completamente al nuevo proveedor",
-            "Mantener proveedor actual",
-            "Diversificar con ambos proveedores",
-            "Renegociar con proveedor actual"
+            "Fully switch to new supplier",
+            "Keep current supplier",
+            "Dual-source with both suppliers",
+            "Renegotiate with current supplier",
         ],
         "prioridades": [
-            "Precio y condiciones",
-            "Calidad del producto/servicio",
-            "Fiabilidad de entregas",
-            "Coste de transición",
-            "Relación a largo plazo"
+            "Pricing and terms",
+            "Product/service quality",
+            "Delivery reliability",
+            "Transition cost",
+            "Long-term relationship",
         ],
         "mcda_scores": {
-            "Cambiar completamente al nuevo proveedor": {"Precio y condiciones": 4.5, "Calidad del producto/servicio": 3.5, "Fiabilidad de entregas": 3.0, "Coste de transición": 2.0, "Relación a largo plazo": 2.5},
-            "Mantener proveedor actual": {"Precio y condiciones": 2.5, "Calidad del producto/servicio": 4.0, "Fiabilidad de entregas": 4.5, "Coste de transición": 5.0, "Relación a largo plazo": 4.0},
-            "Diversificar con ambos proveedores": {"Precio y condiciones": 3.5, "Calidad del producto/servicio": 3.5, "Fiabilidad de entregas": 4.0, "Coste de transición": 3.0, "Relación a largo plazo": 3.5},
-            "Renegociar con proveedor actual": {"Precio y condiciones": 3.5, "Calidad del producto/servicio": 4.0, "Fiabilidad de entregas": 4.5, "Coste de transición": 4.5, "Relación a largo plazo": 4.0}
+            "Fully switch to new supplier": {"Pricing and terms": 4.5, "Product/service quality": 3.5, "Delivery reliability": 3.0, "Transition cost": 2.0, "Long-term relationship": 2.5},
+            "Keep current supplier": {"Pricing and terms": 2.5, "Product/service quality": 4.0, "Delivery reliability": 4.5, "Transition cost": 5.0, "Long-term relationship": 4.0},
+            "Dual-source with both suppliers": {"Pricing and terms": 3.5, "Product/service quality": 3.5, "Delivery reliability": 4.0, "Transition cost": 3.0, "Long-term relationship": 3.5},
+            "Renegotiate with current supplier": {"Pricing and terms": 3.5, "Product/service quality": 4.0, "Delivery reliability": 4.5, "Transition cost": 4.5, "Long-term relationship": 4.0},
         },
         "scenarios": {
-            "Cambiar completamente al nuevo proveedor": {"worst_score": 2, "best_score": 8, "p_best_pct": 45, "worst_desc": "Problemas de calidad, entregas fallidas", "best_desc": "Ahorro significativo, mejor servicio"},
-            "Mantener proveedor actual": {"worst_score": 3, "best_score": 5, "p_best_pct": 60, "worst_desc": "Precios suben, nos quedamos atrapados", "best_desc": "Estabilidad, relación de confianza"},
-            "Diversificar con ambos proveedores": {"worst_score": 3, "best_score": 7, "p_best_pct": 55, "worst_desc": "Complejidad operativa, costes ocultos", "best_desc": "Mejor negociación, menos riesgo"},
-            "Renegociar con proveedor actual": {"worst_score": 3, "best_score": 7, "p_best_pct": 50, "worst_desc": "No ceden, relación deteriorada", "best_desc": "Mejores condiciones sin cambiar"}
-        }
-    }
+            "Fully switch to new supplier": {"worst_score": 2, "best_score": 8, "p_best_pct": 45, "worst_desc": "Quality and delivery disruptions", "best_desc": "Meaningful savings and stronger service"},
+            "Keep current supplier": {"worst_score": 3, "best_score": 5, "p_best_pct": 60, "worst_desc": "Price increases and lock-in", "best_desc": "Stable trusted relationship"},
+            "Dual-source with both suppliers": {"worst_score": 3, "best_score": 7, "p_best_pct": 55, "worst_desc": "Operational complexity and hidden costs", "best_desc": "Better leverage and lower disruption risk"},
+            "Renegotiate with current supplier": {"worst_score": 3, "best_score": 7, "p_best_pct": 50, "worst_desc": "Negotiation fails and trust erodes", "best_desc": "Improved terms with no migration pain"},
+        },
+    },
 }
+
+
+def _build_template_monitoring_data(alts: List[Dict[str, str]], template_name: str) -> Dict[str, Any]:
+    """Build demo monitoring payload (risks + retro) for templates."""
+    today = date.today()
+    first_alt_id = alts[0]["id"] if alts else None
+
+    risk_1_id = str(uuid.uuid4())
+    risk_2_id = str(uuid.uuid4())
+
+    risks = {
+        risk_1_id: {
+            "id": risk_1_id,
+            "title": "Execution delay due to hidden dependencies",
+            "category": "operational",
+            "probability": "medium",
+            "impact": "high",
+            "linked_alt_id": first_alt_id,
+            "owner": "Ops Lead",
+            "status": "in_treatment",
+            "created_at": (today - timedelta(days=20)).isoformat(),
+            "strategies": {
+                "avoid": "Scope critical path to only must-have tasks.",
+                "transfer": "Use external specialist for bottleneck stage.",
+                "mitigate": "Weekly dependency review and blocker escalation.",
+                "contingency": "Activate fallback plan with reduced rollout scope.",
+            },
+            "notes": "Main risk for on-time delivery.",
+            "assessments": [
+                {"date": (today - timedelta(days=20)).isoformat(), "probability": "high", "impact": "high"},
+                {"date": (today - timedelta(days=10)).isoformat(), "probability": "medium", "impact": "high"},
+            ],
+        },
+        risk_2_id: {
+            "id": risk_2_id,
+            "title": "Stakeholder pushback on selected option",
+            "category": "strategic",
+            "probability": "low",
+            "impact": "medium",
+            "linked_alt_id": first_alt_id,
+            "owner": "Decision Owner",
+            "status": "identified",
+            "created_at": (today - timedelta(days=12)).isoformat(),
+            "strategies": {
+                "avoid": "Involve key stakeholders before final commitment.",
+                "transfer": "Escalate sponsorship through executive steering group.",
+                "mitigate": "Share rationale and scenario evidence transparently.",
+                "contingency": "Prepare a phased compromise implementation path.",
+            },
+            "notes": "Mostly communication and alignment risk.",
+            "assessments": [
+                {"date": (today - timedelta(days=12)).isoformat(), "probability": "medium", "impact": "medium"},
+                {"date": (today - timedelta(days=3)).isoformat(), "probability": "low", "impact": "medium"},
+            ],
+        },
+    }
+
+    retro = {
+        "decision_date": (today - timedelta(days=14)),
+        "review_date": today,
+        "chosen_alternative_id": first_alt_id,
+        "outcomes": [
+            {
+                "id": str(uuid.uuid4()),
+                "description": f"Initial implementation for '{template_name}' delivered expected first milestones.",
+                "date": (today - timedelta(days=7)).isoformat(),
+                "attribution": "decision",
+                "attribution_notes": "Early wins came from strong option selection and sequencing.",
+                "sentiment": "positive",
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "description": "Unexpected external changes slowed one workstream.",
+                "date": (today - timedelta(days=2)).isoformat(),
+                "attribution": "mixed",
+                "attribution_notes": "Part external context, part planning assumptions.",
+                "sentiment": "neutral",
+            },
+        ],
+        "tripwires": [
+            {
+                "id": str(uuid.uuid4()),
+                "trigger": "If KPI trend drops > 15% for two consecutive weeks",
+                "target_date": (today + timedelta(days=14)).isoformat(),
+                "threshold": "KPI delta < -15%",
+                "status": "active",
+                "triggered_date": None,
+                "action_taken": "",
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "trigger": "If rollout slippage exceeds 10 business days",
+                "target_date": (today - timedelta(days=1)).isoformat(),
+                "threshold": "Delay > 10 days",
+                "status": "triggered",
+                "triggered_date": (today - timedelta(days=1)).isoformat(),
+                "action_taken": "Activated reduced-scope fallback and re-baselined timeline.",
+            },
+        ],
+        "lessons_learned": "Strong decisions still need explicit risk checkpoints. Earlier stakeholder alignment reduced friction, but dependency mapping should happen sooner.",
+        "decision_quality_score": 4,
+        "outcome_quality_score": 3,
+    }
+
+    return {"risks": risks, "retro": retro}
 
 
 def get_template_list() -> List[Dict[str, str]]:
@@ -327,15 +485,15 @@ def load_template(template_id: str) -> bool:
     # Load basic data
     st.session_state["decision"] = template["decision"]
     st.session_state["objetivo"] = template["objetivo"]
-    st.session_state["tiempo"] = template["tiempo"]
+    st.session_state["tiempo"] = _normalize_template_time(template["tiempo"])
     # Keep loaded template tiempo stable until user explicitly changes it.
     st.session_state["tiempo_user_override"] = True
-    st.session_state["tiempo_widget"] = template["tiempo"]
+    st.session_state["tiempo_widget"] = _normalize_template_time(template["tiempo"])
     
     # Load impact
-    st.session_state["impacto_corto"] = template["impacto"]["corto"]
-    st.session_state["impacto_medio"] = template["impacto"]["medio"]
-    st.session_state["impacto_largo"] = template["impacto"]["largo"]
+    st.session_state["impacto_corto"] = _normalize_template_impact(template["impacto"]["corto"])
+    st.session_state["impacto_medio"] = _normalize_template_impact(template["impacto"]["medio"])
+    st.session_state["impacto_largo"] = _normalize_template_impact(template["impacto"]["largo"])
     
     # Load alternatives with IDs
     alts = []
@@ -381,7 +539,7 @@ def load_template(template_id: str) -> bool:
     st.session_state["scenarios"] = scenarios
 
     scenarios_decision_tree = _build_template_decision_tree(
-        st.session_state.get("objetivo", "Decisión"),
+        st.session_state.get("objetivo", "Decision"),
         alts,
         scenarios,
     )
@@ -394,7 +552,10 @@ def load_template(template_id: str) -> bool:
     st.session_state["scenarios_decision_tree"] = scenarios_decision_tree
     st.session_state["scenarios_tree_projection"] = scenarios_tree_projection
     
-    # Initialize empty collections for other data
+    # Load monitoring sample data for demo-ready Monitoring tab
+    monitoring_data = _build_template_monitoring_data(alts, template["name"])
+
+    # Initialize remaining collections
     st.session_state["kpis"] = []
     st.session_state["timeline_items"] = []
     st.session_state["stakeholders"] = []
@@ -402,25 +563,16 @@ def load_template(template_id: str) -> bool:
     st.session_state["quantitative_notes"] = ""
     st.session_state["qualitative_notes"] = ""
     st.session_state["estrategia_corporativa"] = ""
-    st.session_state["risks"] = {}
-    st.session_state["retro"] = {
-        "decision_date": None,
-        "review_date": None,
-        "chosen_alternative_id": None,
-        "outcomes": [],
-        "tripwires": [],
-        "lessons_learned": "",
-        "decision_quality_score": 3,
-        "outcome_quality_score": 3,
-    }
+    st.session_state["risks"] = monitoring_data["risks"]
+    st.session_state["retro"] = monitoring_data["retro"]
     
     return True
 
 
 def render_template_selector():
     """Render the template selection modal/UI."""
-    st.markdown("### 📋 Plantillas de Decisión")
-    st.markdown("*Selecciona una plantilla para empezar con datos de ejemplo y entender cómo funciona la app.*")
+    st.markdown("### 📋 Decision Templates")
+    st.markdown("*Select a template to start with sample data and understand how the app works.*")
     st.markdown("")
     
     templates = get_template_list()
@@ -437,7 +589,7 @@ def render_template_selector():
             </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"Usar plantilla", key=f"load_template_{template['id']}", width="stretch"):
+            if st.button("Use template", key=f"load_template_{template['id']}", width="stretch"):
                 if load_template(template['id']):
                     st.session_state["_template_loaded"] = True
                     st.session_state["_loaded_template_name"] = template['name']
@@ -447,6 +599,6 @@ def render_template_selector():
 
 def render_template_button_in_sidebar():
     """Render a button to access templates from the sidebar."""
-    if st.button("📋 Cargar Plantilla", width="stretch", help="Cargar una plantilla de decisión de ejemplo"):
+    if st.button("📋 Load Template", width="stretch", help="Load a sample decision template"):
         st.session_state["show_template_selector"] = True
         st.rerun()

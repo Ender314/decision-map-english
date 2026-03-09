@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Objetivo component for Decider Pro application.
+Objective component for Decision Map application.
 Enhanced to provide strategic context from macro to micro level.
 """
 
@@ -9,12 +9,12 @@ import streamlit as st
 
 def render_objetivo_tab():
     """
-    Render the simplified Objetivo tab with bottom-up approach.
+    Render the simplified Objective tab with bottom-up approach.
     From tactical alternatives to strategic context.
     """
     
     # Tactical Alternatives (First - Micro Level)
-    st.markdown("### 🧭 Alternativas")
+    st.markdown("### 🧭 Alternatives")
     
     # Show alternatives if they exist
     alternatives = st.session_state.get("alts", [])
@@ -29,30 +29,30 @@ def render_objetivo_tab():
                 st.markdown(f"- {emoji} {alt_text}")
             
     else:
-        st.info("📝 Las alternativas se definirán en la pestaña **Alternativas**")
-        st.markdown("*Aquí aparecerán listadas una vez que las hayas creado*")
+        st.info("📝 Alternatives are defined in the **Alternatives** tab")
+        st.markdown("*They will appear here once you create them*")
     
     # st.markdown("---")
     st.markdown("#####")
     
     # Decision Objective (Second - Operational Level)
-    st.markdown("### 🎯 Objetivo")
+    st.markdown("### 🎯 Objective")
     
     st.text_area(
-        "Objetivo",
+        "Objective",
         key="objetivo",
-        placeholder="¿Qué habría de cumplirse para que estuviéramos seguros de que se tomó la decisión correcta?",
+        placeholder="What would need to happen for us to be confident that the right decision was made?",
         label_visibility="collapsed"
     )
     
     st.markdown("---")
     
     # Strategic Context (Third - Macro Level)
-    st.markdown("### 🏢 Estrategia")
+    st.markdown("### 🏢 Strategy")
     
     st.text_area(
-        "Estrategia Corporativa",
+        "Corporate strategy",
         key="estrategia_corporativa",
-        placeholder="¿Cómo ayuda este objetivo con la estrategia de la empresa?",
+        placeholder="How does this objective support the company strategy?",
         label_visibility="collapsed"
     )

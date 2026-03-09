@@ -73,7 +73,7 @@ def render_informacion_tab():
     """Render the Información (Information) tab."""
     
     # PAST DECISIONS Section (First - at the top)
-    st.subheader("📚 Decisiones Similares Pasadas")
+    st.subheader("📚 Similar Past Decisions")
     
     if st.session_state.past_decisions:
         for decision in st.session_state.past_decisions:
@@ -82,10 +82,10 @@ def render_informacion_tab():
                 with c1:
                     # Decision description
                     new_decision = st.text_area(
-                        "Decisión",
+                        "Decision",
                         value=decision["decision"],
                         key=f"past_decision_{decision['id']}",
-                        placeholder="Describe la decisión similar que se tomó en el pasado...",
+                        placeholder="Describe the similar decision that was made in the past...",
                         height=60,
                         label_visibility="collapsed"
                     )
@@ -95,10 +95,10 @@ def render_informacion_tab():
                     col1, col2 = st.columns(2)
                     with col1:
                         new_results = st.text_area(
-                            "Resultados",
+                            "Results",
                             value=decision["results"],
                             key=f"past_results_{decision['id']}",
-                            placeholder="¿Qué resultados se obtuvieron?",
+                            placeholder="What results were achieved?",
                             height=80,
                             label_visibility="collapsed"
                         )
@@ -106,10 +106,10 @@ def render_informacion_tab():
                     
                     with col2:
                         new_lessons = st.text_area(
-                            "Lecciones Aprendidas",
+                            "Lessons learned",
                             value=decision["lessons"],
                             key=f"past_lessons_{decision['id']}",
-                            placeholder="¿Qué lecciones se aprendieron?",
+                            placeholder="What lessons were learned?",
                             height=80,
                             label_visibility="collapsed"
                         )
@@ -117,23 +117,23 @@ def render_informacion_tab():
                 
                 with c2:
                     st.markdown("##")  # Add some spacing
-                    if st.button("🗑️", key=f"del_past_decision_{decision['id']}", help="Eliminar decisión"):
+                    if st.button("🗑️", key=f"del_past_decision_{decision['id']}", help="Delete decision"):
                         remove_past_decision(decision["id"])
                         st.rerun()
                 
                 st.markdown("---")
     
-    if st.button("➕ Añadir Decisión Pasada", key="add_past_decision_btn", width="stretch"):
+    if st.button("➕ Add Past Decision", key="add_past_decision_btn", width="stretch"):
         add_past_decision()
         st.rerun()
     
     st.markdown("##")
     
     # QUANTITATIVE DATA Section
-    st.subheader("📊 Datos Cuantitativos")
+    st.subheader("📊 Quantitative Data")
     
     # KPIs Section
-    st.markdown("**KPIs Relevantes**")
+    st.markdown("**Relevant KPIs**")
     
     if st.session_state.kpis:
         for kpi in st.session_state.kpis:
@@ -143,68 +143,68 @@ def render_informacion_tab():
                     "KPI",
                     value=kpi["name"],
                     key=f"kpi_name_{kpi['id']}",
-                    placeholder="Nombre del KPI",
+                    placeholder="KPI name",
                     label_visibility="collapsed"
                 )
                 kpi["name"] = new_name
             with c2:
                 new_value = st.text_input(
-                    "Valor",
+                    "Value",
                     value=kpi["value"],
                     key=f"kpi_value_{kpi['id']}",
-                    placeholder="Valor",
+                    placeholder="Value",
                     label_visibility="collapsed"
                 )
                 kpi["value"] = new_value
             with c3:
                 new_unit = st.text_input(
-                    "Unidad",
+                    "Unit",
                     value=kpi["unit"],
                     key=f"kpi_unit_{kpi['id']}",
-                    placeholder="Unidad",
+                    placeholder="Unit",
                     label_visibility="collapsed"
                 )
                 kpi["unit"] = new_unit
             with c4:
-                if st.button("🗑️", key=f"del_kpi_{kpi['id']}", help="Eliminar KPI"):
+                if st.button("🗑️", key=f"del_kpi_{kpi['id']}", help="Delete KPI"):
                     remove_kpi(kpi["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir KPI", key="add_kpi_btn", width="stretch"):
+    if st.button("➕ Add KPI", key="add_kpi_btn", width="stretch"):
         add_kpi()
         st.rerun()
     
     st.markdown("---")
     
     # Timeline Section
-    st.markdown("**Timeline Clave**")
+    st.markdown("**Key Timeline**")
     
     if st.session_state.timeline_items:
         for item in st.session_state.timeline_items:
             c1, c2, c3 = st.columns([4, 3, 0.5])
             with c1:
                 new_event = st.text_input(
-                    "Evento",
+                    "Event",
                     value=item["event"],
                     key=f"timeline_event_{item['id']}",
-                    placeholder="Descripción del evento",
+                    placeholder="Event description",
                     label_visibility="collapsed"
                 )
                 item["event"] = new_event
             with c2:
                 new_date = st.date_input(
-                    "Fecha",
+                    "Date",
                     value=item["date"],
                     key=f"timeline_date_{item['id']}",
                     label_visibility="collapsed"
                 )
                 item["date"] = new_date
             with c3:
-                if st.button("🗑️", key=f"del_timeline_{item['id']}", help="Eliminar evento"):
+                if st.button("🗑️", key=f"del_timeline_{item['id']}", help="Delete event"):
                     remove_timeline_item(item["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir Evento", key="add_timeline_btn", width="stretch"):
+    if st.button("➕ Add Event", key="add_timeline_btn", width="stretch"):
         add_timeline_item()
         st.rerun()
     
@@ -218,7 +218,7 @@ def render_informacion_tab():
             if fig.data:
                 st.plotly_chart(fig, width="stretch")
         except Exception as e:
-            st.info("💡 Error al generar la visualización del timeline")
+            st.info("💡 Error generating timeline visualization")
     
     # KPI Visualizations
     valid_kpis = [k for k in st.session_state.kpis if k.get("name", "").strip()]
@@ -269,20 +269,20 @@ def render_informacion_tab():
                 continue
         
         if len(numeric_kpis) > 1:
-            st.markdown("**Comparación de KPIs Numéricos**")
+            st.markdown("**Numeric KPI Comparison**")
             try:
                 fig = create_kpi_bar_chart(numeric_kpis)
                 st.plotly_chart(fig, width="stretch")
             except Exception as e:
-                st.info("💡 Error al generar gráfico de KPIs")
+                st.info("💡 Error generating KPI chart")
     
     st.markdown("---")
     
     # Free-form quantitative notes
     st.text_area(
-        "Notas Adicionales (Cuantitativas)",
+        "Additional Notes (Quantitative)",
         key="quantitative_notes",
-        placeholder="Otros datos numéricos, métricas o información cuantitativa relevante...",
+        placeholder="Other numeric data, metrics, or relevant quantitative information...",
         height=100,
         label_visibility="collapsed"
     )
@@ -290,10 +290,10 @@ def render_informacion_tab():
     st.markdown("##")
     
     # QUALITATIVE DATA Section
-    st.subheader("👥 Datos Cualitativos")
+    st.subheader("👥 Qualitative Data")
     
     # Stakeholders Section
-    st.markdown("**Stakeholders y Opiniones**")
+    st.markdown("**Stakeholders and Perspectives**")
     
     if st.session_state.stakeholders:
         for stakeholder in st.session_state.stakeholders:
@@ -303,25 +303,25 @@ def render_informacion_tab():
                     "Stakeholder",
                     value=stakeholder["name"],
                     key=f"stakeholder_name_{stakeholder['id']}",
-                    placeholder="Nombre/Rol",
+                    placeholder="Name/Role",
                     label_visibility="collapsed"
                 )
                 stakeholder["name"] = new_name
             with c2:
                 new_opinion = st.text_input(
-                    "Opinión",
+                    "Perspective",
                     value=stakeholder["opinion"],
                     key=f"stakeholder_opinion_{stakeholder['id']}",
-                    placeholder="Su opinión/posición",
+                    placeholder="Their position/view",
                     label_visibility="collapsed"
                 )
                 stakeholder["opinion"] = new_opinion
             with c3:
-                if st.button("🗑️", key=f"del_stakeholder_{stakeholder['id']}", help="Eliminar stakeholder"):
+                if st.button("🗑️", key=f"del_stakeholder_{stakeholder['id']}", help="Delete stakeholder"):
                     remove_stakeholder(stakeholder["id"])
                     st.rerun()
     
-    if st.button("➕ Añadir Stakeholder", key="add_stakeholder_btn", width="stretch"):
+    if st.button("➕ Add Stakeholder", key="add_stakeholder_btn", width="stretch"):
         add_stakeholder()
         st.rerun()
     
@@ -329,9 +329,9 @@ def render_informacion_tab():
     
     # Free-form qualitative notes
     st.text_area(
-        "Notas Adicionales (Cualitativas)",
+        "Additional Notes (Qualitative)",
         key="qualitative_notes",
-        placeholder="Contexto, observaciones, feedback, análisis cualitativo u otra información relevante...",
+        placeholder="Context, observations, feedback, qualitative analysis, or other relevant information...",
         height=200,
         label_visibility="collapsed"
     )

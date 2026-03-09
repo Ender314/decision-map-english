@@ -3,7 +3,7 @@
 # streamlit run "src\app_with_routing.py" --port 8501
 # python -m streamlit run "src\app_with_routing.py"
 """
-Decider Pro - Strategic Decision Analysis Tool
+Decision Map - Strategic Decision Analysis Tool.
 Includes landing page, offer page, and main application with seamless navigation.
 """
 
@@ -92,12 +92,12 @@ def _render_import_gate():
     import json
     from utils.data_manager import validate_json_structure, import_excel_data
 
-    st.markdown("### 📂 Importar análisis guardado")
-    st.markdown("Carga un archivo JSON o Excel exportado previamente.")
+    st.markdown("### 📂 Import saved analysis")
+    st.markdown("Load a previously exported JSON or Excel file.")
     st.markdown("")
 
     uploaded = st.file_uploader(
-        "Selecciona archivo",
+        "Select file",
         type=["json", "xlsx", "xls"],
         key="_gate_file_uploader",
     )
@@ -110,21 +110,21 @@ def _render_import_gate():
                 json_data = json.loads(uploaded.read().decode("utf-8"))
                 is_valid, error_msg = validate_json_structure(json_data)
                 if not is_valid:
-                    st.error(f"❌ JSON inválido: {error_msg}")
+                    st.error(f"❌ Invalid JSON: {error_msg}")
                 else:
-                    if st.button("🔄 Importar JSON", width="stretch"):
+                    if st.button("🔄 Import JSON", width="stretch"):
                         st.session_state["_import_data"] = json_data
                         st.session_state["_pending_import"] = True
                         st.session_state["_show_import_gate"] = False
                         st.session_state["_skip_welcome"] = True
                         st.rerun()
             except json.JSONDecodeError:
-                st.error("❌ El archivo no contiene JSON válido")
+                st.error("❌ File does not contain valid JSON")
             except Exception as e:
-                st.error(f"❌ Error leyendo JSON: {str(e)}")
+                st.error(f"❌ Error reading JSON: {str(e)}")
 
         elif ext in ["xlsx", "xls"]:
-            if st.button("🔄 Importar Excel", width="stretch"):
+            if st.button("🔄 Import Excel", width="stretch"):
                 try:
                     success, message = import_excel_data(uploaded)
                     if success:
@@ -135,10 +135,10 @@ def _render_import_gate():
                     else:
                         st.error(f"❌ {message}")
                 except Exception as e:
-                    st.error(f"❌ Error importando Excel: {str(e)}")
+                    st.error(f"❌ Error importing Excel: {str(e)}")
 
     st.markdown("")
-    if st.button("← Volver", key="back_from_import_gate"):
+    if st.button("← Back", key="back_from_import_gate"):
         st.session_state["_show_import_gate"] = False
         st.rerun()
 
@@ -217,7 +217,7 @@ def _advance_post_load_diag_counter() -> None:
 
 
 def render_main_app():
-    """Render the main Decider Pro application."""
+    """Render the main Decision Map application."""
     from components.templates import render_template_selector, get_template_list
     
     # Initialize app mode if not set
@@ -243,7 +243,7 @@ def render_main_app():
     # Navigation bar for app pages
     col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
-        if st.button("← 🏠", key="nav_to_landing", help="Volver a la página principal"):
+        if st.button("← 🏠", key="nav_to_landing", help="Back to landing page"):
             st.session_state["current_page"] = "landing"
             st.query_params.clear()  # Remove URL parameters
             st.rerun()
@@ -253,7 +253,7 @@ def render_main_app():
     
     with col3:
         # Sidebar toggle button
-        if st.button("⚙️", key="toggle_sidebar", help="Mostrar/ocultar opciones de exportar/importar", type="secondary"):
+        if st.button("⚙️", key="toggle_sidebar", help="Show/hide export/import options", type="secondary"):
             st.session_state["show_sidebar"] = not st.session_state.get("show_sidebar", False)
     
     st.markdown("---")
@@ -265,7 +265,7 @@ def render_main_app():
     with status_slot:
         if st.session_state.get("_template_loaded", False):
             template_name = st.session_state.get("_loaded_template_name", "")
-            st.success(f"✅ Plantilla cargada: **{template_name}**. Explora las pestañas para ver los datos de ejemplo.")
+            st.success(f"✅ Template loaded: **{template_name}**. Explore the tabs to review sample data.")
             st.session_state["_template_loaded"] = False
             st.session_state["_loaded_template_name"] = ""
 
@@ -281,36 +281,36 @@ def render_main_app():
             return
         
         # Main welcome screen
-        st.markdown(f"### 👋 ¡Bienvenido a {APP_NAME}!")
-        st.markdown("*Tu asistente para tomar decisiones estratégicas con claridad y confianza.*")
+        st.markdown(f"### 👋 Welcome to {APP_NAME}!")
+        st.markdown("*Your assistant for making strategic decisions with clarity and confidence.*")
         st.markdown("")
         
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            if st.button("📝 Empezar desde cero", width="stretch", help="Crear un nuevo análisis vacío"):
+            if st.button("📝 Start from scratch", width="stretch", help="Create a new empty analysis"):
                 st.session_state["_skip_welcome"] = True
                 st.rerun()
         with col_b:
-            if st.button("📋 Ver plantillas de ejemplo", width="stretch", type="primary", help="Cargar una plantilla para entender cómo funciona"):
+            if st.button("📋 View sample templates", width="stretch", type="primary", help="Load a template to understand how it works"):
                 st.session_state["show_template_selector"] = True
                 st.rerun()
         with col_c:
-            if st.button("📂 Importar análisis guardado", width="stretch", help="Cargar un archivo JSON o Excel exportado previamente"):
+            if st.button("📂 Import saved analysis", width="stretch", help="Load a previously exported JSON or Excel file"):
                 st.session_state["_show_import_gate"] = True
                 st.rerun()
         return
 
     # Time mode badge
-    tiempo = st.session_state.get("tiempo", "Menos de media hora")
+    tiempo = st.session_state.get("tiempo", "Less than 30 minutes")
     tiempo_badges = {
-        "Menos de media hora": ("⚡ Análisis rápido", "#38a169"),
-        "Un par de horas": ("⏱️ Análisis estándar", "#3182ce"),
-        "Una mañana": ("📊 Análisis detallado", "#805ad5"),
-        "Un par de días": ("🔬 Análisis profundo", "#c53030")
+        "Less than 30 minutes": ("⚡ Quick analysis", "#38a169"),
+        "A couple of hours": ("⏱️ Standard analysis", "#3182ce"),
+        "One morning": ("📊 Detailed analysis", "#805ad5"),
+        "A couple of days": ("🔬 Deep analysis", "#c53030")
     }
-    badge_text, badge_color = tiempo_badges.get(tiempo, ("⏱️ Análisis", "#718096"))
+    badge_text, badge_color = tiempo_badges.get(tiempo, ("⏱️ Analysis", "#718096"))
     
-    # Calculate essential path progress (4 steps: Describe → Alternativas → Prioridades → Evaluación)
+    # Calculate essential path progress (4 steps: Describe -> Alternatives -> Priorities -> Evaluation)
     has_description = bool(st.session_state.get("decision", "").strip())
     has_alts = len([a for a in st.session_state.get("alts", []) if a.get("text", "").strip()]) >= 2
     has_priorities = len([p for p in st.session_state.get("priorities", []) if p.get("text", "").strip()]) >= 2
@@ -366,11 +366,11 @@ def render_main_app():
         <div style="text-align: right; font-size: 0.85rem; font-family: monospace;">
             <span style="{step_style(has_description, current_step == 1)}">{step1_icon} Describe</span>
             <span style="color: #cbd5e0;"> → </span>
-            <span style="{step_style(has_alts, current_step == 2)}">{step2_icon} Alternativas</span>
+            <span style="{step_style(has_alts, current_step == 2)}">{step2_icon} Alternatives</span>
             <span style="color: #cbd5e0;"> → </span>
-            <span style="{step_style(has_priorities, current_step == 3)}">{step3_icon} Prioridades</span>
+            <span style="{step_style(has_priorities, current_step == 3)}">{step3_icon} Priorities</span>
             <span style="color: #cbd5e0;"> → </span>
-            <span style="{step_style(has_scores, current_step == 4)}">{step4_icon} Evaluación</span>
+            <span style="{step_style(has_scores, current_step == 4)}">{step4_icon} Evaluation</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -378,20 +378,20 @@ def render_main_app():
 
     # Header section - Decision description (shown in both modes)
     st.text_area(
-        "Descripción de la decisión",
+        "Decision description",
         key="decision",
-        placeholder="Describe y sintetiza la decisión a analizar",
+        placeholder="Describe and summarize the decision to analyze",
         label_visibility="collapsed",
     )
     
     # Contextual help for navigation - placed after decision description
-    with st.expander("*\"¿Tengo que rellenar todo en orden? ¿Puedo saltar pestañas?\"*", expanded=False):
+    with st.expander("*\"Do I need to complete everything in order? Can I skip tabs?\"*", expanded=False):
         st.markdown("""
-        **Solo 3 pestañas son obligatorias:** Alternativas → Prioridades → Evaluación
+        **Only 3 tabs are required:** Alternatives -> Priorities -> Evaluation
         
-        - Las demás pestañas son **opcionales** y aparecen según el impacto de tu decisión
-        - Puedes saltar entre pestañas, pero los **Resultados** solo aparecen cuando completas la Evaluación
-        - Si cambias alternativas o prioridades después, la evaluación se actualiza automáticamente
+        - The other tabs are **optional** and appear based on your decision's impact
+        - You can move across tabs, but **Results** appear only after completing Evaluation
+        - If you change alternatives or priorities later, evaluation updates automatically
         """)
     
     st.markdown('#')
@@ -400,17 +400,17 @@ def render_main_app():
     with status_slot:
         if st.session_state.get("redirect_to_first_tab", False):
             st.session_state["redirect_to_first_tab"] = False
-            st.info("✅ Datos importados. Comenzando desde el primer paso...")
+            st.info("✅ Data imported. Starting from the first step...")
 
     # Parent tabs gated by tiempo
-    tiempo_levels = ["Menos de media hora", "Un par de horas", "Una mañana", "Un par de días"]
+    tiempo_levels = ["Less than 30 minutes", "A couple of hours", "One morning", "A couple of days"]
     tiempo_idx = tiempo_levels.index(tiempo) if tiempo in tiempo_levels else 0
 
-    show_seguimiento = tiempo_idx >= 1  # "Un par de horas" onwards
-    show_informe = tiempo_idx >= 3      # "Un par de días" only
+    show_seguimiento = tiempo_idx >= 1  # "A couple of hours" onwards
+    show_informe = tiempo_idx >= 3      # "A couple of days" only
 
     triggered = count_triggered_tripwires()
-    monitoring_label = "📈 Seguimiento" if triggered == 0 else f"📈 Seguimiento 🔴 {triggered}"
+    monitoring_label = "📈 Monitoring" if triggered == 0 else f"📈 Monitoring 🔴 {triggered}"
     
     # Remember which sub-tab user was on
     if "_analysis_tab_idx" not in st.session_state:
@@ -419,11 +419,11 @@ def render_main_app():
         st.session_state["_monitoring_tab_idx"] = 0
     
     # Build parent tab list dynamically
-    parent_tab_labels = ["🎛️ Análisis"]
+    parent_tab_labels = ["🎛️ Analysis"]
     if show_seguimiento:
         parent_tab_labels.append(monitoring_label)
     if show_informe:
-        parent_tab_labels.append("📋 Informe")
+        parent_tab_labels.append("📋 Report")
 
     _record_tab_diag(
         "before_parent_tabs",
@@ -489,7 +489,7 @@ def render_main_app():
 def render_analysis_view():
     """Render the analysis phase tabs."""
     # Dynamic tabs based on time allocation
-    sections = get_sections_for_time(st.session_state.get("tiempo", "Menos de media hora"), ALL_SECTIONS)
+    sections = get_sections_for_time(st.session_state.get("tiempo", "Less than 30 minutes"), ALL_SECTIONS)
     
     # Create display names with emojis for visual tabs
     display_sections = [TAB_DISPLAY_NAMES.get(section, section) for section in sections]

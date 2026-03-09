@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Data management utilities for Decider Pro.
+Data management utilities for Decision Map.
 Handles session state, export/import, and data validation.
 """
 
@@ -14,6 +14,130 @@ import numpy as np
 from io import BytesIO
 
 from config.constants import DEFAULT_MCDA_CRITERIA, APP_NAME, APP_VERSION, LEGACY_APP_NAMES
+
+
+IMPACT_VALUE_MAP = {
+    "bajo": "low",
+    "medio": "medium",
+    "alto": "high",
+    "critico": "critical",
+    "crítico": "critical",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
+TIME_VALUE_MAP = {
+    "menos de media hora": "Less than 30 minutes",
+    "un par de horas": "A couple of hours",
+    "una mañana": "One morning",
+    "una manana": "One morning",
+    "un par de dias": "A couple of days",
+    "un par de días": "A couple of days",
+    "less than 30 minutes": "Less than 30 minutes",
+    "a couple of hours": "A couple of hours",
+    "one morning": "One morning",
+    "a couple of days": "A couple of days",
+}
+
+RISK_PROBABILITY_MAP = {
+    "bajo": "low",
+    "medio": "medium",
+    "alto": "high",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+}
+
+RISK_IMPACT_MAP = {
+    "bajo": "low",
+    "medio": "medium",
+    "alto": "high",
+    "critico": "critical",
+    "crítico": "critical",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "critical": "critical",
+}
+
+RISK_STATUS_MAP = {
+    "identificado": "identified",
+    "en_tratamiento": "in_treatment",
+    "aceptado": "accepted",
+    "cerrado": "closed",
+    "identified": "identified",
+    "in_treatment": "in_treatment",
+    "accepted": "accepted",
+    "closed": "closed",
+}
+
+OUTCOME_ATTRIBUTION_MAP = {
+    "decision": "decision",
+    "decisión": "decision",
+    "azar": "luck",
+    "luck": "luck",
+    "mixto": "mixed",
+    "mixed": "mixed",
+}
+
+OUTCOME_SENTIMENT_MAP = {
+    "positivo": "positive",
+    "neutral": "neutral",
+    "negativo": "negative",
+    "positive": "positive",
+    "negative": "negative",
+}
+
+TRIPWIRE_STATUS_MAP = {
+    "activo": "active",
+    "disparado": "triggered",
+    "superado": "resolved",
+    "active": "active",
+    "triggered": "triggered",
+    "resolved": "resolved",
+}
+
+
+def _normalize_from_map(value: Any, mapping: Dict[str, str], default: str) -> str:
+    """Normalize legacy/localized values to canonical English values."""
+    if value is None:
+        return default
+    key = str(value).strip().lower()
+    return mapping.get(key, default)
+
+
+def _normalize_impact(value: Any) -> str:
+    return _normalize_from_map(value, IMPACT_VALUE_MAP, "low")
+
+
+def _normalize_time(value: Any) -> str:
+    return _normalize_from_map(value, TIME_VALUE_MAP, "Less than 30 minutes")
+
+
+def _normalize_risk_probability(value: Any) -> str:
+    return _normalize_from_map(value, RISK_PROBABILITY_MAP, "medium")
+
+
+def _normalize_risk_impact(value: Any) -> str:
+    return _normalize_from_map(value, RISK_IMPACT_MAP, "medium")
+
+
+def _normalize_risk_status(value: Any) -> str:
+    return _normalize_from_map(value, RISK_STATUS_MAP, "identified")
+
+
+def _normalize_outcome_attribution(value: Any) -> str:
+    return _normalize_from_map(value, OUTCOME_ATTRIBUTION_MAP, "mixed")
+
+
+def _normalize_outcome_sentiment(value: Any) -> str:
+    return _normalize_from_map(value, OUTCOME_SENTIMENT_MAP, "neutral")
+
+
+def _normalize_tripwire_status(value: Any) -> str:
+    return _normalize_from_map(value, TRIPWIRE_STATUS_MAP, "active")
 
 
 def json_safe_convert(obj: Any) -> Any:
@@ -46,12 +170,12 @@ def initialize_session_defaults() -> None:
     """Initialize all session state defaults."""
     defaults = {
         # Impact assessment
-        "impacto_corto": "bajo",
-        "impacto_medio": "medio", 
-        "impacto_largo": "bajo",
+        "impacto_corto": "low",
+        "impacto_medio": "medium",
+        "impacto_largo": "low",
         
         # Time allocation
-        "tiempo": "Menos de media hora",
+        "tiempo": "Less than 30 minutes",
         "tiempo_user_override": False,
         
         # Core data
@@ -222,8 +346,8 @@ def _create_tree_from_flat_scenario(alt_name: str, scenario: Dict[str, Any]) -> 
     p_best_pct = max(0, min(100, p_best_pct))
     p_worst_pct = 100 - p_best_pct
 
-    best_desc = scenario.get("best_desc", "Mejor escenario") or "Mejor escenario"
-    worst_desc = scenario.get("worst_desc", "Peor escenario") or "Peor escenario"
+    best_desc = scenario.get("best_desc", "Best scenario") or "Best scenario"
+    worst_desc = scenario.get("worst_desc", "Worst scenario") or "Worst scenario"
 
     return {
         "id": str(uuid.uuid4()),
@@ -300,7 +424,7 @@ def _build_unified_tree_from_projection(
     """Build unified tree root from per-alternative projection map."""
     root = {
         "id": str(uuid.uuid4()),
-        "label": (decision_label or "Decisión")[:50],
+        "label": (decision_label or "Decision")[:50],
         "probability": 100,
         "score": 0,
         "children": [],
@@ -393,9 +517,9 @@ def create_export_data() -> Dict[str, Any]:
     from config.constants import IMPACT_MAP
     
     relevance_pct = calculate_relevance_percentage(
-        st.session_state.get("impacto_corto", "bajo"),
-        st.session_state.get("impacto_medio", "medio"),
-        st.session_state.get("impacto_largo", "bajo"),
+        st.session_state.get("impacto_corto", "low"),
+        st.session_state.get("impacto_medio", "medium"),
+        st.session_state.get("impacto_largo", "low"),
         IMPACT_MAP
     )
     
@@ -471,12 +595,12 @@ def _export_risks() -> List[Dict[str, Any]]:
         risk_rows.append({
             "id": risk.get("id", risk_id),
             "title": risk.get("title", ""),
-            "probability": risk.get("probability", "medio"),
-            "impact": risk.get("impact", "medio"),
+            "probability": _normalize_risk_probability(risk.get("probability", "medium")),
+            "impact": _normalize_risk_impact(risk.get("impact", "medium")),
             "linked_alt_id": risk.get("linked_alt_id"),
             "strategies": risk.get("strategies", {}),
             "notes": risk.get("notes", ""),
-            "status": risk.get("status", "identificado"),
+            "status": _normalize_risk_status(risk.get("status", "identified")),
             "created_at": risk.get("created_at"),
             "assessments": risk.get("assessments", [])
         })
@@ -542,19 +666,19 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
     
     # Import impact data
     impacto = data.get("impacto", {})
-    st.session_state["impacto_corto"] = impacto.get("corto", "bajo")
-    st.session_state["impacto_medio"] = impacto.get("medio", "medio")
-    st.session_state["impacto_largo"] = impacto.get("largo", "bajo")
+    st.session_state["impacto_corto"] = _normalize_impact(impacto.get("corto", "low"))
+    st.session_state["impacto_medio"] = _normalize_impact(impacto.get("medio", "medium"))
+    st.session_state["impacto_largo"] = _normalize_impact(impacto.get("largo", "low"))
     
     # Import time data
     tiempo_data = data.get("asignacion_tiempo", {})
     if isinstance(tiempo_data, str):  # Handle old format
-        st.session_state["tiempo"] = tiempo_data
+        st.session_state["tiempo"] = _normalize_time(tiempo_data)
         st.session_state["tiempo_user_override"] = True
     else:
-        st.session_state["tiempo"] = tiempo_data.get("tiempo", "Menos de media hora")
+        st.session_state["tiempo"] = _normalize_time(tiempo_data.get("tiempo", "Less than 30 minutes"))
         st.session_state["tiempo_user_override"] = True
-    st.session_state["tiempo_widget"] = st.session_state.get("tiempo", "Menos de media hora")
+    st.session_state["tiempo_widget"] = st.session_state.get("tiempo", "Less than 30 minutes")
     
     # Import objetivo
     st.session_state["objetivo"] = data.get("objetivo", "")
@@ -661,7 +785,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
                 "p_best_pct": scenario.get("p_best_pct", 50)
             }
 
-    decision_label = st.session_state.get("objetivo", "Decisión")
+    decision_label = st.session_state.get("objetivo", "Decision")
 
     decision_tree_raw = data.get("scenarios_decision_tree", {})
     projection_raw = data.get("scenarios_tree_projection", {})
@@ -686,7 +810,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
 
     # Only process scenarios if we have a decision tree (i.e., have scenario data)
     if decision_tree:
-        decision_tree["label"] = (decision_label or "Decisión")[:50]
+        decision_tree["label"] = (decision_label or "Decision")[:50]
         decision_tree["node_type"] = "root"
         decision_tree["alt_id"] = None
         decision_tree["probability"] = 100
@@ -725,8 +849,8 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         imported_risks[risk_id] = {
             "id": risk_id,
             "title": risk.get("title", ""),
-            "probability": risk.get("probability", "medio"),
-            "impact": risk.get("impact", "medio"),
+            "probability": _normalize_risk_probability(risk.get("probability", "medium")),
+            "impact": _normalize_risk_impact(risk.get("impact", "medium")),
             "linked_alt_id": risk.get("linked_alt_id"),
             "strategies": risk.get("strategies", {
                 "avoid": "",
@@ -735,7 +859,7 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
                 "contingency": ""
             }),
             "notes": risk.get("notes", ""),
-            "status": risk.get("status", "identificado"),
+            "status": _normalize_risk_status(risk.get("status", "identified")),
             "created_at": risk.get("created_at"),
             "assessments": risk.get("assessments", [])
         }
@@ -766,8 +890,21 @@ def import_json_data(data: Dict[str, Any], navigate_to_app: bool = False, show_r
         "decision_date": parsed_decision_date,
         "review_date": parsed_review_date,
         "chosen_alternative_id": retro_data.get("chosen_alternative_id"),
-        "outcomes": retro_data.get("outcomes", []),
-        "tripwires": retro_data.get("tripwires", []),
+        "outcomes": [
+            {
+                **o,
+                "attribution": _normalize_outcome_attribution(o.get("attribution")),
+                "sentiment": _normalize_outcome_sentiment(o.get("sentiment")),
+            }
+            for o in retro_data.get("outcomes", [])
+        ],
+        "tripwires": [
+            {
+                **t,
+                "status": _normalize_tripwire_status(t.get("status")),
+            }
+            for t in retro_data.get("tripwires", [])
+        ],
         "lessons_learned": retro_data.get("lessons_learned", ""),
         "decision_quality_score": retro_data.get("decision_quality_score", 3),
         "outcome_quality_score": retro_data.get("outcome_quality_score", 3)
@@ -821,8 +958,8 @@ def create_excel_export() -> BytesIO:
                 export_data.get('estrategia_corporativa', ''),
                 export_data.get('objetivo', ''),
                 tiempo_data.get('tiempo', ''),
-                'Sí' if tiempo_data.get('tiempo_user_override', False) else 'No',
-                'Sí' if mcda_data.get('weights_user_override', False) else 'No',
+                'Yes' if tiempo_data.get('tiempo_user_override', False) else 'No',
+                'Yes' if mcda_data.get('weights_user_override', False) else 'No',
                 export_data.get('meta', {}).get('exported_at', '')
             ]
         }
@@ -1050,7 +1187,7 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                     elif campo == 'Objetivo':
                         st.session_state['objetivo'] = str(valor) if pd.notna(valor) else ''
                     elif campo == 'Tiempo Asignado':
-                        st.session_state['tiempo'] = str(valor) if pd.notna(valor) else 'Menos de media hora'
+                        st.session_state['tiempo'] = _normalize_time(str(valor) if pd.notna(valor) else 'Less than 30 minutes')
                     elif campo == 'Tiempo Manual':
                         st.session_state['tiempo_user_override'] = str(valor).lower() in ['sí', 'si', 'yes', 'true', '1'] if pd.notna(valor) else False
                     elif campo == 'Pesos Manual':
@@ -1064,15 +1201,15 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                     plazo = row.get('Plazo', '').lower()
                     impacto = row.get('Impacto', '')
                     if plazo == 'corto':
-                        st.session_state['impacto_corto'] = str(impacto) if pd.notna(impacto) else 'bajo'
+                        st.session_state['impacto_corto'] = _normalize_impact(str(impacto) if pd.notna(impacto) else 'low')
                     elif plazo == 'medio':
-                        st.session_state['impacto_medio'] = str(impacto) if pd.notna(impacto) else 'medio'
+                        st.session_state['impacto_medio'] = _normalize_impact(str(impacto) if pd.notna(impacto) else 'medium')
                     elif plazo == 'largo':
-                        st.session_state['impacto_largo'] = str(impacto) if pd.notna(impacto) else 'bajo'
+                        st.session_state['impacto_largo'] = _normalize_impact(str(impacto) if pd.notna(impacto) else 'low')
 
         # Keep loaded tiempo stable until user explicitly changes it.
         st.session_state['tiempo_user_override'] = True
-        st.session_state['tiempo_widget'] = st.session_state.get('tiempo', 'Menos de media hora')
+        st.session_state['tiempo_widget'] = st.session_state.get('tiempo', 'Less than 30 minutes')
         
         # Import alternatives
         if 'Alternativas' in excel_data:
@@ -1273,7 +1410,7 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         alt_id: _create_tree_from_flat_scenario(scenario['name'], scenario)
                         for alt_id, scenario in imported_scenarios.items()
                     }
-                    decision_label = st.session_state.get('objetivo', 'Decisión')
+                    decision_label = st.session_state.get('objetivo', 'Decision')
                     st.session_state['scenarios_tree_projection'] = scenarios_tree_projection
                     st.session_state['scenarios_decision_tree'] = _build_unified_tree_from_projection(
                         decision_label,
@@ -1292,12 +1429,12 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         imported_risks[str(risk_id)] = {
                             'id': str(risk_id),
                             'title': str(row.get('title', '')).strip(),
-                            'category': str(row.get('category', 'técnico')) if pd.notna(row.get('category')) else 'técnico',
-                            'probability': str(row.get('probability', 'medio')) if pd.notna(row.get('probability')) else 'medio',
-                            'impact': str(row.get('impact', 'medio')) if pd.notna(row.get('impact')) else 'medio',
+                            'category': str(row.get('category', 'technical')) if pd.notna(row.get('category')) else 'technical',
+                            'probability': _normalize_risk_probability(row.get('probability', 'medium')),
+                            'impact': _normalize_risk_impact(row.get('impact', 'medium')),
                             'linked_alt_id': str(row.get('linked_alt_id', '')) if pd.notna(row.get('linked_alt_id')) else None,
                             'owner': str(row.get('owner', '')) if pd.notna(row.get('owner')) else '',
-                            'status': str(row.get('status', 'identificado')) if pd.notna(row.get('status')) else 'identificado',
+                            'status': _normalize_risk_status(row.get('status', 'identified')),
                             'created_at': str(row.get('created_at', '')) if pd.notna(row.get('created_at')) else None,
                             'strategies': {
                                 'avoid': str(row.get('strategy_avoid', '')) if pd.notna(row.get('strategy_avoid')) else '',
@@ -1317,8 +1454,8 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                             if risk_id and risk_id in imported_risks:
                                 assessment = {
                                     'date': str(row.get('date', '')) if pd.notna(row.get('date')) else '',
-                                    'probability': str(row.get('probability', 'medio')) if pd.notna(row.get('probability')) else 'medio',
-                                    'impact': str(row.get('impact', 'medio')) if pd.notna(row.get('impact')) else 'medio'
+                                    'probability': _normalize_risk_probability(row.get('probability', 'medium')),
+                                    'impact': _normalize_risk_impact(row.get('impact', 'medium'))
                                 }
                                 if 'assessments' not in imported_risks[risk_id]:
                                     imported_risks[risk_id]['assessments'] = []
@@ -1412,9 +1549,9 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         'id': str(row.get('id', str(uuid.uuid4()))),
                         'description': str(row.get('description', '')) if pd.notna(row.get('description')) else '',
                         'date': str(row.get('date', '')) if pd.notna(row.get('date')) else None,
-                        'attribution': str(row.get('attribution', 'mixto')) if pd.notna(row.get('attribution')) else 'mixto',
+                        'attribution': _normalize_outcome_attribution(row.get('attribution', 'mixed')),
                         'attribution_notes': str(row.get('attribution_notes', '')) if pd.notna(row.get('attribution_notes')) else '',
-                        'sentiment': str(row.get('sentiment', 'neutral')) if pd.notna(row.get('sentiment')) else 'neutral'
+                        'sentiment': _normalize_outcome_sentiment(row.get('sentiment', 'neutral'))
                     })
                 imported_retro['outcomes'] = outcomes
         
@@ -1428,7 +1565,7 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
                         'trigger': str(row.get('trigger', '')) if pd.notna(row.get('trigger')) else '',
                         'target_date': str(row.get('target_date', '')) if pd.notna(row.get('target_date')) else None,
                         'threshold': str(row.get('threshold', '')) if pd.notna(row.get('threshold')) else '',
-                        'status': str(row.get('status', 'activo')) if pd.notna(row.get('status')) else 'activo',
+                        'status': _normalize_tripwire_status(row.get('status', 'active')),
                         'triggered_date': str(row.get('triggered_date', '')) if pd.notna(row.get('triggered_date')) else None,
                         'action_taken': str(row.get('action_taken', '')) if pd.notna(row.get('action_taken')) else ''
                     })
@@ -1445,7 +1582,7 @@ def import_excel_data(excel_file) -> Tuple[bool, str]:
         # Note: redirect_to_first_tab disabled - users prefer staying on current view
         # st.session_state["redirect_to_first_tab"] = True
         
-        return True, "Datos importados exitosamente desde Excel"
+        return True, "Data imported successfully from Excel"
         
     except Exception as e:
-        return False, f"Error al importar Excel: {str(e)}"
+        return False, f"Error importing Excel: {str(e)}"

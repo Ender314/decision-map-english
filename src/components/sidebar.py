@@ -35,8 +35,8 @@ def render_sidebar():
     """Render the complete sidebar."""
     with st.sidebar:
         # Export section
-        st.markdown("### 📤 Exportar Datos")
-        st.markdown("Guarda tu análisis actual en formato JSON o Excel.")
+        st.markdown("### 📤 Export Data")
+        st.markdown("Save your current analysis as JSON or Excel.")
         
         # Check if we have data to export
         alt_names = [a["text"].strip() for a in st.session_state.get("alts", []) if a["text"].strip()]
@@ -47,57 +47,57 @@ def render_sidebar():
             
             # JSON Export
             with col1:
-                if st.button("📥 JSON", width="stretch", help="Exportar como JSON"):
+                if st.button("📥 JSON", width="stretch", help="Export as JSON"):
                     try:
                         export_data = create_export_data()
                         if export_data:
                             json_str = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
                             
                             st.download_button(
-                                "⬇️ Descargar JSON",
+                                "⬇️ Download JSON",
                                 data=json_str,
                                 file_name=_export_filename('json'),
                                 mime="application/json",
                                 width="stretch"
                             )
-                            st.success("✅ JSON generado")
+                            st.success("✅ JSON generated")
                         else:
-                            st.error("❌ Error al generar JSON")
+                            st.error("❌ Error generating JSON")
                     except Exception as e:
                         st.error(f"❌ Error JSON: {str(e)}")
             
             # Excel Export
             with col2:
-                if st.button("📈 Excel", width="stretch", help="Exportar como Excel"):
+                if st.button("📈 Excel", width="stretch", help="Export as Excel"):
                     try:
                         excel_data = create_excel_export()
                         if excel_data:
                             st.download_button(
-                                "⬇️ Descargar Excel",
+                                "⬇️ Download Excel",
                                 data=excel_data,
                                 file_name=_export_filename('xlsx'),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 width="stretch"
                             )
-                            st.success("✅ Excel generado")
+                            st.success("✅ Excel generated")
                         else:
-                            st.error("❌ Error al generar Excel")
+                            st.error("❌ Error generating Excel")
                     except Exception as e:
                         st.error(f"❌ Error Excel: {str(e)}")
         else:
-            st.info("💡 **Exportación disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
+            st.info("💡 **Export available** once you define **Alternatives** and **Priorities**")
         
         st.markdown("---")
         
         # Import section
-        st.markdown("### 📥 Importar Datos")
-        st.markdown("Restaura una sesión previa desde JSON o Excel.")
+        st.markdown("### 📥 Import Data")
+        st.markdown("Restore a previous session from JSON or Excel.")
         
         # File uploader for both formats
         uploaded_file = st.file_uploader(
-            "Selecciona archivo",
+            "Select file",
             type=['json', 'xlsx', 'xls'],
-            help=f"Archivos JSON o Excel exportados desde {APP_NAME}",
+            help=f"JSON or Excel files exported from {APP_NAME}",
             accept_multiple_files=False
         )
         
@@ -114,28 +114,28 @@ def render_sidebar():
                     is_valid, error_msg = validate_json_structure(json_data)
                     
                     if not is_valid:
-                        st.error(f"❌ JSON inválido: {error_msg}")
+                        st.error(f"❌ Invalid JSON: {error_msg}")
                     else:
-                        if st.button("🔄 Importar JSON", width="stretch"):
+                        if st.button("🔄 Import JSON", width="stretch"):
                             try:
                                 # Store import data temporarily and trigger rerun
                                 st.session_state["_import_data"] = json_data
                                 st.session_state["_pending_import"] = True
                                 st.session_state["_skip_welcome"] = True
-                                st.success("✅ JSON importado")
+                                st.success("✅ JSON imported")
                                 st.rerun()
                                 
                             except Exception as e:
-                                st.error(f"❌ Error importando JSON: {str(e)}")
+                                st.error(f"❌ Error importing JSON: {str(e)}")
                                 
                 except json.JSONDecodeError:
-                    st.error("❌ El archivo no contiene JSON válido")
+                    st.error("❌ File does not contain valid JSON")
                 except Exception as e:
-                    st.error(f"❌ Error leyendo JSON: {str(e)}")
+                    st.error(f"❌ Error reading JSON: {str(e)}")
             
             elif file_extension in ['xlsx', 'xls']:
                 # Excel Import
-                if st.button("🔄 Importar Excel", width="stretch"):
+                if st.button("🔄 Import Excel", width="stretch"):
                     try:
                         success, message = import_excel_data(uploaded_file)
                         if success:
@@ -145,41 +145,41 @@ def render_sidebar():
                         else:
                             st.error(f"❌ {message}")
                     except Exception as e:
-                        st.error(f"❌ Error importando Excel: {str(e)}")
+                        st.error(f"❌ Error importing Excel: {str(e)}")
             
             else:
-                st.error("❌ Formato de archivo no soportado")
+                st.error("❌ Unsupported file format")
         
         st.markdown("---")
         
         # Templates section
-        st.markdown("### 📋 Plantillas")
+        st.markdown("### 📋 Templates")
         render_template_button_in_sidebar()
         
         st.markdown("---")
         
         # App information
-        st.markdown("### ℹ️ Información")
+        st.markdown("### ℹ️ Information")
         st.markdown(f"**{APP_ICON} {APP_NAME}** v{APP_VERSION}")
-        st.markdown("Tu asistente para decisiones estratégicas")
+        st.markdown("Your assistant for strategic decisions")
         
         # Simple progress indicator
         components = [
-            ("Dimensionado", bool(st.session_state.get("impacto_corto"))),
-            ("Alternativas", len([a for a in st.session_state.get("alts", []) if a["text"].strip()]) >= 2),
-            ("Objetivo", bool(st.session_state.get("objetivo", "").strip())),
-            ("Prioridades", len([p for p in st.session_state.get("priorities", []) if p["text"].strip()]) >= 2),
-            ("Información", len([k for k in st.session_state.get("kpis", []) if k.get("name", "").strip()]) > 0),
-            ("Evaluación", st.session_state.get("mcda_scores_df") is not None),
-            ("Escenarios", bool(st.session_state.get("scenarios", {}))),
+            ("Sizing", bool(st.session_state.get("impacto_corto"))),
+            ("Alternatives", len([a for a in st.session_state.get("alts", []) if a["text"].strip()]) >= 2),
+            ("Objective", bool(st.session_state.get("objetivo", "").strip())),
+            ("Priorities", len([p for p in st.session_state.get("priorities", []) if p["text"].strip()]) >= 2),
+            ("Information", len([k for k in st.session_state.get("kpis", []) if k.get("name", "").strip()]) > 0),
+            ("Evaluation", st.session_state.get("mcda_scores_df") is not None),
+            ("Scenarios", bool(st.session_state.get("scenarios", {}))),
         ]
         
         completed = sum(1 for _, status in components if status)
         total = len(components)
         
-        st.progress(completed / total, text=f"Progreso: {completed}/{total}")
+        st.progress(completed / total, text=f"Progress: {completed}/{total}")
         
-        with st.expander("Estado de Componentes"):
+        with st.expander("Component Status"):
             for name, status in components:
                 icon = "✅" if status else "⏳"
                 st.markdown(f"{icon} {name}")

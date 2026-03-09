@@ -11,6 +11,23 @@ import plotly.graph_objects as go
 from config.constants import RISK_PROB_MAP, RISK_IMPACT_MAP, COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT
 
 
+LEGACY_MONITORING_VALUE_MAP = {
+    "ninguno": "none",
+    "medio": "medium",
+    "positivo": "positive",
+    "negativo": "negative",
+    "mixto": "mixed",
+    "activo": "active",
+    "disparado": "triggered",
+    "superado": "resolved",
+}
+
+
+def _normalize_monitoring_value(value: str) -> str:
+    key = str(value or "").strip().lower()
+    return LEGACY_MONITORING_VALUE_MAP.get(key, key)
+
+
 def get_recommended_alternative():
     """Get the recommended alternative from scenarios/MCDA analysis.
     
@@ -82,19 +99,21 @@ def render_recommended_alternative_banner():
     if not rec_name:
         return
     
-    st.caption("Alternativa recomendada")
+    st.caption("Recommended alternative")
     st.markdown(f"**{rec_name}**")
 
 
 # Extended probability/impact maps including "ninguno" for resolved risks
-EXTENDED_PROB_MAP = {"ninguno": 0, **RISK_PROB_MAP}
-EXTENDED_IMPACT_MAP = {"ninguno": 0, **RISK_IMPACT_MAP}
+EXTENDED_PROB_MAP = {"none": 0, "ninguno": 0, **RISK_PROB_MAP}
+EXTENDED_IMPACT_MAP = {"none": 0, "ninguno": 0, **RISK_IMPACT_MAP}
 
 
 def calculate_risk_score_extended(probability: str, impact: str) -> float:
     """Calculate risk score including 'ninguno' option for resolved risks."""
-    prob_val = EXTENDED_PROB_MAP.get(probability, 1)
-    impact_val = EXTENDED_IMPACT_MAP.get(impact, 1)
+    norm_probability = _normalize_monitoring_value(probability)
+    norm_impact = _normalize_monitoring_value(impact)
+    prob_val = EXTENDED_PROB_MAP.get(norm_probability, 1)
+    impact_val = EXTENDED_IMPACT_MAP.get(norm_impact, 1)
     return prob_val * impact_val
 
 
@@ -123,8 +142,8 @@ def interpolate_risk_scores(assessments: list, date_range: list, start_date: dat
         a_date = parse_date(a.get("date"))
         if a_date:
             score = calculate_risk_score_extended(
-                a.get("probability", "medio"),
-                a.get("impact", "medio")
+                a.get("probability", "medium"),
+                a.get("impact", "medium")
             )
             assessment_points.append((a_date, score))
     
@@ -204,7 +223,7 @@ def render_monitoring_timeline():
     """Render the monitoring timeline overview."""
     render_recommended_alternative_banner()
     st.markdown("---")
-    st.markdown("### 📅 Línea Temporal de Seguimiento")
+    st.markdown("### 📅 Monitoring Timeline")
     
     retro = st.session_state.get("retro", {})
     outcomes = retro.get("outcomes", [])
@@ -220,41 +239,42 @@ def render_monitoring_timeline():
         events.append({
             "date": decision_date,
             "type": "decision",
-            "title": "Decisión tomada",
+            "title": "Decision made",
             # "description": st.session_state.get("decision", "")[:50] + "...",
             "description": st.session_state.get("decision", "")[:5],
             "color": "#2196f3",
             "symbol": "diamond",
-            "legend_group": "Decisión"
+            "legend_group": "Decision"
         })
     
     # Add outcomes
     for outcome in outcomes:
         outcome_date = parse_date(outcome.get("date"))
         if outcome_date:
-            sentiment = outcome.get("sentiment", "neutral")
-            color = {"positivo": "#4caf50", "neutral": "#607d8b", "negativo": "#f44336"}.get(sentiment, "#607d8b")
+            sentiment = _normalize_monitoring_value(outcome.get("sentiment", "neutral"))
+            attribution = _normalize_monitoring_value(outcome.get("attribution", "mixed"))
+            color = {"positive": "#4caf50", "neutral": "#607d8b", "negative": "#f44336"}.get(sentiment, "#607d8b")
             events.append({
                 "date": outcome_date,
                 "type": "outcome",
                 # "title": outcome.get("description", "")[:80] + "...",
                 "title": outcome.get("description", "")[:] ,
-                "description": f"Atribución: {outcome.get('attribution', 'mixto')}",
+                "description": f"Attribution: {attribution}",
                 "color": color,
                 "symbol": "circle",
                 "sentiment": sentiment,
-                "legend_group": "Resultados"
+                "legend_group": "Outcomes"
             })
     
     # Add tripwires
     for tripwire in tripwires:
         tripwire_date = parse_date(tripwire.get("target_date"))
         if tripwire_date:
-            status = tripwire.get("status", "activo")
-            if status == "activo":
+            status = _normalize_monitoring_value(tripwire.get("status", "active"))
+            if status == "active":
                 color = "#ff9800"  # Orange for active
                 symbol = "triangle-up"
-            elif status == "disparado":
+            elif status == "triggered":
                 color = "#e91e63"  # Pink/red for triggered
                 symbol = "x"
             else:
@@ -266,7 +286,7 @@ def render_monitoring_timeline():
                 "type": "tripwire",
                 # "title": tripwire.get("trigger", "")[:50] + "...",
                 "title": tripwire.get("trigger", "")[:],
-                "description": tripwire.get("threshold", "") or f"Estado: {status}",
+                "description": tripwire.get("threshold", "") or f"Status: {status}",
                 "color": color,
                 "symbol": symbol,
                 "status": status,
@@ -284,22 +304,22 @@ def render_monitoring_timeline():
                 "date": risk_date,
                 "type": "risk",
                 "title": risk_title_display,
-                "description": f"Cat: {risk.get('category', '')} | {risk.get('probability', '')}/{risk.get('impact', '')}",
+                "description": f"Category: {risk.get('category', '')} | {risk.get('probability', '')}/{risk.get('impact', '')}",
                 "color": "#9c27b0",  # Purple for risks
                 "symbol": "triangle-right",
-                "legend_group": "Riesgos"
+                "legend_group": "Risks"
             })
     
     if not events:
-        st.info("No hay eventos en la línea temporal. Define la fecha de decisión y añade resultados, tripwires o riesgos.")
+        st.info("No events in the timeline yet. Set a decision date and add outcomes, tripwires, or risks.")
         
         # Quick stats
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Resultados", len(outcomes))
+        col1.metric("Outcomes", len(outcomes))
         col2.metric("Tripwires", len(tripwires))
-        col3.metric("Riesgos", len(risks))
-        active_tripwires = sum(1 for t in tripwires if t.get("status") == "activo")
-        col4.metric("Tripwires Activos", active_tripwires)
+        col3.metric("Risks", len(risks))
+        active_tripwires = sum(1 for t in tripwires if _normalize_monitoring_value(t.get("status")) == "active")
+        col4.metric("Active tripwires", active_tripwires)
         return
     
     # Sort events by date, then by type for consistent ordering
@@ -330,9 +350,9 @@ def render_monitoring_timeline():
     # Risk evolution toggle (placed before figure so we can integrate it)
     show_risk_evolution = False
     if risks:
-        show_risk_evolution = st.checkbox("📈 Mostrar evolución de riesgos", value=False, 
+        show_risk_evolution = st.checkbox("📈 Show risk evolution", value=False, 
                                           key="monitoring_timeline_risk_evolution_toggle",
-                                          help="Muestra la evolución del score de riesgo superpuesta en la línea temporal")
+                                          help="Overlay risk score evolution on the monitoring timeline")
     
     # Create timeline visualization with interactive legend
     fig = go.Figure()
@@ -344,10 +364,10 @@ def render_monitoring_timeline():
     
     # Define legend group properties
     legend_props = {
-        "Decisión": {"color": "#2196f3", "symbol": "diamond"},
-        "Resultados": {"color": "#4caf50", "symbol": "circle"},
+        "Decision": {"color": "#2196f3", "symbol": "diamond"},
+        "Outcomes": {"color": "#4caf50", "symbol": "circle"},
         "Tripwires": {"color": "#ff9800", "symbol": "triangle-up"},
-        "Riesgos": {"color": "#9c27b0", "symbol": "triangle-right"}
+        "Risks": {"color": "#9c27b0", "symbol": "triangle-right"}
     }
     
     # Add decision marker at y=0 (keep as diamond symbol)
@@ -357,7 +377,7 @@ def render_monitoring_timeline():
         y_dec = [0 for _ in decision_events]  # Decision always at y=0
         hovers_dec = [
             f"<b>{e['title']}</b><br>"
-            f"Fecha: {e['date']}<br>"
+            f"Date: {e['date']}<br>"
             f"{e['description']}"
             for e in decision_events
         ]
@@ -366,8 +386,8 @@ def render_monitoring_timeline():
             y=y_dec,
             mode="markers",
             marker=dict(size=18, color="#2196f3", symbol="diamond", line=dict(width=2, color="white")),
-            name="◆ Decisión",
-            legendgroup="Decisión",
+            name="◆ Decision",
+            legendgroup="Decision",
             showlegend=True,
             hovertemplate="%{customdata}<extra></extra>",
             customdata=hovers_dec
@@ -381,7 +401,7 @@ def render_monitoring_timeline():
         text_risk = ["⚠️" for _ in risk_events]
         hovers_risk = [
             f"<b>{e['title']}</b><br>"
-            f"Fecha: {e['date']}<br>"
+            f"Date: {e['date']}<br>"
             f"{e['description']}"
             for e in risk_events
         ]
@@ -391,8 +411,8 @@ def render_monitoring_timeline():
             mode="text",
             text=text_risk,
             textfont=dict(size=16),
-            name="⚠️ Riesgos",
-            legendgroup="Riesgos",
+            name="⚠️ Risks",
+            legendgroup="Risks",
             showlegend=True,
             hovertemplate="%{customdata}<extra></extra>",
             customdata=hovers_risk
@@ -401,13 +421,13 @@ def render_monitoring_timeline():
     # Add emoji markers for tripwires (⚡ active, 💥 triggered, 🏁 surpassed)
     tripwire_events = [e for e in events if e["type"] == "tripwire"]
     if tripwire_events:
-        tripwire_emoji_map = {"activo": "⚡", "disparado": "💥", "superado": "🏁"}
+        tripwire_emoji_map = {"active": "⚡", "triggered": "💥", "resolved": "🏁"}
         x_trip = [e["date"] for e in tripwire_events]
         y_trip = [e.get("y_direction", 1) * (0.2 + e["stack_index"] * y_spacing) for e in tripwire_events]
-        text_trip = [tripwire_emoji_map.get(e.get("status", "activo"), "⚡") for e in tripwire_events]
+        text_trip = [tripwire_emoji_map.get(e.get("status", "active"), "⚡") for e in tripwire_events]
         hovers_trip = [
             f"<b>{e['title']}</b><br>"
-            f"Fecha: {e['date']}<br>"
+            f"Date: {e['date']}<br>"
             f"{e['description']}"
             for e in tripwire_events
         ]
@@ -427,13 +447,13 @@ def render_monitoring_timeline():
     # Add emoji text markers for outcomes
     outcome_events = [e for e in events if e["type"] == "outcome"]
     if outcome_events:
-        emoji_map = {"positivo": "✅", "neutral": "➖", "negativo": "❌"}
+        emoji_map = {"positive": "✅", "neutral": "➖", "negative": "❌"}
         x_emoji = [e["date"] for e in outcome_events]
         y_emoji = [e.get("y_direction", -1) * (0.2 + e["stack_index"] * y_spacing) for e in outcome_events]
         text_emoji = [emoji_map.get(e.get("sentiment", "neutral"), "➖") for e in outcome_events]
         hovers_emoji = [
             f"<b>{e['title']}</b><br>"
-            f"Fecha: {e['date']}<br>"
+            f"Date: {e['date']}<br>"
             f"{e['description']}"
             for e in outcome_events
         ]
@@ -444,8 +464,8 @@ def render_monitoring_timeline():
             mode="text",
             text=text_emoji,
             textfont=dict(size=16),
-            name="✅ Resultados",
-            legendgroup="Resultados",
+            name="✅ Outcomes",
+            legendgroup="Outcomes",
             showlegend=True,
             hovertemplate="%{customdata}<extra></extra>",
             customdata=hovers_emoji
@@ -461,7 +481,7 @@ def render_monitoring_timeline():
         fig.add_vline(x=today, line_dash="dash", line_color="#673ab7", opacity=0.7)
         fig.add_annotation(
             x=today, y=max_above * y_spacing + 0.5,
-            text="Hoy",
+            text="Today",
             showarrow=False,
             font=dict(size=10, color="#673ab7")
         )
@@ -506,30 +526,30 @@ def render_monitoring_timeline():
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     
     # Legend help text
-    st.caption("💡 Haz clic en la leyenda para mostrar/ocultar categorías. Doble clic para aislar una categoría.")
+    st.caption("💡 Click the legend to show/hide categories. Double-click to isolate one category.")
     
     # Summary metrics
     col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 1, 1, 1, 1])
     
     with col1:
-        st.metric("Resultados", len(outcomes))
+        st.metric("Outcomes", len(outcomes))
     
     with col2:
-        positive = sum(1 for o in outcomes if o.get("sentiment") == "positivo")
-        negative = sum(1 for o in outcomes if o.get("sentiment") == "negativo")
+        positive = sum(1 for o in outcomes if _normalize_monitoring_value(o.get("sentiment")) == "positive")
+        negative = sum(1 for o in outcomes if _normalize_monitoring_value(o.get("sentiment")) == "negative")
         delta = positive - negative if outcomes else None
         st.metric("Balance", f"+{positive}/-{negative}", delta=delta if delta else None)
     
     with col3:
-        active = sum(1 for t in tripwires if t.get("status") == "activo")
-        st.metric("Tripwires Activos", active)
+        active = sum(1 for t in tripwires if _normalize_monitoring_value(t.get("status")) == "active")
+        st.metric("Active tripwires", active)
     
     with col4:
-        triggered = sum(1 for t in tripwires if t.get("status") == "disparado")
-        st.metric("Disparados", triggered, delta=f"+{triggered}" if triggered > 0 else None, delta_color="inverse")
+        triggered = sum(1 for t in tripwires if _normalize_monitoring_value(t.get("status")) == "triggered")
+        st.metric("Triggered", triggered, delta=f"+{triggered}" if triggered > 0 else None, delta_color="inverse")
     
     with col5:
-        st.metric("Riesgos", len(risks))
+        st.metric("Risks", len(risks))
     
     with col6:
         st.markdown("")
@@ -538,7 +558,7 @@ def render_monitoring_timeline():
     # Upcoming tripwires warning
     upcoming = []
     for t in tripwires:
-        if t.get("status") == "activo":
+        if _normalize_monitoring_value(t.get("status")) == "active":
             t_date = parse_date(t.get("target_date"))
             if t_date and t_date >= today:
                 days_until = (t_date - today).days
@@ -547,14 +567,14 @@ def render_monitoring_timeline():
     
     if upcoming:
         upcoming.sort(key=lambda x: x[0])
-        st.warning(f"⚠️ **{len(upcoming)} tripwire(s) próximo(s) en los siguientes 30 días:**")
+        st.warning(f"⚠️ **{len(upcoming)} upcoming tripwire(s) in the next 30 days:**")
         for days, t in upcoming[:3]:
             if days == 0:
-                st.markdown(f"  - **HOY**: {t.get('trigger', '')[:100]}")
+                st.markdown(f"  - **TODAY**: {t.get('trigger', '')[:100]}")
             elif days == 1:
-                st.markdown(f"  - **Mañana**: {t.get('trigger', '')[:100]}")
+                st.markdown(f"  - **Tomorrow**: {t.get('trigger', '')[:100]}")
             else:
-                st.markdown(f"  - **En {days} días**: {t.get('trigger', '')[:100]}")
+                st.markdown(f"  - **In {days} days**: {t.get('trigger', '')[:100]}")
 
 
 def get_risk_assessments_with_creation(risk: dict) -> list:
@@ -574,8 +594,8 @@ def get_risk_assessments_with_creation(risk: dict) -> list:
     if not assessments and created_at:
         return [{
             "date": created_at,
-            "probability": risk.get("probability", "medio"),
-            "impact": risk.get("impact", "medio")
+            "probability": risk.get("probability", "medium"),
+            "impact": risk.get("impact", "medium")
         }]
     
     return assessments
@@ -641,7 +661,7 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
         all_scores.append(scores)  # Store unscaled for average calculation
         
         # Get risk title (truncated)
-        title = risk.get("title", "Riesgo")[:33]
+        title = risk.get("title", "Risk")[:33]
         if len(risk.get("title", "")) > 33:
             title += "..."
         # Get risk title
@@ -673,8 +693,8 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
             a_date = parse_date(assessment.get("date"))
             if a_date:
                 a_score = calculate_risk_score_extended(
-                    assessment.get("probability", "medio"),
-                    assessment.get("impact", "medio")
+                    assessment.get("probability", "medium"),
+                    assessment.get("impact", "medium")
                 )
                 scaled_a_score = a_score * scale_factor
                 fig.add_trace(go.Scatter(
@@ -687,7 +707,7 @@ def add_risk_evolution_to_figure(fig, risks: dict, min_date: date, max_date: dat
                     showlegend=False,
                     hovertemplate=(
                         f"<b>{title}</b><br>"
-                        f"Evaluación: {a_date}<br>"
+                        f"Assessment: {a_date}<br>"
                         f"P: {assessment.get('probability', '')}<br>"
                         f"I: {assessment.get('impact', '')}<br>"
                         f"Score: {a_score}<br>"
