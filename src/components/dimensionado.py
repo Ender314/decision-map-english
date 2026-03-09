@@ -20,7 +20,7 @@ def render_dimensionado_tab():
     st.markdown(
         f"""
         <span style="font-weight:600;">
-          Estima su impacto en cada plazo temporal
+          Estima su impacto en el corto, medio y largo plazo
           {help_tip(get_tooltip('impacto'))}
         </span>
         """,
