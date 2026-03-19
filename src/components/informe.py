@@ -123,7 +123,7 @@ def get_report_data() -> Dict[str, Any]:
 def get_confidence_metrics(combined_sorted: List[Dict]) -> Tuple[str, float, str]:
     """Calculate confidence level based on composite score gap and uncertainty."""
     if not combined_sorted or len(combined_sorted) < 2:
-        return ("high", 100, "Única alternativa")
+        return ("high", 100, "Only alternative")
     
     best = combined_sorted[0]
     second = combined_sorted[1]
@@ -141,13 +141,13 @@ def get_confidence_metrics(combined_sorted: List[Dict]) -> Tuple[str, float, str
     
     if gap_pct >= 20:
         confidence = 95 - (uncertainty_factor * 25)
-        return ("high", confidence, "Ventaja clara")
+        return ("high", confidence, "Clear lead")
     elif gap_pct >= 10:
         confidence = 70 - (uncertainty_factor * 10)
-        return ("medium", confidence, "Ventaja moderada")
+        return ("medium", confidence, "Moderate lead")
     else:
         confidence = 60 - (uncertainty_factor * 20)
-        return ("low", confidence, "Alternativas reñidas")
+        return ("low", confidence, "Close alternatives")
 
 
 def create_confidence_gauge(confidence_pct: float, confidence_level: str) -> go.Figure:
@@ -218,7 +218,7 @@ def create_risk_heatmap(risks: Dict[str, Any]) -> go.Figure:
         x=impact_labels,
         y=prob_labels,
         text=hover_text,
-        hovertemplate="Prob: %{y}<br>Impacto: %{x}<br>Riesgos: %{text}<extra></extra>",
+        hovertemplate="Probability: %{y}<br>Impact: %{x}<br>Risks: %{text}<extra></extra>",
         colorscale=[
             [0, "#f7fafc"],
             [0.25, "#fed7d7"],
@@ -244,8 +244,8 @@ def create_risk_heatmap(risks: Dict[str, Any]) -> go.Figure:
     fig.update_layout(
         height=250,
         margin=dict(l=80, r=20, t=30, b=50),
-        xaxis=dict(title="Impacto", side="bottom"),
-        yaxis=dict(title="Probabilidad"),
+        xaxis=dict(title="Impact", side="bottom"),
+        yaxis=dict(title="Probability"),
     )
     
     return fig
@@ -263,7 +263,7 @@ def create_outcome_attribution_chart(outcomes: List[Dict]) -> go.Figure:
         if attr in attribution_counts:
             attribution_counts[attr] += 1
     
-    labels = ["Decisión", "Azar", "Mixto"]
+    labels = ["Decision", "Luck", "Mixed"]
     values = [attribution_counts["decisión"], attribution_counts["azar"], attribution_counts["mixto"]]
     colors = [COLOR_SUCCESS, COLOR_ERROR, COLOR_WARNING]
     
@@ -281,14 +281,14 @@ def create_outcome_attribution_chart(outcomes: List[Dict]) -> go.Figure:
         marker_colors=colors,
         textinfo='percent+label',
         textposition='outside',
-        hovertemplate="<b>%{label}</b><br>%{value} resultados (%{percent})<extra></extra>"
+        hovertemplate="<b>%{label}</b><br>%{value} outcomes (%{percent})<extra></extra>"
     )])
     
     fig.update_layout(
         height=280,
         margin=dict(l=20, r=20, t=30, b=20),
         showlegend=False,
-        annotations=[dict(text='Atribución', x=0.5, y=0.5, font_size=14, showarrow=False)]
+        annotations=[dict(text='Attribution', x=0.5, y=0.5, font_size=14, showarrow=False)]
     )
     
     return fig
@@ -305,10 +305,10 @@ def create_decision_quality_matrix(decision_score: int, outcome_score: int) -> g
     
     # Background quadrants
     quadrants = [
-        {"x0": 0, "x1": 0.5, "y0": 0.5, "y1": 1, "color": "rgba(56, 161, 105, 0.2)", "text": "🎲 Mala suerte"},
-        {"x0": 0.5, "x1": 1, "y0": 0.5, "y1": 1, "color": "rgba(56, 161, 105, 0.4)", "text": "🏆 Éxito merecido"},
-        {"x0": 0, "x1": 0.5, "y0": 0, "y1": 0.5, "color": "rgba(229, 62, 62, 0.4)", "text": "⚠️ Fracaso previsible"},
-        {"x0": 0.5, "x1": 1, "y0": 0, "y1": 0.5, "color": "rgba(246, 173, 85, 0.3)", "text": "🍀 Buena suerte"},
+        {"x0": 0, "x1": 0.5, "y0": 0.5, "y1": 1, "color": "rgba(56, 161, 105, 0.2)", "text": "Bad luck"},
+        {"x0": 0.5, "x1": 1, "y0": 0.5, "y1": 1, "color": "rgba(56, 161, 105, 0.4)", "text": "Deserved success"},
+        {"x0": 0, "x1": 0.5, "y0": 0, "y1": 0.5, "color": "rgba(229, 62, 62, 0.4)", "text": "Predictable failure"},
+        {"x0": 0.5, "x1": 1, "y0": 0, "y1": 0.5, "color": "rgba(246, 173, 85, 0.3)", "text": "Good luck"},
     ]
     
     for q in quadrants:
@@ -323,15 +323,15 @@ def create_decision_quality_matrix(decision_score: int, outcome_score: int) -> g
         mode="markers",
         marker=dict(size=30, color=COLOR_PRIMARY, symbol="circle",
                    line=dict(width=3, color="white")),
-        hovertemplate=f"Decisión: {decision_score}/5<br>Resultado: {outcome_score}/5<extra></extra>",
+        hovertemplate=f"Decision: {decision_score}/5<br>Outcome: {outcome_score}/5<extra></extra>",
         showlegend=False
     ))
     
     fig.update_layout(
         height=280,
         margin=dict(l=60, r=20, t=30, b=50),
-        xaxis=dict(title="Calidad de la Decisión →", range=[0, 1], showticklabels=False, showgrid=False),
-        yaxis=dict(title="Calidad del Resultado →", range=[0, 1], showticklabels=False, showgrid=False),
+        xaxis=dict(title="Decision Quality →", range=[0, 1], showticklabels=False, showgrid=False),
+        yaxis=dict(title="Outcome Quality →", range=[0, 1], showticklabels=False, showgrid=False),
         plot_bgcolor="white"
     )
     
@@ -365,7 +365,7 @@ def create_before_after_chart(scenarios: Dict, retro: Dict) -> Optional[go.Figur
     fig = go.Figure()
     
     fig.add_trace(go.Bar(
-        x=["Expectativa (EV promedio)", "Realidad (Outcomes)"],
+        x=["Expectation (average EV)", "Reality (Outcomes)"],
         y=[avg_expected, avg_actual],
         marker_color=[COLOR_INFO, COLOR_SUCCESS if avg_actual >= avg_expected else COLOR_WARNING],
         text=[f"{avg_expected:.1f}", f"{avg_actual:.1f}"],
@@ -375,7 +375,7 @@ def create_before_after_chart(scenarios: Dict, retro: Dict) -> Optional[go.Figur
     fig.update_layout(
         height=280,
         margin=dict(l=40, r=20, t=30, b=50),
-        yaxis=dict(title="Puntuación (0-10)", range=[0, 10]),
+        yaxis=dict(title="Score (0-10)", range=[0, 10]),
         showlegend=False
     )
     
@@ -390,11 +390,11 @@ def render_informe_tab():
     
     # Check if there's enough data for a report
     if not data["alt_names"] or not data["priority_names"]:
-        st.info("📋 **El informe estará disponible** una vez que hayas definido **Alternativas** y **Prioridades** en la fase de Análisis.")
+        st.info("📋 **The report will be available** once you define **Alternatives** and **Priorities** in the Analysis phase.")
         return
     
     if not data["ranking_list"]:
-        st.info("📋 **El informe estará disponible** una vez que completes la **Evaluación** en la fase de Análisis.")
+        st.info("📋 **The report will be available** once you complete the **Evaluation** in the Analysis phase.")
         return
     
     # =========================================
@@ -402,38 +402,38 @@ def render_informe_tab():
     # =========================================
     
     decision_date = data["retro"].get("decision_date")
-    date_str = decision_date.strftime("%d/%m/%Y") if isinstance(decision_date, date) else "Sin fecha"
+    date_str = decision_date.strftime("%d/%m/%Y") if isinstance(decision_date, date) else "No date"
     
-    relevance_badge = "🟢 Baja" if data["relevance_pct"] <= 30 else "🟡 Media" if data["relevance_pct"] <= 60 else "🔴 Alta"
+    relevance_badge = "🟢 Low" if data["relevance_pct"] <= 30 else "🟡 Medium" if data["relevance_pct"] <= 60 else "🔴 High"
     
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, {COLOR_PRIMARY} 0%, #2c5282 100%); 
                 padding: 2rem; border-radius: 16px; margin-bottom: 2rem;">
         <p style="color: #bee3f8; margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">
-            Informe de Decisión
+            Decision Report
         </p>
         <h1 style="color: #fff; margin: 0.5rem 0 1rem 0; font-size: 1.8rem; line-height: 1.3;">
-            {data["decision"] or "Decisión sin título"}
+            {data["decision"] or "Untitled decision"}
         </h1>
         <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
             <div>
-                <span style="color: #a0aec0; font-size: 0.8rem;">FECHA</span><br>
+                <span style="color: #a0aec0; font-size: 0.8rem;">DATE</span><br>
                 <span style="color: #fff; font-size: 1rem;">{date_str}</span>
             </div>
             <div>
-                <span style="color: #a0aec0; font-size: 0.8rem;">RELEVANCIA</span><br>
+                <span style="color: #a0aec0; font-size: 0.8rem;">RELEVANCE</span><br>
                 <span style="color: #fff; font-size: 1rem;">{relevance_badge} ({int(data["relevance_pct"])}%)</span>
             </div>
             <div>
-                <span style="color: #a0aec0; font-size: 0.8rem;">ALTERNATIVAS</span><br>
-                <span style="color: #fff; font-size: 1rem;">{len(data["alt_names"])}</span>
+                <span style="color: #a0aec0; font-size: 0.8rem;">ALTERNATIVES</span><br>
+                <span style="color: #fff; font-size: 1rem;">{len(data["alt_names"])} </span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
     if data["objetivo"]:
-        st.markdown(f"**Objetivo:** {data['objetivo']}")
+        st.markdown(f"**Objective:** {data['objetivo']}")
         st.markdown("")
     
     # =========================================
@@ -441,7 +441,7 @@ def render_informe_tab():
     # =========================================
     
     st.markdown("---")
-    st.markdown("## 🏆 1. La Recomendación")
+    st.markdown("## 🏆 1. Recommendation")
     
     if data["combined_sorted"]:
         winner = data["combined_sorted"][0]
@@ -452,39 +452,39 @@ def render_informe_tab():
         with col1:
             st.markdown(f"""
             <div style="background: #f7fafc; padding: 1.5rem; border-radius: 12px; border-left: 4px solid {COLOR_SUCCESS};">
-                <p style="color: #718096; margin: 0; font-size: 0.85rem;">ALTERNATIVA RECOMENDADA</p>
+                <p style="color: #718096; margin: 0; font-size: 0.85rem;">RECOMMENDED ALTERNATIVE</p>
                 <h2 style="color: {COLOR_PRIMARY}; margin: 0.3rem 0;">{winner['name']}</h2>
                 <p style="color: #4a5568; margin: 0.5rem 0 0 0;">
-                    Puntuación compuesta: <strong>{winner['composite']:.2f}</strong> / 5.00
+                    Composite score: <strong>{winner['composite']:.2f}</strong> / 5.00
                 </p>
             </div>
             """, unsafe_allow_html=True)
             
             st.markdown("")
             st.markdown(f"**{confidence_desc}**")
-            st.caption(f"La alternativa ganadora tiene una ventaja del {((winner['composite'] - data['combined_sorted'][1]['composite']) / winner['composite'] * 100):.0f}% sobre la segunda opción." if len(data["combined_sorted"]) > 1 else "Única alternativa evaluada.")
+            st.caption(f"The winning alternative leads the runner-up by {((winner['composite'] - data['combined_sorted'][1]['composite']) / winner['composite'] * 100):.0f}%." if len(data["combined_sorted"]) > 1 else "Only one alternative evaluated.")
         
         with col2:
-            st.markdown("**Nivel de Confianza**")
+            st.markdown("**Confidence Level**")
             fig_gauge = create_confidence_gauge(confidence_pct, confidence_level)
             st.plotly_chart(fig_gauge, width="stretch", config={"displayModeBar": False})
     
     elif data["ranking_list"]:
         winner = data["ranking_list"][0]
-        st.success(f"🏆 **Recomendación (MCDA):** {winner['alternativa']} — Puntuación: {winner['score']:.2f}")
-        st.caption("Completa los **Escenarios** para una recomendación más robusta con análisis de incertidumbre.")
+        st.success(f"🏆 **Recommendation (MCDA):** {winner['alternativa']} — Score: {winner['score']:.2f}")
+        st.caption("Complete **Scenarios** for a more robust recommendation with uncertainty analysis.")
     
     # =========================================
     # CHAPTER 2: Risk Landscape
     # =========================================
     
     st.markdown("---")
-    st.markdown("## ⚠️ 2. Panorama de Riesgos")
+    st.markdown("## ⚠️ 2. Risk Landscape")
     
     risks = data["risks"]
     
     if not risks:
-        st.info("💡 No hay riesgos registrados. Añade riesgos en la pestaña **Seguimiento → Riesgos**.")
+        st.info("💡 No risks recorded. Add risks in the **Monitoring → Risks** tab.")
     else:
         # Risk metrics
         active_risks = sum(1 for r in risks.values() if r.get("status") != "cerrado")
@@ -494,23 +494,23 @@ def render_informe_tab():
         
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Riesgos Activos", active_risks)
+            st.metric("Active Risks", active_risks)
         with col2:
-            st.metric("Alto Riesgo", high_risks, delta="crítico" if high_risks > 0 else None, delta_color="inverse")
+            st.metric("High Risk", high_risks, delta="critical" if high_risks > 0 else None, delta_color="inverse")
         with col3:
-            st.metric("Cerrados", sum(1 for r in risks.values() if r.get("status") == "cerrado"))
+            st.metric("Closed", sum(1 for r in risks.values() if r.get("status") == "cerrado"))
         
         st.markdown("")
         
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.markdown("**Matriz de Riesgos**")
+            st.markdown("**Risk Matrix**")
             fig_heatmap = create_risk_heatmap(risks)
             st.plotly_chart(fig_heatmap, width="stretch", config={"displayModeBar": False})
         
         with col2:
-            st.markdown("**Top Riesgos (por puntuación)**")
+            st.markdown("**Top Risks (by score)**")
             risk_scores = []
             for rid, r in risks.items():
                 if r.get("status") == "cerrado":
@@ -530,49 +530,49 @@ def render_informe_tab():
                     </div>
                     """, unsafe_allow_html=True)
             else:
-                st.caption("No hay riesgos activos")
+                st.caption("No active risks")
     
     # =========================================
     # CHAPTER 3: Expectations vs Reality
     # =========================================
     
     st.markdown("---")
-    st.markdown("## 📊 3. Expectativas vs Realidad")
+    st.markdown("## 📊 3. Expectations vs Reality")
     
     retro = data["retro"]
     outcomes = retro.get("outcomes", [])
     
     if not outcomes:
-        st.info("💡 No hay resultados registrados. Añade resultados en **Seguimiento → Retrospectiva**.")
+        st.info("💡 No outcomes recorded. Add outcomes in **Monitoring → Retrospective**.")
     else:
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.markdown("**Comparación Antes/Después**")
+            st.markdown("**Before/After Comparison**")
             fig_before_after = create_before_after_chart(data["scenarios"], retro)
             if fig_before_after:
                 st.plotly_chart(fig_before_after, width="stretch", config={"displayModeBar": False})
-                st.caption("EV promedio de escenarios vs. sentimiento promedio de outcomes")
+                st.caption("Average scenario EV vs. average outcome sentiment")
             else:
-                st.caption("Completa escenarios para ver la comparación")
+                st.caption("Complete scenarios to view the comparison")
         
         with col2:
-            st.markdown("**Resumen de Resultados**")
+            st.markdown("**Outcome Summary**")
             positive = sum(1 for o in outcomes if o.get("sentiment") == "positivo")
             neutral = sum(1 for o in outcomes if o.get("sentiment") == "neutral")
             negative = sum(1 for o in outcomes if o.get("sentiment") == "negativo")
             
             st.markdown(f"""
-            - 🟢 **Positivos:** {positive}
-            - 🟡 **Neutrales:** {neutral}
-            - 🔴 **Negativos:** {negative}
+            - 🟢 **Positive:** {positive}
+            - 🟡 **Neutral:** {neutral}
+            - 🔴 **Negative:** {negative}
             """)
             
             # Latest outcome
             if outcomes:
                 latest = outcomes[-1]
                 st.markdown("---")
-                st.markdown("**Último resultado registrado:**")
+                st.markdown("**Latest recorded outcome:**")
                 st.caption(f"*\"{latest.get('description', '')[:100]}...\"*" if len(latest.get('description', '')) > 100 else f"*\"{latest.get('description', '')}\"*")
     
     # =========================================
@@ -580,7 +580,7 @@ def render_informe_tab():
     # =========================================
     
     st.markdown("---")
-    st.markdown("## 📝 4. Lecciones Aprendidas")
+    st.markdown("## 📝 4. Lessons Learned")
     
     decision_score = retro.get("decision_quality_score", 3)
     outcome_score = retro.get("outcome_quality_score", 3)
@@ -590,17 +590,17 @@ def render_informe_tab():
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown("**Matriz Decisión-Resultado**")
+        st.markdown("**Decision-Outcome Matrix**")
         fig_quality = create_decision_quality_matrix(decision_score, outcome_score)
         st.plotly_chart(fig_quality, width="stretch", config={"displayModeBar": False})
-        st.caption(f"Decisión: {decision_score}/5 — Resultado: {outcome_score}/5")
+        st.caption(f"Decision: {decision_score}/5 — Outcome: {outcome_score}/5")
     
     with col2:
         if lessons:
-            st.markdown("**Reflexiones Clave**")
+            st.markdown("**Key Reflections**")
             st.markdown(f"> {lessons[:500]}{'...' if len(lessons) > 500 else ''}")
         else:
-            st.info("💡 Añade lecciones aprendidas en **Seguimiento → Retrospectiva**")
+            st.info("💡 Add lessons learned in **Monitoring → Retrospective**")
         
         # Tripwires summary
         if tripwires:
@@ -610,29 +610,29 @@ def render_informe_tab():
             st.markdown("---")
             st.markdown("**Tripwires**")
             if triggered > 0:
-                st.warning(f"⚡ {triggered} tripwire(s) disparados")
+                st.warning(f"⚡ {triggered} tripwire(s) triggered")
             if active > 0:
-                st.caption(f"🔔 {active} tripwire(s) activos bajo monitoreo")
+                st.caption(f"🔔 {active} active tripwire(s) under monitoring")
     
     # =========================================
     # CHAPTER 5: Luck vs Skill
     # =========================================
     
     st.markdown("---")
-    st.markdown("## 🎲 5. Decisión vs Azar")
+    st.markdown("## 🎲 5. Decision vs Luck")
     
     if not outcomes:
-        st.info("💡 Registra resultados con su atribución (decisión/azar/mixto) en **Seguimiento → Retrospectiva**.")
+        st.info("💡 Record outcomes with attribution (decision/luck/mixed) in **Monitoring → Retrospective**.")
     else:
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.markdown("**Atribución de Resultados**")
+            st.markdown("**Outcome Attribution**")
             fig_attribution = create_outcome_attribution_chart(outcomes)
             if fig_attribution:
                 st.plotly_chart(fig_attribution, width="stretch", config={"displayModeBar": False})
             else:
-                st.caption("No hay datos de atribución")
+                st.caption("No attribution data")
         
         with col2:
             # Calculate attribution stats
@@ -641,24 +641,24 @@ def render_informe_tab():
             mixed_attr = sum(1 for o in outcomes if o.get("attribution") == "mixto")
             total = len(outcomes)
             
-            st.markdown("**Interpretación**")
+            st.markdown("**Interpretation**")
             
             if total > 0:
                 decision_pct = decision_attr / total * 100
                 luck_pct = luck_attr / total * 100
                 
                 if decision_pct >= 60:
-                    st.success("✓ La mayoría de los resultados se deben a la **calidad de la decisión**. El proceso fue efectivo.")
+                    st.success("✓ Most outcomes are explained by **decision quality**. The process was effective.")
                 elif luck_pct >= 60:
-                    st.warning("⚠️ La mayoría de los resultados se deben al **azar**. Considera si el proceso de decisión capturó la incertidumbre correctamente.")
+                    st.warning("⚠️ Most outcomes are explained by **luck**. Consider whether the decision process captured uncertainty correctly.")
                 else:
-                    st.info("Los resultados muestran una **mezcla** de factores controlables e incontrolables. Esto es típico en decisiones complejas.")
+                    st.info("The outcomes show a **mix** of controllable and uncontrollable factors. This is typical in complex decisions.")
                 
                 st.markdown("")
                 st.markdown(f"""
-                - **Por decisión:** {decision_attr} ({decision_pct:.0f}%)
-                - **Por azar:** {luck_attr} ({luck_pct:.0f}%)
-                - **Mixto:** {mixed_attr} ({100 - decision_pct - luck_pct:.0f}%)
+                - **Decision-driven:** {decision_attr} ({decision_pct:.0f}%)
+                - **Luck-driven:** {luck_attr} ({luck_pct:.0f}%)
+                - **Mixed:** {mixed_attr} ({100 - decision_pct - luck_pct:.0f}%)
                 """)
     
     # =========================================
@@ -668,6 +668,6 @@ def render_informe_tab():
     st.markdown("---")
     st.markdown(f"""
     <div style="text-align: center; color: #718096; font-size: 0.85rem; padding: 1rem 0;">
-        📋 Informe generado por <strong>Decider Pro</strong> — {datetime.now().strftime("%d/%m/%Y %H:%M")}
+        📋 Report generated by <strong>Decider Pro</strong> — {datetime.now().strftime("%d/%m/%Y %H:%M")}
     </div>
     """, unsafe_allow_html=True)

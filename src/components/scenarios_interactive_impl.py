@@ -371,7 +371,7 @@ def _validate_probabilities(node, issues=None, path=""):
         total = sum(c["probability"] for c in children)
         is_decision_root = node.get("node_type") == "root"
         if not is_decision_root and abs(total - 100) > 1:
-            issues.append(f"{path or 'Raíz'}: probabilidades suman {total}% (deben sumar 100%)")
+            issues.append(f"{path or 'Root'}: probabilities add up to {total}% (must add up to 100%)")
         for child in children:
             _validate_probabilities(child, issues, path=f"{path} > {child['label'][:20]}")
     return issues
@@ -396,7 +396,7 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         size_val = 15
         label = node["label"]
         font_cfg = {"size": 12, "color": "#ffffff"}
-        tooltip = "Decision\nNodo raiz de la decision"
+        tooltip = "Decision\nDecision root node"
     elif is_alternative:
         color = {"background": "#edf2f7", "border": "#a0aec0"}
         shape = "box"
@@ -404,8 +404,8 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         mcda_hint = node.get("mcda_hint")
         label = node["label"]
         font_cfg = {"size": 11, "color": "#2d3748"}
-        mcda_text = f"{mcda_hint:.2f}" if mcda_hint is not None else "N/D"
-        tooltip = f"Alternativa\nMCDA: {mcda_text}\nEV: {ev:.2f}"
+        mcda_text = f"{mcda_hint:.2f}" if mcda_hint is not None else "N/A"
+        tooltip = f"Alternative\nMCDA: {mcda_text}\nEV: {ev:.2f}"
     elif is_leaf:
         if score >= 7:
             color = COLOR_SUCCESS
@@ -417,14 +417,14 @@ def _tree_to_agraph(tree, nodes, edges, depth=0, is_global=False):
         size_val = 12
         label = f"{node['label']}\n🎯 {score}/10"
         font_cfg = {"size": 11, "color": "#2d3748"}
-        tooltip = f"Escenario\nProbabilidad: {node['probability']}%\nPuntuacion: {score}/10\nEV: {ev:.2f}"
+        tooltip = f"Scenario\nProbability: {node['probability']}%\nScore: {score}/10\nEV: {ev:.2f}"
     else:
         color = COLOR_NEUTRAL
         shape = "dot"
         size_val = 12
         label = node["label"]
         font_cfg = {"size": 11, "color": "#2d3748"}
-        tooltip = f"Nodo intermedio\nProbabilidad: {node['probability']}%\nEV: {ev:.2f}"
+        tooltip = f"Intermediate node\nProbability: {node['probability']}%\nEV: {ev:.2f}"
     
     nodes.append(Node(
         id=node["id"],
@@ -513,30 +513,30 @@ def _render_action_panel(tree, selected_id):
     is_leaf = len(node.get("children", [])) == 0
     children = node.get("children", [])
     
-    st.markdown(f"**Nodo seleccionado:** {node['label']}")
+    st.markdown(f"**Selected node:** {node['label']}")
     
     if is_root:
-        st.caption("Este es el nodo raíz de decisión. Las alternativas del nivel 1 se sincronizan automáticamente desde la pestaña Alternativas.")
+        st.caption("This is the decision root node. Level-1 alternatives are synced automatically from the Alternatives tab.")
     elif is_alternative:
         if is_leaf and depth < MAX_TREE_DEPTH:
-            if st.button("🔀 Bifurcar", key=f"iact_bif_{selected_id}"):
+            if st.button("🔀 Split", key=f"iact_bif_{selected_id}"):
                 node["children"] = [
-                    _new_node("Mejor sub-escenario", 50, min(node["score"] + 2, 10)),
-                    _new_node("Peor sub-escenario", 50, max(node["score"] - 2, 0)),
+                    _new_node("Best sub-scenario", 50, min(node["score"] + 2, 10)),
+                    _new_node("Worst sub-scenario", 50, max(node["score"] - 2, 0)),
                 ]
                 _disable_visualizations_after_tree_change()
                 st.rerun()
         else:
-            st.caption("Esta alternativa ya está bifurcada. Edita o añade sub-ramas en sus nodos hijos.")
+            st.caption("This alternative is already split. Edit or add sub-branches in its child nodes.")
             alt_btn_col1, alt_btn_col2 = st.columns(2)
             with alt_btn_col1:
                 if len(children) < MAX_NODE_BRANCHES and depth < MAX_TREE_DEPTH:
-                    if st.button("➕ Sub-rama", key=f"iact_addsub_alt_{selected_id}"):
-                        _redistribute_and_add(node, "Sub-escenario", 5)
+                    if st.button("➕ Sub-branch", key=f"iact_addsub_alt_{selected_id}"):
+                        _redistribute_and_add(node, "Sub-scenario", 5)
                         _disable_visualizations_after_tree_change()
                         st.rerun()
             with alt_btn_col2:
-                if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_alt_{selected_id}"):
+                if st.button("↩️ Undo split", key=f"iact_unfork_alt_{selected_id}"):
                     _collapse_subtree_to_leaf(node)
                     _disable_visualizations_after_tree_change()
                     st.rerun()
@@ -546,23 +546,23 @@ def _render_action_panel(tree, selected_id):
             c1, c2 = st.columns(2)
             with c1:
                 new_label = st.text_input(
-                    "Descripción", value=node["label"],
+                    "Description", value=node["label"],
                     key=f"iact_lbl_{selected_id}",
-                    placeholder="Describe este escenario..."
+                    placeholder="Describe this scenario..."
                 )
 
             with c2:
                 col_p, col_s = st.columns(2)
                 with col_p:
                     new_prob = st.number_input(
-                        "Probabilidad %",
+                        "Probability %",
                         min_value=0, max_value=100, step=5,
                         value=int(node["probability"]),
                         key=f"iact_prob_{selected_id}"
                     )
                 with col_s:
                     new_score = st.slider(
-                        "Puntuación (0-10)",
+                        "Score (0-10)",
                         min_value=0, max_value=10, step=1,
                         value=int(node["score"]),
                         key=f"iact_score_{selected_id}"
@@ -570,7 +570,7 @@ def _render_action_panel(tree, selected_id):
 
             submit_col_left, submit_col_center, submit_col_right = st.columns([1, 1, 1])
             with submit_col_center:
-                submitted = st.form_submit_button("💾 Aplicar cambios", use_container_width=True)
+                submitted = st.form_submit_button("💾 Apply changes", use_container_width=True)
 
         if submitted:
             changed = False
@@ -599,10 +599,10 @@ def _render_action_panel(tree, selected_id):
         with btn_cols[0]:
             # Bifurcate (add children to this leaf)
             if is_leaf and depth < MAX_TREE_DEPTH:
-                if st.button("🔀 Bifurcar", key=f"iact_bif_{selected_id}"):
+                if st.button("🔀 Split", key=f"iact_bif_{selected_id}"):
                     node["children"] = [
-                        _new_node("Mejor sub-escenario", 50, min(node["score"] + 2, 10)),
-                        _new_node("Peor sub-escenario", 50, max(node["score"] - 2, 0)),
+                        _new_node("Best sub-scenario", 50, min(node["score"] + 2, 10)),
+                        _new_node("Worst sub-scenario", 50, max(node["score"] - 2, 0)),
                     ]
                     _disable_visualizations_after_tree_change()
                     st.rerun()
@@ -610,15 +610,15 @@ def _render_action_panel(tree, selected_id):
         with btn_cols[1]:
             # Add sibling branch (to parent)
             if not is_root and len(children) < MAX_NODE_BRANCHES and not is_leaf and depth < MAX_TREE_DEPTH:
-                if st.button("➕ Sub-rama", key=f"iact_addsub_{selected_id}"):
-                    _redistribute_and_add(node, "Sub-escenario", 5)
+                if st.button("➕ Sub-branch", key=f"iact_addsub_{selected_id}"):
+                    _redistribute_and_add(node, "Sub-scenario", 5)
                     _disable_visualizations_after_tree_change()
                     st.rerun()
         
         with btn_cols[2]:
             # Collapse branch into a leaf using subtree EV
             if not is_root and not is_leaf:
-                if st.button("↩️ Deshacer bifurcación", key=f"iact_unfork_{selected_id}"):
+                if st.button("↩️ Undo split", key=f"iact_unfork_{selected_id}"):
                     _collapse_subtree_to_leaf(node)
                     _disable_visualizations_after_tree_change()
                     st.rerun()
@@ -626,7 +626,7 @@ def _render_action_panel(tree, selected_id):
         with btn_cols[3]:
             # Delete this node
             if parent and len(parent.get("children", [])) > 1 and not is_alternative:
-                if st.button("🗑️ Eliminar", key=f"iact_del_{selected_id}"):
+                if st.button("🗑️ Delete", key=f"iact_del_{selected_id}"):
                     parent["children"] = [c for c in parent["children"] if c["id"] != selected_id]
                     if "_iact_selected_global" in st.session_state:
                         del st.session_state["_iact_selected_global"]
@@ -638,22 +638,22 @@ def _render_action_panel(tree, selected_id):
 
 def render_interactive_scenarios_tab():
     """Render unified Escenarios tab with tree-based input and outputs."""
-    st.markdown("### 🔮 Planificación de Escenarios", unsafe_allow_html=True)
-    st.caption("Construye escenarios con árboles de decisión. Haz clic en un nodo para seleccionarlo y editarlo.")
+    st.markdown("### 🔮 Scenario Planning", unsafe_allow_html=True)
+    st.caption("Build scenarios using decision trees. Click a node to select and edit it.")
     
     all_alts = [a for a in st.session_state.alts if a["text"].strip()]
     if not all_alts:
-        st.info("🎮 Los escenarios interactivos te permiten construir un árbol de decisión haciendo clic en los nodos. Primero define tus **Alternativas**.")
+        st.info("🎮 Interactive scenarios let you build a decision tree by clicking nodes. First define your **Alternatives**.")
         return
     
     disqualified_alts = get_disqualified_alternatives()
     alts = [a for a in all_alts if a["id"] not in disqualified_alts]
     
     if disqualified_alts and len(alts) == 0:
-        st.error("⚠️ Todas las alternativas están descalificadas por No Negociables.")
+        st.error("⚠️ All alternatives are disqualified by Non-Negotiables.")
         return
     
-    decision_label = st.session_state.get("objetivo", "Decisión").strip() or "Decisión"
+    decision_label = st.session_state.get("objetivo", "Decision").strip() or "Decision"
     current_tree = st.session_state.get(STATE_SCENARIOS_TREE)
     if not isinstance(current_tree, dict) or not current_tree:
         if st.session_state.get("scenarios"):
@@ -673,9 +673,9 @@ def render_interactive_scenarios_tab():
     tree_controls_col, _ = st.columns([1, 5])
     with tree_controls_col:
         recenter_requested = st.button(
-            "🎯 Centrar árbol",
+            "🎯 Recenter tree",
             key="iact_center_tree_btn",
-            help="Re-centra la vista del árbol si se fue fuera de pantalla",
+            help="Recenter the tree view if it moved off-screen",
         )
 
     if recenter_requested:
@@ -709,7 +709,7 @@ def render_interactive_scenarios_tab():
         st.markdown("---")
         _render_action_panel(decision_tree, current_selected)
     else:
-        st.info("👆 Haz clic en un nodo del árbol para editarlo.")
+        st.info("👆 Click a tree node to edit it.")
 
     projected_trees = _project_unified_tree_to_per_alt(decision_tree)
     st.session_state[STATE_SCENARIOS_PROJECTION] = projected_trees
@@ -731,14 +731,14 @@ def render_interactive_scenarios_tab():
 
     st.markdown("---")
     show_visualizations = st.toggle(
-        "Mostrar visualizaciones",
+        "Show visualizations",
         value=False,
         key="_iact_show_visualizations",
-        help="Activa todas las visualizaciones (Distribuciones, Matriz de Decisión y MCDA × EV) cuando el árbol esté listo.",
+        help="Enable all visualizations (Distributions, Decision Matrix, and MCDA × EV) when the tree is ready.",
     )
 
     if not show_visualizations:
-        st.caption("💡 Activa **Mostrar visualizaciones** para renderizar los gráficos cuando termines de editar el árbol.")
+        st.caption("💡 Turn on **Show visualizations** to render the charts once you finish editing the tree.")
         return
 
     # Render first right after tree definition controls
@@ -780,9 +780,9 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
 
     if not embedded:
         st.markdown("---")
-        st.markdown("### 🧬 MCDA × EV (densidad por alternativa)")
-        st.caption("Eje X = MCDA (0-5). Eje Y = score de cada hoja (0-10). Cada círculo representa una hoja; la opacidad sigue su probabilidad efectiva (path_prob). En alternativas ramificadas, se muestra un contorno sutil de distribución y una marca sutil del EV.")
-
+        st.markdown("### 🧬 MCDA × EV (density by alternative)")
+        st.caption("X-axis = MCDA (0-5). Y-axis = score of each leaf (0-10). Each circle represents a leaf; opacity follows its effective probability (`path_prob`). For branched alternatives, a subtle distribution outline and EV marker are shown.")
+    
     color_map = _build_alternative_color_map(alts)
 
     fig = go.Figure()
@@ -815,9 +815,9 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
             hovertemplate=(
                 f"<b>{td['name']}</b><br>"
                 f"MCDA: {td['mcda']:.2f}<br>"
-                "Score hoja: %{y:.2f}<br>"
-                "Hoja: %{customdata[0]}<br>"
-                "Prob. efectiva: %{customdata[1]:.1f}%<extra></extra>"
+                "Leaf score: %{y:.2f}<br>"
+                "Leaf: %{customdata[0]}<br>"
+                "Effective probability: %{customdata[1]:.1f}%<extra></extra>"
             ),
             customdata=customdata,
             showlegend=True,
@@ -837,11 +837,11 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
 
             peak = float(np.max(density)) if len(density) else 0.0
             if peak > 0:
-                width_scale = (density / peak) * 0.12
-                support_mask = width_scale > 1e-4
+                density_scaled = (density / peak) * 0.12
+                support_mask = density_scaled > 1e-4
                 if np.count_nonzero(support_mask) >= 3:
                     y_support = y_kernel_grid[support_mask]
-                    width_support = width_scale[support_mask]
+                    width_support = density_scaled[support_mask]
                     x_center = td["mcda"]
 
                     fig.add_trace(go.Scatter(
@@ -886,23 +886,23 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
     fig.add_vline(x=2.5, line_dash="dash", line_color="#cbd5e0", opacity=0.8)
     fig.add_hline(y=5, line_dash="dash", line_color="#cbd5e0", opacity=0.8)
 
-    fig.add_annotation(x=1.25, y=9.0, text="Explorar", showarrow=False, font=dict(size=10, color="#718096"))
-    fig.add_annotation(x=3.75, y=9.0, text="Priorizar", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
-    fig.add_annotation(x=1.25, y=1.0, text="Descartar", showarrow=False, font=dict(size=10, color="#718096"))
-    fig.add_annotation(x=3.75, y=1.0, text="Revisar supuestos", showarrow=False, font=dict(size=10, color="#718096"))
+    fig.add_annotation(x=1.25, y=9.0, text="Explore", showarrow=False, font=dict(size=10, color="#718096"))
+    fig.add_annotation(x=3.75, y=9.0, text="Prioritize", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
+    fig.add_annotation(x=1.25, y=1.0, text="Discard", showarrow=False, font=dict(size=10, color="#718096"))
+    fig.add_annotation(x=3.75, y=1.0, text="Review assumptions", showarrow=False, font=dict(size=10, color="#718096"))
 
     fig.update_layout(
         height=400,
         margin=dict(l=60, r=20, t=40, b=60),
-        xaxis=dict(title="Puntuación MCDA (0-5)", range=[0, 5.1], dtick=0.5, showgrid=False),
+        xaxis=dict(title="MCDA score (0-5)", range=[0, 5.1], dtick=0.5, showgrid=False),
         yaxis=dict(
-            title="Valor Esperado (EV, 0-10)",
+            title="Expected Value (EV, 0-10)",
             range=[0, 10],
             dtick=2,
             showgrid=False,
         ),
         legend=dict(
-            title="Alternativas",
+            title="Alternatives",
             x=1.02,
             y=1.0,
             xanchor="left",
@@ -916,7 +916,7 @@ def _render_mcda_ev_density_bridge(alts, embedded=False, chart_key="mcda_ev_dens
 
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key=chart_key)
     if not embedded:
-        st.caption("Comparación piloto: mantenemos también las dos vistas actuales debajo para validar lectura y utilidad.")
+        st.caption("Pilot comparison: the two current views remain below so you can validate readability and usefulness.")
 
 
 # ── Decision Matrix section ───────────────────────────────────────
@@ -936,11 +936,11 @@ def _render_decision_matrix(ev_results, alts):
     
     if not mcda_ranking:
         st.markdown("---")
-        st.info("💡 Completa la **Evaluación** para ver la Matriz de Decisión combinada (MCDA + Escenarios).")
+        st.info("💡 Complete the **Evaluation** tab to view the combined Decision Matrix (MCDA + Scenarios).")
         return
     
     st.markdown("---")
-    st.markdown("### 🎯 Matriz de Decisión")
+    st.markdown("### 🎯 Decision Matrix")
 
     mcda_weight_pct = int(st.session_state.get("composite_weight_slider", COMPOSITE_DEFAULT_MCDA_WEIGHT_PCT))
     w_mcda = mcda_weight_pct / 100.0
@@ -1007,9 +1007,9 @@ def _render_decision_matrix(ev_results, alts):
             hovertemplate=(
                 f"<b>{item['name']}</b><br>"
                 f"MCDA: {item['mcda']:.2f}<br>"
-                f"EV: {item['ev']:.2f} (escala 0-10)<br>"
-                f"Incertidumbre: {item['uncertainty']:.0f}<br>"
-                f"Compuesto: {item['composite']:.2f}"
+                f"EV: {item['ev']:.2f} (0-10 scale)<br>"
+                f"Uncertainty: {item['uncertainty']:.0f}<br>"
+                f"Composite: {item['composite']:.2f}"
                 "<extra></extra>"
             )
         ))
@@ -1017,27 +1017,27 @@ def _render_decision_matrix(ev_results, alts):
     fig.add_hline(y=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
     fig.add_vline(x=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
     
-    fig.add_annotation(x=1.25, y=4.5, text="Alto potencial", showarrow=False, font=dict(size=10, color="#888"))
-    fig.add_annotation(x=3.75, y=4.5, text="✓ Óptimo", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
-    fig.add_annotation(x=1.25, y=0.5, text="Evitar", showarrow=False, font=dict(size=10, color="#888"))
-    fig.add_annotation(x=3.75, y=0.5, text="Seguro limitado", showarrow=False, font=dict(size=10, color="#888"))
+    fig.add_annotation(x=1.25, y=4.5, text="High potential", showarrow=False, font=dict(size=10, color="#888"))
+    fig.add_annotation(x=3.75, y=4.5, text="✓ Optimal", showarrow=False, font=dict(size=11, color="#2e7d32", weight="bold"))
+    fig.add_annotation(x=1.25, y=0.5, text="Avoid", showarrow=False, font=dict(size=10, color="#888"))
+    fig.add_annotation(x=3.75, y=0.5, text="Limited upside", showarrow=False, font=dict(size=10, color="#888"))
     
     fig.update_layout(
         height=400,
         margin=dict(l=60, r=20, t=40, b=60),
         showlegend=True,
-        legend=dict(title="Alternativas", x=1.02, y=1.0, xanchor="left", yanchor="top",
+        legend=dict(title="Alternatives", x=1.02, y=1.0, xanchor="left", yanchor="top",
                     bgcolor="rgba(255,255,255,0.85)", bordercolor="rgba(0,0,0,0.15)", borderwidth=1),
-        xaxis=dict(title="Puntuación MCDA (criterios)", range=[0, 5.2], showgrid=False, dtick=1),
-        yaxis=dict(title="Valor Esperado (escenarios)", range=[0, 5.2], showgrid=False, dtick=1),
+        xaxis=dict(title="MCDA score (criteria)", range=[0, 5.2], showgrid=False, dtick=1),
+        yaxis=dict(title="Expected Value (scenarios)", range=[0, 5.2], showgrid=False, dtick=1),
         plot_bgcolor="white"
     )
     
-    chart_tab, advanced_tab = st.tabs(["Vista básica", "🔍 Detalle"])
+    chart_tab, advanced_tab = st.tabs(["Basic view", "🔍 Detail"])
 
     with chart_tab:
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, key="interactive_decision_matrix")
-        st.caption("📐 **Tamaño de burbuja** = incertidumbre (rango entre peor y mejor hoja). Burbujas más grandes indican mayor variabilidad.")
+        st.caption("📐 **Bubble size** = uncertainty (range between the worst and best leaf). Larger bubbles indicate greater variability.")
 
     with advanced_tab:
         _render_mcda_ev_density_bridge(alts, embedded=True, chart_key="mcda_ev_density_bridge_tab")
@@ -1047,41 +1047,41 @@ def _render_decision_matrix(ev_results, alts):
     slider_left, slider_center, slider_right = st.columns([1, 2, 1])
     with slider_center:
         mcda_weight_pct = st.slider(
-            "Peso MCDA vs. Escenarios",
+            "MCDA vs. Scenarios weight",
             min_value=0, max_value=100, value=mcda_weight_pct, step=5,
             format="%d%%",
-            help="Ajusta el balance entre la puntuación MCDA (criterios) y el Valor Esperado (escenarios) para el cálculo compuesto.",
+            help="Adjust the balance between the MCDA score (criteria) and Expected Value (scenarios) for the composite calculation.",
             key="composite_weight_slider"
         )
-        st.caption(f"MCDA: **{mcda_weight_pct}%** | Escenarios (EV): **{100 - mcda_weight_pct}%**")
+        st.caption(f"MCDA: **{mcda_weight_pct}%** | Scenarios (EV): **{100 - mcda_weight_pct}%**")
 
     # Composite ranking table
     st.markdown("")
-    st.markdown("**Ranking Compuesto**")
+    st.markdown("**Composite Ranking**")
     
     combined_sorted = sorted(combined_data, key=lambda x: x["composite"], reverse=True)
     
     ranking_df = pd.DataFrame([{
-        "Alternativa": d["name"],
+        "Alternative": d["name"],
         "MCDA": d["mcda"],
         f"EV (0-5)": d["ev_scaled"],
-        "Incertidumbre": d["uncertainty"],
-        "Compuesto": d["composite"]
+        "Uncertainty": d["uncertainty"],
+        "Composite": d["composite"]
     } for d in combined_sorted])
     
     st.dataframe(
         ranking_df.style.format({
             "MCDA": "{:.2f}",
             "EV (0-5)": "{:.2f}",
-            "Incertidumbre": "{:.0f}",
-            "Compuesto": "{:.2f}"
+            "Uncertainty": "{:.0f}",
+            "Composite": "{:.2f}"
         }),
         width="stretch"
     )
     
     winner = combined_sorted[0]
-    st.success(f"🏆 **Recomendación**: {winner['name']} (Compuesto: {winner['composite']:.2f})")
-    st.caption(f"Compuesto = {mcda_weight_pct}% MCDA + {100-mcda_weight_pct}% EV. Escala 0–5.")
+    st.success(f"🏆 **Recommendation**: {winner['name']} (Composite: {winner['composite']:.2f})")
+    st.caption(f"Composite = {mcda_weight_pct}% MCDA + {100-mcda_weight_pct}% EV. Scale 0–5.")
 
 
 # ── Smooth mixture distribution ───────────────────────────────────
@@ -1115,8 +1115,8 @@ def _render_mixture_distribution(alts):
     trees_data = sorted(trees_data, key=lambda d: order_index.get(d["name"], 10_000))
 
     st.markdown("---")
-    st.markdown("### 📈 Distribuciones de probabilidad")
-    st.caption("Vista consolidada: un solo eje X (0-10) y bandas verticales por alternativa.")
+    st.markdown("### 📈 Probability distributions")
+    st.caption("Consolidated view: a single X-axis (0-10) and vertical bands per alternative.")
 
     x = np.linspace(0.0, 10.0, 400)
 
@@ -1176,8 +1176,8 @@ def _render_mixture_distribution(alts):
             fillcolor=_hex_to_rgba(color, 0.18),
             hovertemplate=(
                 f"<b>{td['name']}</b><br>"
-                "Puntuación: %{x:.2f}<br>"
-                "Densidad (escalada): %{customdata:.3f}<extra></extra>"
+                "Score: %{x:.2f}<br>"
+                "Density (scaled): %{customdata:.3f}<extra></extra>"
             ),
             customdata=density_scaled,
             showlegend=False,
@@ -1216,13 +1216,13 @@ def _render_mixture_distribution(alts):
         plot_bgcolor="white",
         showlegend=False,
         xaxis=dict(
-            title="Puntuación (0-10)",
+            title="Score (0-10)",
             range=[0, 10],
             dtick=1,
             showgrid=False,
         ),
         yaxis=dict(
-            title="Alternativa",
+            title="Alternative",
             tickmode="array",
             tickvals=alt_tickvals,
             ticktext=alt_ticktext,
@@ -1239,4 +1239,4 @@ def _render_mixture_distribution(alts):
         key="mixture_distribution_chart_multi_axis",
     )
 
-    st.caption("💎 Cada fila muestra la distribución de una alternativa y su EV sobre la escala 0–10.")
+    st.caption("💎 Each row shows one alternative's distribution and EV on the 0–10 scale.")
