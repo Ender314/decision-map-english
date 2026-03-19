@@ -85,7 +85,7 @@ def create_decision_matrix_chart(combined_data: list, alt_colors: dict = None) -
                 f"<b>{item['name']}</b><br>"
                 f"MCDA: {item['mcda']:.2f}<br>"
                 f"EV: {item['ev']:.2f}<br>"
-                f"Compuesto: {item['composite']:.2f}"
+                f"Composite: {item['composite']:.2f}"
                 "<extra></extra>"
             )
         ))
@@ -95,17 +95,17 @@ def create_decision_matrix_chart(combined_data: list, alt_colors: dict = None) -
     fig.add_vline(x=2.5, line_dash="dash", line_color="#ccc", opacity=0.5)
     
     # Quadrant labels
-    fig.add_annotation(x=1.25, y=4.5, text="Alto potencial", showarrow=False, font=dict(size=9, color="#888"))
-    fig.add_annotation(x=3.75, y=4.5, text="✓ Óptimo", showarrow=False, font=dict(size=10, color="#2e7d32"))
-    fig.add_annotation(x=1.25, y=0.5, text="Evitar", showarrow=False, font=dict(size=9, color="#888"))
-    fig.add_annotation(x=3.75, y=0.5, text="Seguro limitado", showarrow=False, font=dict(size=9, color="#888"))
+    fig.add_annotation(x=1.25, y=4.5, text="High potential", showarrow=False, font=dict(size=9, color="#888"))
+    fig.add_annotation(x=3.75, y=4.5, text="✓ Optimal", showarrow=False, font=dict(size=10, color="#2e7d32"))
+    fig.add_annotation(x=1.25, y=0.5, text="Avoid", showarrow=False, font=dict(size=9, color="#888"))
+    fig.add_annotation(x=3.75, y=0.5, text="Limited upside", showarrow=False, font=dict(size=9, color="#888"))
     
     fig.update_layout(
         height=350,
         margin=dict(l=50, r=20, t=30, b=50),
         showlegend=False,
-        xaxis=dict(title="Puntuación MCDA", range=[0, 5.2], showgrid=False, dtick=1),
-        yaxis=dict(title="Valor Esperado", range=[0, 5.2], showgrid=False, dtick=1),
+        xaxis=dict(title="MCDA Score", range=[0, 5.2], showgrid=False, dtick=1),
+        yaxis=dict(title="Expected Value", range=[0, 5.2], showgrid=False, dtick=1),
         plot_bgcolor="white"
     )
     
@@ -146,7 +146,7 @@ def render_resultados_tab():
     prioridad_names = [p["text"].strip() for p in st.session_state.priorities if p["text"].strip()]
     
     if not alt_names or not prioridad_names:
-        st.info("💡 **Resumen ejecutivo disponible** una vez que hayas definido **Alternativas** y **Prioridades**")
+        st.info("💡 **Executive summary available** once you define **Alternatives** and **Priorities**")
         return
     
     # Get disqualified alternatives (due to No Negociables)
@@ -253,11 +253,11 @@ def render_resultados_tab():
     if disqualified_alts:
         num_qualified = len(alt_names) - len(disqualified_alts)
         if num_qualified == 0:
-            st.error("⚠️ **Todas las alternativas están descalificadas** por no cumplir los No Negociables. No hay recomendación disponible.")
-            with st.expander("Ver alternativas descalificadas"):
+            st.error("⚠️ **All alternatives are disqualified** for failing the Non-Negotiables. No recommendation is available.")
+            with st.expander("View disqualified alternatives"):
                 for alt_name, failed_constraints in disqualified_alts.items():
                     alt_text = next((a["text"] for a in st.session_state.alts if a["id"] == alt_name), alt_name)
-                    st.markdown(f"- **{alt_text}**: No cumple *{', '.join(failed_constraints)}*")
+                    st.markdown(f"- **{alt_text}**: Does not satisfy *{', '.join(failed_constraints)}*")
             return
     
     # ===========================================
@@ -282,7 +282,7 @@ def render_resultados_tab():
             badge_color = color_map.get(r_label, "#718096")
             return f"""<span style="background: {badge_color}; color: white; padding: 0.3rem 0.8rem; 
                              border-radius: 20px; font-size: 0.85rem;">
-                    {robustness['emoji']} {r_label} — Robustez {robustness['robustness_pct']}%
+                    {robustness['emoji']} {r_label} — Robustness {robustness['robustness_pct']}%
                 </span>"""
         return ""
     
@@ -293,10 +293,10 @@ def render_resultados_tab():
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
                     padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
-            <p style="color: #aaa; margin: 0; font-size: 0.9rem;">ALTERNATIVA RECOMENDADA</p>
+            <p style="color: #aaa; margin: 0; font-size: 0.9rem;">RECOMMENDED ALTERNATIVE</p>
             <h1 style="color: #fff; margin: 0.5rem 0; font-size: 2.2rem;">🏆 {winner['name']}</h1>
             <p style="color: #83c9ff; margin: 0; font-size: 1.1rem;">
-                Puntuación Compuesta: <strong>{winner['composite']:.2f}</strong> / 5.00
+                Composite Score: <strong>{winner['composite']:.2f}</strong> / 5.00
             </p>
             <div style="margin-top: 1rem;">{badge}</div>
         </div>
@@ -309,16 +309,16 @@ def render_resultados_tab():
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
                     padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center;">
-            <p style="color: #aaa; margin: 0; font-size: 0.9rem;">ALTERNATIVA RECOMENDADA (MCDA)</p>
+            <p style="color: #aaa; margin: 0; font-size: 0.9rem;">RECOMMENDED ALTERNATIVE (MCDA)</p>
             <h1 style="color: #fff; margin: 0.5rem 0; font-size: 2.2rem;">🏆 {winner['alternativa']}</h1>
             <p style="color: #83c9ff; margin: 0; font-size: 1.1rem;">
-                Puntuación MCDA: <strong>{winner['score']:.2f}</strong> / 5.00
+                MCDA Score: <strong>{winner['score']:.2f}</strong> / 5.00
             </p>
             <div style="margin-top: 1rem;">{badge}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.warning("⚠️ Completa la **Evaluación** para ver la recomendación final.")
+        st.warning("⚠️ Complete the **Evaluation** to see the final recommendation.")
     
     # ===========================================
     # KEY METRICS ROW
@@ -333,25 +333,25 @@ def render_resultados_tab():
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Relevancia", f"{int(relevance_pct)}%")
+        st.metric("Relevance", f"{int(relevance_pct)}%")
     with col2:
-        st.metric("Alternativas", len(alt_names))
+        st.metric("Alternatives", len(alt_names))
     with col3:
-        st.metric("Criterios", len(prioridad_names))
+        st.metric("Criteria", len(prioridad_names))
     with col4:
         tiempo = st.session_state.get("tiempo", "—")
-        st.metric("Tiempo", tiempo)
+        st.metric("Time", tiempo)
     
     # Decision context
     decision_text = st.session_state.get("decision", "").strip()
     objetivo_text = st.session_state.get("objetivo", "").strip()
     
     if decision_text or objetivo_text:
-        with st.expander("📋 Contexto de la Decisión", expanded=False):
+        with st.expander("📋 Decision Context", expanded=False):
             if decision_text:
-                st.markdown(f"**Decisión:** {decision_text}")
+                st.markdown(f"**Decision:** {decision_text}")
             if objetivo_text:
-                st.markdown(f"**Objetivo:** {objetivo_text}")
+                st.markdown(f"**Objective:** {objetivo_text}")
     
     st.markdown("---")
     
@@ -359,7 +359,7 @@ def render_resultados_tab():
     # MAIN VISUALIZATIONS
     # ===========================================
     
-    st.markdown("## 📊 Análisis Visual")
+    st.markdown("## 📊 Visual Analysis")
     
     if combined_data:
         # Generate consistent colors for all alternatives
@@ -383,15 +383,15 @@ def render_resultados_tab():
                         trace.line.color = alt_colors[alt_name]
                 fig_radar.update_layout(height=350, margin=dict(l=30, r=30, t=30, b=30))
                 st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
-                st.caption("Top 3 alternativas por criterio")
+                st.caption("Top 3 alternatives by criterion")
             except Exception:
-                st.info("💡 Radar no disponible")
+                st.info("💡 Radar chart not available")
         
         with col2:
             st.markdown("####")
             fig_matrix = create_decision_matrix_chart(combined_data, alt_colors)
             st.plotly_chart(fig_matrix, width="stretch", config={"displayModeBar": False})
-            st.caption("Tamaño/transparencia = incertidumbre")
+            st.caption("Size/transparency = uncertainty")
     
     elif ranking_list:
         # Only MCDA available - show radar chart full width
@@ -409,15 +409,15 @@ def render_resultados_tab():
                     trace.line.color = alt_colors[alt_name]
             st.plotly_chart(fig_radar, width="stretch", config={"displayModeBar": False})
         except Exception:
-            st.info("💡 Complete la evaluación para ver el gráfico radar")
+            st.info("💡 Complete the evaluation to view the radar chart")
         
-        st.info("💡 Completa los **Escenarios** para ver la Matriz de Decisión combinada")
+        st.info("💡 Complete **Scenarios** to view the combined Decision Matrix")
     
     # Stacked bar chart: composite contribution by source (MCDA vs Escenarios)
     if combined_sorted:
         st.markdown("###")
         st.caption(
-            f"Ranking compuesto con pesos activos: MCDA **{mcda_weight_pct}%** + Escenarios **{100 - mcda_weight_pct}%**."
+            f"Composite ranking with active weights: MCDA **{mcda_weight_pct}%** + Scenarios **{100 - mcda_weight_pct}%**."
         )
 
         rows = list(reversed(combined_sorted))
@@ -435,7 +435,7 @@ def render_resultados_tab():
             marker_color='#4f46e5',
             hovertemplate=(
                 "<b>%{y}</b><br>"
-                "Contribución MCDA: %{x:.2f}<extra></extra>"
+                "MCDA contribution: %{x:.2f}<extra></extra>"
             ),
         ))
 
@@ -443,13 +443,13 @@ def render_resultados_tab():
             y=labels,
             x=ev_components,
             orientation='h',
-            name='Escenarios',
+            name='Scenarios',
             marker_color='#0ea5a4',
             text=[f"{total:.2f}" for total in totals],
             textposition='outside',
             hovertemplate=(
                 "<b>%{y}</b><br>"
-                "Contribución Escenarios: %{x:.2f}<extra></extra>"
+                "Scenario contribution: %{x:.2f}<extra></extra>"
             ),
         ))
 
@@ -461,7 +461,7 @@ def render_resultados_tab():
             margin=dict(l=10, r=60, t=10, b=10),
             showlegend=True,
             xaxis=dict(
-                title='Puntuación compuesta',
+                title='Composite score',
                 range=[0, max_total * 1.25],
                 showgrid=True,
                 gridcolor='#eee'
@@ -515,7 +515,7 @@ def render_resultados_tab():
     
     if robustness and robustness["baseline_winner"]:
         st.markdown("---")
-        st.markdown("## 🛡️ Índice de Robustez")
+        st.markdown("## 🛡️ Robustness Index")
         
         r_pct = robustness["robustness_pct"]
         r_emoji = robustness["emoji"]
@@ -534,31 +534,31 @@ def render_resultados_tab():
                 <div style="font-size: 2.5em; font-weight: 700; color: {color};">{r_pct}%</div>
                 <div style="font-size: 1.1em; font-weight: 600;">{r_emoji} {r_label}</div>
                 <div style="font-size: 0.8em; color: #888; margin-top: 0.3rem;">
-                    ¿Cambia el top 1 si perturbamos los datos?
+                    Does the top choice change if we perturb the data?
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col_r2:
             st.markdown(f"""
-            | Test | Estabilidad |
+            | Test | Stability |
             |------|------------|
-            | Pesos ±20% | **{robustness['weight_stability']}%** |
-            | Puntuaciones ±1 | **{robustness['score_stability']}%** |
-            | Combinado | **{robustness['combined_stability']}%** |
+            | Weights ±20% | **{robustness['weight_stability']}%** |
+            | Scores ±1 | **{robustness['score_stability']}%** |
+            | Combined | **{robustness['combined_stability']}%** |
             """)
             
             if robustness["dominant_criterion"]:
                 if robustness["dominant_removal_flips"]:
-                    st.warning(f"⚠️ Si eliminamos el criterio dominante (**{robustness['dominant_criterion']}**), el ganador cambia a *{robustness['dominant_removal_new_winner']}*")
+                    st.warning(f"⚠️ If we remove the dominant criterion (**{robustness['dominant_criterion']}**), the winner changes to *{robustness['dominant_removal_new_winner']}*")
                 else:
-                    st.success(f"✓ Incluso sin el criterio dominante (**{robustness['dominant_criterion']}**), **{robustness['baseline_winner']}** sigue ganando")
+                    st.success(f"✓ Even without the dominant criterion (**{robustness['dominant_criterion']}**), **{robustness['baseline_winner']}** still wins")
         
         # Actionable guidance based on label
         if r_label == "Frágil":
-            st.error("🔴 **La recomendación es inestable.** Antes de decidir: recopila más información, valida las puntuaciones con datos reales, o reduce la incertidumbre en los criterios clave.")
+            st.error("🔴 **The recommendation is unstable.** Before deciding: gather more information, validate the scores with real data, or reduce uncertainty in key criteria.")
         elif r_label == "Moderado":
-            st.info("🟡 **La recomendación es sensible a los supuestos.** Revisa si las puntuaciones y pesos reflejan bien la realidad antes de comprometerte.")
+            st.info("🟡 **The recommendation is sensitive to assumptions.** Review whether the scores and weights reflect reality before committing.")
     
     # ===========================================
     # DATA-DRIVEN INSIGHTS
@@ -576,11 +576,11 @@ def render_resultados_tab():
         gap = winner["composite"] - runner_up["composite"]
         
         if gap > 0.5:
-            insights.append(f"🏆 **{winner['name']}** destaca claramente con una ventaja de **{gap:.2f}** puntos sobre {runner_up['name']}")
+            insights.append(f"🏆 **{winner['name']}** stands out clearly with a lead of **{gap:.2f}** points over {runner_up['name']}")
         elif gap > 0.2:
-            insights.append(f"🥇 **{winner['name']}** lidera con ventaja moderada ({gap:.2f} pts) sobre {runner_up['name']}")
+            insights.append(f"🥇 **{winner['name']}** leads with a moderate advantage ({gap:.2f} pts) over {runner_up['name']}")
         else:
-            insights.append(f"⚖️ **{winner['name']}** y **{runner_up['name']}** están muy igualados (diferencia: {gap:.2f}). Considerar factores cualitativos adicionales")
+            insights.append(f"⚖️ **{winner['name']}** and **{runner_up['name']}** are very close (difference: {gap:.2f}). Consider additional qualitative factors")
     
     # Insight 2: Uncertainty analysis
     if combined_sorted:
@@ -589,10 +589,10 @@ def render_resultados_tab():
         
         if high_uncertainty:
             names = ", ".join([d["name"] for d in high_uncertainty])
-            insights.append(f"⚠️ **Alta incertidumbre** en: {names}. Considerar mitigación de riesgos")
+            insights.append(f"⚠️ **High uncertainty** in: {names}. Consider risk mitigation")
         
         if low_uncertainty and combined_sorted[0]["name"] in [d["name"] for d in low_uncertainty]:
-            insights.append(f"✅ La alternativa recomendada tiene **baja incertidumbre**, lo que aumenta la confianza en el resultado")
+            insights.append(f"✅ The recommended alternative has **low uncertainty**, which increases confidence in the result")
     
     # Insight 3: MCDA vs EV alignment
     if combined_sorted and ranking_list:
@@ -601,15 +601,15 @@ def render_resultados_tab():
         ev_winner = max(combined_sorted, key=lambda x: x["ev_scaled"])["name"]
         
         if mcda_winner != ev_winner:
-            insights.append(f"🔄 **Divergencia detectada**: MCDA favorece a *{mcda_winner}*, pero el valor esperado (EV) favorece a *{ev_winner}*. Revisar supuestos de probabilidad")
+            insights.append(f"🔄 **Divergence detected**: MCDA favors *{mcda_winner}*, but expected value (EV) favors *{ev_winner}*. Review probability assumptions")
         else:
-            insights.append(f"✓ **Consistencia**: El análisis MCDA y de escenarios coinciden en recomendar *{mcda_winner}*")
+            insights.append(f"✓ **Consistency**: MCDA and scenario analysis agree in recommending *{mcda_winner}*")
     
     # Insight 4: Relevance-based
     if relevance_pct > 80:
-        insights.append("🚨 **Decisión crítica**: El alto impacto justifica invertir tiempo adicional en validar los datos")
+        insights.append("🚨 **Critical decision**: The high impact justifies investing additional time to validate the data")
     elif relevance_pct > 50:
-        insights.append("📌 **Decisión importante**: Asegurar alineación con stakeholders clave antes de proceder")
+        insights.append("📌 **Important decision**: Ensure alignment with key stakeholders before proceeding")
     
     # Insight 5: Criteria concentration
     if crit:
@@ -617,23 +617,23 @@ def render_resultados_tab():
         max_weight = max(weight_map.values()) if weight_map else 0
         if max_weight > 0.4:
             dominant = max(weight_map, key=weight_map.get)
-            insights.append(f"📊 El criterio **{dominant}** domina el análisis ({max_weight:.0%}). Verificar si refleja las prioridades reales")
+            insights.append(f"📊 The criterion **{dominant}** dominates the analysis ({max_weight:.0%}). Verify that it reflects the real priorities")
     
     # Insight 6: Robustness
     if robustness and robustness["baseline_winner"]:
         r_label = robustness["label"]
         if r_label == "frágil":
-            insights.append(f"🔴 **Resultado frágil** ({robustness['robustness_pct']}%): la recomendación de *{robustness['baseline_winner']}* cambia fácilmente al perturbar los datos. Necesitas más información o validar supuestos")
+            insights.append(f"🔴 **Fragile result** ({robustness['robustness_pct']}%): the recommendation for *{robustness['baseline_winner']}* changes easily when the data is perturbed. You need more information or validated assumptions")
         elif r_label == "moderado":
-            insights.append(f"🟡 **Resultado moderado** ({robustness['robustness_pct']}%): la recomendación de *{robustness['baseline_winner']}* es sensible a cambios en pesos o puntuaciones")
+            insights.append(f"🟡 **Moderate result** ({robustness['robustness_pct']}%): the recommendation for *{robustness['baseline_winner']}* is sensitive to changes in weights or scores")
         else:
-            insights.append(f"🟢 **Resultado robusto** ({robustness['robustness_pct']}%): *{robustness['baseline_winner']}* se mantiene como ganador incluso perturbando los datos")
+            insights.append(f"🟢 **Robust result** ({robustness['robustness_pct']}%): *{robustness['baseline_winner']}* remains the winner even when the data is perturbed")
     
     if insights:
         for insight in insights:
             st.markdown(f"- {insight}")
     else:
-        st.info("💡 Completa más secciones para generar insights automatizados")
+        st.info("💡 Complete more sections to generate automated insights")
     
     # ===========================================
     # CONTEXTO DE LA DECISIÓN (merged reference section)
@@ -655,32 +655,32 @@ def render_resultados_tab():
 
     if has_context:
         # st.markdown("---")
-        with st.expander("📋 Contexto de la Decisión", expanded=False):
-            # Row 1: Objetivo + Estrategia
+        with st.expander("📋 Decision Context", expanded=False):
+            # Row 1: Objective + Strategy
             if objetivo or estrategia:
                 ctx_cols = st.columns(2 if (objetivo and estrategia) else 1)
                 col_idx = 0
                 if objetivo:
                     with ctx_cols[col_idx]:
-                        st.markdown("**🎯 Objetivo**")
+                        st.markdown("**🎯 Objective**")
                         st.markdown(objetivo)
                     col_idx += 1
                 if estrategia:
                     with ctx_cols[col_idx]:
-                        st.markdown("**🏢 Estrategia**")
+                        st.markdown("**🏢 Strategy**")
                         st.markdown(estrategia)
 
             # Row 2: Past Decisions
             if past_decisions:
                 st.markdown("---")
-                st.markdown("**📚 Decisiones Similares Pasadas**")
+                st.markdown("**📚 Similar Past Decisions**")
                 for d in past_decisions[:3]:
                     st.markdown(f"- **{d['decision']}**")
                     details = []
                     if d.get("results", "").strip():
-                        details.append(f"Resultado: {d['results'].strip()}")
+                        details.append(f"Outcome: {d['results'].strip()}")
                     if d.get("lessons", "").strip():
-                        details.append(f"Lección: {d['lessons'].strip()}")
+                        details.append(f"Lesson: {d['lessons'].strip()}")
                     if details:
                         st.caption(" · ".join(details))
 
@@ -690,7 +690,7 @@ def render_resultados_tab():
                 kpi_stake_cols = st.columns(2)
                 with kpi_stake_cols[0]:
                     if valid_kpis:
-                        st.markdown("**📊 KPIs Relevantes**")
+                        st.markdown("**📊 Relevant KPIs**")
                         for kpi in valid_kpis[:5]:
                             value_str = str(kpi.get("value", "N/A"))
                             unit_str = f" {kpi.get('unit', '')}" if kpi.get("unit", "").strip() else ""
@@ -709,7 +709,7 @@ def render_resultados_tab():
             # Row 4: Timeline
             if timeline_items:
                 st.markdown("---")
-                st.markdown("**📅 Timeline Clave**")
+                st.markdown("**📅 Key Timeline**")
                 for t in timeline_items[:5]:
                     date_str = t["date"].strftime("%d/%m/%Y") if t.get("date") else ""
                     st.markdown(f"- **{t['event']}** {f'— {date_str}' if date_str else ''}")
@@ -721,12 +721,12 @@ def render_resultados_tab():
                 col_idx = 0
                 if quant_notes:
                     with note_cols[col_idx]:
-                        st.markdown("**📝 Notas Cuantitativas**")
+                        st.markdown("**📝 Quantitative Notes**")
                         st.caption(quant_notes)
                     col_idx += 1
                 if qual_notes:
                     with note_cols[col_idx]:
-                        st.markdown("**📝 Notas Cualitativas**")
+                        st.markdown("**📝 Qualitative Notes**")
                         st.caption(qual_notes)
 
     st.markdown("---")
@@ -735,31 +735,31 @@ def render_resultados_tab():
     # RANKING TABLES
     # ===========================================
     
-    st.markdown("## 🏅 Rankings y Datos")
+    st.markdown("## 🏅 Rankings and Data")
     
     if combined_sorted:
         # Row 1: MCDA ranking + EV ranking side by side
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Ranking MCDA")
+            st.markdown("#### MCDA Ranking")
             mcda_df = pd.DataFrame([{
                 "#": i + 1,
-                "Alternativa": d["name"],
-                "Puntuación": d["mcda"]
+                "Alternative": d["name"],
+                "Score": d["mcda"]
             } for i, d in enumerate(sorted(combined_sorted, key=lambda x: x["mcda"], reverse=True))])
             
             st.dataframe(
-                mcda_df.style.format({"Puntuación": "{:.2f}"}),
+                mcda_df.style.format({"Score": "{:.2f}"}),
                 hide_index=True,
                 width="stretch"
             )
         
         with col2:
-            st.markdown("#### Ranking Valor Esperado")
+            st.markdown("#### Expected Value Ranking")
             ev_df = pd.DataFrame([{
                 "#": i + 1,
-                "Alternativa": d["name"],
+                "Alternative": d["name"],
                 "EV": d["ev_scaled"]
             } for i, d in enumerate(sorted(combined_sorted, key=lambda x: x["ev_scaled"], reverse=True))])
             
@@ -773,31 +773,31 @@ def render_resultados_tab():
         col3, col4 = st.columns(2)
         
         with col3:
-            st.markdown("#### Ranking Compuesto")
+            st.markdown("#### Composite Ranking")
             ranking_df = pd.DataFrame([{
                 "#": i + 1,
-                "Alternativa": d["name"],
+                "Alternative": d["name"],
                 "MCDA": d["mcda"],
                 "EV": d["ev_scaled"],
-                "Compuesto": d["composite"]
+                "Composite": d["composite"]
             } for i, d in enumerate(combined_sorted)])
             
             st.dataframe(
-                ranking_df.style.format({"MCDA": "{:.2f}", "EV": "{:.2f}", "Compuesto": "{:.2f}"}),
+                ranking_df.style.format({"MCDA": "{:.2f}", "EV": "{:.2f}", "Composite": "{:.2f}"}),
                 hide_index=True,
                 width="stretch"
             )
         
         with col4:
-            st.markdown("#### Pesos de Prioridades")
+            st.markdown("#### Priority Weights")
             weight_map = normalize_weights(crit)
             weights_df = pd.DataFrame([{
-                "Prioridad": c["name"],
-                "Peso": weight_map.get(c["name"], 0)
+                "Priority": c["name"],
+                "Weight": weight_map.get(c["name"], 0)
             } for c in crit])
             
             st.dataframe(
-                weights_df.style.format({"Peso": "{:.1%}"}),
+                weights_df.style.format({"Weight": "{:.1%}"}),
                 hide_index=True,
                 width="stretch"
             )
@@ -807,29 +807,29 @@ def render_resultados_tab():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Ranking MCDA")
+            st.markdown("#### MCDA Ranking")
             ranking_df = pd.DataFrame([{
                 "#": i + 1,
-                "Alternativa": item["alternativa"],
-                "Puntuación": item["score"]
+                "Alternative": item["alternativa"],
+                "Score": item["score"]
             } for i, item in enumerate(ranking_list)])
             
             st.dataframe(
-                ranking_df.style.format({"Puntuación": "{:.2f}"}),
+                ranking_df.style.format({"Score": "{:.2f}"}),
                 hide_index=True,
                 width="stretch"
             )
         
         with col2:
-            st.markdown("#### Pesos de Prioridades")
+            st.markdown("#### Priority Weights")
             weight_map = normalize_weights(crit)
             weights_df = pd.DataFrame([{
-                "Prioridad": c["name"],
-                "Peso": weight_map.get(c["name"], 0)
+                "Priority": c["name"],
+                "Weight": weight_map.get(c["name"], 0)
             } for c in crit])
             
             st.dataframe(
-                weights_df.style.format({"Peso": "{:.1%}"}),
+                weights_df.style.format({"Weight": "{:.1%}"}),
                 hide_index=True,
                 width="stretch"
             )
@@ -840,7 +840,7 @@ def render_resultados_tab():
     no_neg_scores = st.session_state.get("no_negociables_scores", {})
     
     if valid_no_neg:
-        st.markdown("#### 🚫 No Negociables")
+        st.markdown("#### 🚫 Non-Negotiables")
         
         # Build table: rows = alternatives, columns = constraints
         no_neg_rows = []
@@ -848,7 +848,7 @@ def render_resultados_tab():
             alt_name = alt["text"].strip()
             if not alt_name:
                 continue
-            row = {"Alternativa": alt_name}
+            row = {"Alternative": alt_name}
             alt_scores_nn = no_neg_scores.get(alt["id"], {})
             all_pass = True
             for constraint in valid_no_neg:
@@ -856,7 +856,7 @@ def render_resultados_tab():
                 row[constraint["text"]] = "✅" if passes else "❌"
                 if not passes:
                     all_pass = False
-            row["Estado"] = "Cualificada" if all_pass else "Descalificada"
+            row["Status"] = "Qualified" if all_pass else "Disqualified"
             no_neg_rows.append(row)
         
         if no_neg_rows:
@@ -874,17 +874,17 @@ def render_resultados_tab():
     <div style="background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); 
                 padding: 1.5rem; border-radius: 12px; text-align: center; margin: 1rem 0;">
         <p style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 600;">
-            📥 ¿Listo para compartir tu análisis?
+            📥 Ready to share your analysis?
         </p>
         <p style="color: #bee3f8; margin: 0.5rem 0 0 0; font-size: 0.9rem;">
-            Exporta en JSON o Excel desde el menú ⚙️ para guardar o presentar a tu equipo
+            Export as JSON or Excel from the ⚙️ menu to save or present it to your team
         </p>
     </div>
     """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("⚙️ Abrir opciones de exportación", width="stretch", type="primary"):
+        if st.button("⚙️ Open export options", width="stretch", type="primary"):
             st.session_state["show_sidebar"] = True
             st.rerun()
     
@@ -897,7 +897,7 @@ def render_resultados_tab():
                        background:#fafafa; cursor:pointer; font-size:0.9rem; color:#444;
                        display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;"
                 onmouseover="this.style.background='#eee'" onmouseout="this.style.background='#fafafa'">
-            🖨️ Imprimir / Guardar PDF
+            🖨️ Print / Save PDF
         </button>
         <script>
             document.getElementById('printBtn').addEventListener('click', function() {
@@ -911,16 +911,16 @@ def render_resultados_tab():
     # ===========================================
 
     st.markdown("---")
-    st.markdown("### 🪞 Observa tus emociones")
+    st.markdown("### 🪞 Observe Your Emotions")
     st.caption(
-        "Las emociones llevan información sobre valores y prioridades que a menudo son inconscientes. "
-        "Parar y observar cómo te sientes ante estos resultados puede ser muy valioso para tu decisión."
+        "Emotions carry information about values and priorities that are often unconscious. "
+        "Pausing to notice how you feel about these results can be very valuable for your decision."
     )
 
     emotion_notes = st.text_area(
-        "¿Cómo te sientes al ver estos resultados?",
+        "How do you feel when you see these results?",
         value=st.session_state.get("emotion_notes", ""),
-        placeholder="Escribe libremente lo que sientes, sin filtrar...",
+        placeholder="Write freely about what you feel, without filtering...",
         height=120,
         key="emotion_notes_widget",
     )

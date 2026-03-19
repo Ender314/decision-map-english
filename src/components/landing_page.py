@@ -139,15 +139,15 @@ def render_landing_page():
 
     # Hero Section
     st.markdown(f'<h1 class="main-header">{APP_ICON} {APP_NAME}</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Turn analysis paralysis into clarity <br> Turn clarity into progress</p>', unsafe_allow_html=True)
+    # st.markdown('<p class="subtitle">Turn analysis paralysis into clarity <br> Turn clarity into progress</p>', unsafe_allow_html=True)
+    # st.markdown('<p class="subtitle">Turn analysis paralysis into clarity <br> Turn clarity into progress</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Make high-stakes decisions with confidence in minutes — not weeks</p>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown(f"""
         <div style="text-align: center; font-size: 1.1rem; line-height: 1.6; margin: 2rem 0;">
-            <strong>Stop making critical business decisions based on intuition alone.</strong><br>
-            {APP_NAME} provides a structured analytical framework that transforms
-            high-stakes corporate decisions into confident, data-backed choices.
+            <strong>Structure complex choices, quantify trade-offs and reach a clear path forward in one focused session.
         </div>
         """, unsafe_allow_html=True)
 
@@ -158,26 +158,32 @@ def render_landing_page():
     with col1:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">⏱️</h2>
-            <p style="margin: 0;">From days of deliberation<br>to hours of clarity</p>
+            <h2 style="margin: 0; color: white;">⚡</h2>
+            <p style="margin: 0;">Reach clarity<br>in ~10 minutes</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">🎯</h2>
-            <p style="margin: 0;">Clearer decisions<br>in less time</p>
+            <h2 style="margin: 0; color: white;">⚖️</h2>
+            <p style="margin: 0;">Compare alternatives objectively<br>with weighted criteria</p>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown("""
         <div class="stats-container">
-            <h2 style="margin: 0; color: white;">5+</h2>
-            <p style="margin: 0;">Visualizations<br>to understand your decision</p>
+            <h2 style="margin: 0; color: white;">🔍</h2>
+            <p style="margin: 0;">Identify risks and blind spots<br>before committing</p>
         </div>
         """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="text-align: center; margin-top: 1rem; color: #666; font-size: 0.95rem;">
+        <em>Based on behavioural science & decision theory.</em>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Problem Statement
     st.markdown("---")

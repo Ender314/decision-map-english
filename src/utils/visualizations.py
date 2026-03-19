@@ -50,6 +50,7 @@ def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
     Create the temporal impact assessment chart.
     
     Args:
+        df: DataFrame with Time Horizon, Impact, and Impact_num columns
         df: DataFrame with Plazo, Impacto, and Impacto_num columns
         relevance_pct: Relevance percentage for color calculation
         
@@ -67,8 +68,8 @@ def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
         line=dict(shape="spline", color=line_color, width=3),
         fill="tozeroy", 
         fillcolor=fill_color,
-        hovertemplate="Plazo: %{x}<br>Impacto: %{customdata}<extra></extra>",
-        name="Relevancia",
+        hovertemplate="Time horizon: %{x}<br>Impact: %{customdata}<extra></extra>",
+        name="Relevance",
         marker=dict(size=10)
     ))
     
@@ -76,13 +77,13 @@ def create_impact_chart(df: pd.DataFrame, relevance_pct: float) -> go.Figure:
         margin=dict(l=70, r=20, t=20, b=20), 
         height=360,
         xaxis=dict(
-            title="Plazo", 
+            title="Time horizon", 
             categoryorder="array", 
             categoryarray=PLAZO_ORDER, 
             zeroline=False
         ),
         yaxis=dict(
-            title="Impacto", 
+            title="Impact", 
             range=[0, YMAX], 
             autorange=False, 
             fixedrange=True,
@@ -116,12 +117,12 @@ def create_mcda_ranking_chart(ranking: pd.Series) -> go.Figure:
         y=ranking.values.tolist(),
         text=[f"{v:.2f}" for v in ranking.values],
         textposition="auto",
-        name="Puntuación"
+        name="Score"
     )
     fig.update_layout(
         margin=dict(l=20, r=20, t=20, b=20),
-        xaxis_title="Alternativa",
-        yaxis_title="Puntuación ponderada (0–5)",
+        xaxis_title="Alternative",
+        yaxis_title="Weighted score (0–5)",
         height=320,
         showlegend=False,
     )
@@ -202,30 +203,30 @@ def create_timeline_chart(timeline_items: List[Dict[str, Any]]) -> go.Figure:
     for item in valid_items:
         event_date = item["date"]
         timeline_data.append({
-            "Evento": item["event"], 
-            "Fecha": event_date,
+            "Event": item["event"], 
+            "Date": event_date,
         })
     
     timeline_df = pd.DataFrame(timeline_data)
-    timeline_df = timeline_df.sort_values("Fecha")
+    timeline_df = timeline_df.sort_values("Date")
     
     # Create timeline chart
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=timeline_df["Fecha"],
+        x=timeline_df["Date"],
         y=[1] * len(timeline_df),  # All events on same horizontal line
         mode="markers+text",
         marker=dict(size=12, color="blue"),
-        text=timeline_df["Evento"],
+        text=timeline_df["Event"],
         textposition="top center",
-        hovertemplate="<b>%{text}</b><br>Fecha: %{x}<extra></extra>",
-        name="Eventos"
+        hovertemplate="<b>%{text}</b><br>Date: %{x}<extra></extra>",
+        name="Events"
     ))
     
     fig.update_layout(
         height=200,
         margin=dict(l=20, r=20, t=40, b=20),
-        xaxis=dict(title="Fecha", type="date"),
+        xaxis=dict(title="Date", type="date"),
         yaxis=dict(visible=False, range=[0.5, 1.5]),
         showlegend=False
     )
@@ -252,14 +253,14 @@ def create_kpi_bar_chart(numeric_kpis: List[Dict[str, Any]]) -> go.Figure:
         text=[f"{k['value']}{' ' + k['unit'] if k['unit'] else ''}" for k in numeric_kpis],
         textposition='auto',
         marker_color='lightblue',
-        hovertemplate="<b>%{x}</b><br>Valor: %{y}<extra></extra>"
+        hovertemplate="<b>%{x}</b><br>Value: %{y}<extra></extra>"
     ))
     
     fig.update_layout(
         height=300,
         margin=dict(l=20, r=20, t=20, b=20),
         xaxis=dict(title="KPIs"),
-        yaxis=dict(title="Valores"),
+        yaxis=dict(title="Values"),
         showlegend=False
     )
     
@@ -351,7 +352,7 @@ def create_scenario_pert_chart(scenario_data: List[Dict[str, Any]]) -> go.Figure
             hovertemplate=(
                 f"<b>{alt_name}</b><br>"
                 f"EV: {ev:.1f}<br>"
-                f"Rango: {worst:.0f} – {best:.0f}<br>"
+                f"Range: {worst:.0f} – {best:.0f}<br>"
                 "<extra></extra>"
             ),
         ))
@@ -361,7 +362,7 @@ def create_scenario_pert_chart(scenario_data: List[Dict[str, Any]]) -> go.Figure
         height=max(250, n_alts * 110),
         margin=dict(l=10, r=60, t=10, b=40),
         xaxis=dict(
-            range=[-0.5, 10.5], title="Impacto (0–10)",
+            range=[-0.5, 10.5], title="Impact (0–10)",
             showgrid=True, gridcolor="#eee", dtick=1,
         ),
         yaxis=dict(
@@ -400,14 +401,14 @@ def create_results_ranking_chart(ranking_list: List[Dict[str, Any]]) -> go.Figur
         marker_color=colors[:len(reversed_ranking)],
         text=[f"{item['score']:.2f}" for item in reversed_ranking],
         textposition='auto',
-        hovertemplate="<b>%{y}</b><br>Puntuación: %{x:.2f}<extra></extra>"
+        hovertemplate="<b>%{y}</b><br>Score: %{x:.2f}<extra></extra>"
     ))
     
     fig.update_layout(
-        title="Puntuaciones MCDA",
+        title="MCDA Scores",
         height=max(250, len(ranking_list) * 40),
         margin=dict(l=20, r=20, t=40, b=20),
-        xaxis=dict(title="Puntuación"),
+        xaxis=dict(title="Score"),
         yaxis=dict(title=""),
         showlegend=False
     )
@@ -433,14 +434,14 @@ def create_scenario_summary_chart(scenario_data: List[Dict[str, Any]]) -> go.Fig
         marker_color='lightcoral',
         text=[f"{item['Valor Esperado']}" for item in scenario_data],
         textposition='auto',
-        hovertemplate="<b>%{x}</b><br>Valor Esperado: %{y}<extra></extra>"
+        hovertemplate="<b>%{x}</b><br>Expected Value: %{y}<extra></extra>"
     ))
     
     fig.update_layout(
         height=300,
         margin=dict(l=20, r=20, t=20, b=20),
-        xaxis=dict(title="Alternativas"),
-        yaxis=dict(title="Valor Esperado"),
+        xaxis=dict(title="Alternatives"),
+        yaxis=dict(title="Expected Value"),
         showlegend=False
     )
     
