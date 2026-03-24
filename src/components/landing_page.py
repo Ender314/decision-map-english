@@ -80,6 +80,33 @@ def render_landing_page():
             color: white;
             text-align: center;
         }
+
+        .use-case-strip {
+            text-align: center;
+            margin: 1.5rem 0 2rem 0;
+            padding: 1rem 1.25rem;
+            background: #f8f9fa;
+            color: #1f1f1f;
+            border-radius: 12px;
+        }
+
+        .use-case-strip-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: inherit;
+        }
+
+        .use-case-strip-body {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: inherit;
+        }
+
+        .stApp[data-theme="dark"] .use-case-strip {
+            background: #2d2d2d !important;
+            color: #ffffff !important;
+        }
         
         .workflow-step {
             background: var(--background-color, #ffffff);
@@ -125,14 +152,9 @@ def render_landing_page():
     """, unsafe_allow_html=True)
 
     # Navigation bar
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
-    with col3:
-        if st.button("💎 View Offer", key="nav_to_offer", help="View the Decision Mastery System offer"):
-            st.session_state["current_page"] = "offer"
-            st.query_params["page"] = "offer"  # Update URL
-            st.rerun()
-    with col4:
-        if st.button("🚀 Try Free", key="nav_to_app", help=f"Try the {APP_NAME} app"):
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🚀 Try Free", key="nav_to_app", help=f"Try the {APP_NAME} app", type="primary"):
             st.session_state["current_page"] = "app"
             st.query_params["page"] = "app"  # Update URL
             st.rerun()
@@ -150,6 +172,16 @@ def render_landing_page():
             <strong>Structure complex choices, quantify trade-offs and reach a clear path forward in one focused session.
         </div>
         """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="use-case-strip">
+        <div class="use-case-strip-body">
+            Should we hire or outsource?<br>
+            Should I launch now or wait?<br>
+            Should I accept this job offer?<br>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Key Statistics
     st.markdown("---")
@@ -497,19 +529,18 @@ def render_landing_page():
         # Action buttons - centered
         col_left, col_center, col_right = st.columns([1, 2, 1])
         with col_center:
-            # Primary CTA - Offer Page
-            if st.button("🧭 Get the Decision Mastery System - €99", key="view_offer", help="View our complete decision-making solution", type="primary", width="stretch"):
-                st.session_state["current_page"] = "offer"
-                st.query_params["page"] = "offer"  # Update URL
-                st.rerun()
-            
-            st.markdown("<div style='text-align: center; margin: 0.5rem 0; color: #666;'>o</div>", unsafe_allow_html=True)
-            
-            # Secondary CTA - Free Trial
-            if st.button("🚀 Try Demo", key="launch_app_main", help="Start your decision analysis", width="stretch"):
+            # Primary CTA - Free Trial
+            if st.button("🚀 Try Free", key="launch_app_main", help="Start your decision analysis", type="primary", width="stretch"):
                 st.session_state["current_page"] = "app"
                 st.query_params["page"] = "app"  # Update URL
                 st.rerun()
+
+        st.markdown("""
+        <div style="text-align: center; margin-top: 1rem; line-height: 1.6;">
+            <p style="margin-bottom: 0.25rem;"><strong>No spreadsheets • No coaching calls • No complex frameworks</strong></p>
+            <p style="margin-top: 0;"><em>Just guided clarity.</em></p>
+        </div>
+        """, unsafe_allow_html=True)
         
         st.markdown("""
         <div style="text-align: center; margin-top: 1rem;">
