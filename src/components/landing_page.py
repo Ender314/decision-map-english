@@ -520,7 +520,7 @@ def render_landing_page():
         st.markdown("""
         <div style="text-align: center; padding: 3rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;">
             <h2 style="color: white; margin-bottom: 1rem;">Ready to transform your decision-making?</h2>
-            <p style="font-size: 1.1rem; margin-bottom: 2rem;">Join executives who replaced guesswork with data-backed confidence.</p>
+            <p style="font-size: 1.1rem; margin-bottom: 2rem;">Join decision makers who replaced guesswork with data-backed confidence.</p>
         </div>
         """, unsafe_allow_html=True)
         
