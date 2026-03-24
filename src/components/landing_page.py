@@ -506,8 +506,8 @@ def render_landing_page():
         </div>
         
         <div class="benefit-item">
-            <h4>📈 Better Outcomes</h4>
-            <p>Systematic analysis leads to better decisions, less regret, and measurable business improvements.</p>
+            <h4>📈 Decision Improvement</h4>
+            <p>Structured analysis creates a record, helping you assess what drove the outcome. Turn each major choice into a source of learning rather than hindsight bias.</p>
         </div>
         """, unsafe_allow_html=True)
 
